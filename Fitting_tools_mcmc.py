@@ -74,7 +74,7 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
 
 def log_prior_Halpha_BLR(theta):
     z, cont, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR_fwhm, BLR_offset  = theta
-    if 1.3 < z < 2.6 and 0 < cont<1 and 0<Hal_flux<1 and 0<BLR_flux<1 and 0< NII_flux<1 \
+    if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_flux<0.5 and 0<BLR_flux<0.5 and 0< NII_flux<0.5 \
         and 150 < Nar_fwhm<900 and 1000<BLR_fwhm<6000 and -600 < BLR_offset <600:
             return 0.0
     
@@ -199,16 +199,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         
         flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
     
-        plt.figure()
-        
-        plt.plot(wave[fit_loc], flux[fit_loc], drawstyle='steps-mid',)
-        
-        inds = np.random.randint(len(flat_samples), size=150)
-        for ind in inds:
-            sample = flat_samples[ind,:]
-            model = Halpha(wave,*sample)
-            
-            plt.plot(wave, model, marker='', color='C1',alpha=0.1)       
+
             
         labels=('z', 'cont', 'Hal_flux', 'NII_flux', 'Nar_fwhm')
         fig = corner.corner(
@@ -343,16 +334,6 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         
         flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
     
-        plt.figure()
-        
-        plt.plot(wave, flux, drawstyle='steps-mid',)
-        
-        inds = np.random.randint(len(flat_samples), size=150)
-        for ind in inds:
-            sample = flat_samples[ind,:]
-            model = OIII_outflow(wave,*sample)
-            
-            plt.plot(wave, model, marker='', color='C1',alpha=0.1)       
             
         labels=('z', 'cont', 'OIIIn_flux', 'OIIIw_flux', 'OIII_fwhm', 'OIII_out', 'out_vel')
         fig = corner.corner(
@@ -379,17 +360,6 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     
         
         flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
-    
-        plt.figure()
-        
-        plt.plot(wave[fit_loc], flux[fit_loc], drawstyle='steps-mid',)
-        
-        inds = np.random.randint(len(flat_samples), size=150)
-        for ind in inds:
-            sample = flat_samples[ind,:]
-            model = OIII(wave,*sample)
-            
-            plt.plot(wave, model, marker='', color='C1',alpha=0.1)       
             
         labels=('z', 'cont', 'OIIIn_flux', 'OIII_fwhm')
         fig = corner.corner(
@@ -407,9 +377,45 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         
         
     
+    plt.figure()
+    
+    popt = prop_calc(res)['popt']
+    
+    plt.plot(wave, flux, drawstyle='steps-mid')
+    
+    plt.plot(wave, fitted_model(wave, *popt),'r--', drawstyle='steps-mid')
+    '''
+    inds = np.random.randint(len(flat_samples), size=150)
+    
+    for ind in inds:
+        sample = flat_samples[ind,:]
+        model = fitted_model(wave,*sample)
+        
+        plt.plot(wave, model, marker='', color='C1',alpha=0.1)       
+     '''      
+            
     return res, fitted_model
     
+
     
+def prop_calc(results):  
+    labels = list(results.keys())[1:]
+    res_plt = []
+    res_dict = {'name': results['name']}
+    for lbl in labels:
+        
+        array = results[lbl]
+        
+        p50,p16,p84 = np.percentile(array, (50,16,84))
+        p16 = p50-p16
+        p84 = p84-p50
+        
+        res_plt.append(p50)
+        res_dict[lbl] = np.array([p50,p16,p84])
+        
+    res_dict['popt'] = res_plt
+    return res_dict
+
 '''
     
     

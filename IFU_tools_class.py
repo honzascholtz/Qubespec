@@ -40,7 +40,11 @@ PATH='/Users/jansen/My Drive/Astro/'
 
 PATH_store = PATH+'KASHz/'
 
-
+OIIIr = 5008.
+OIIIb = 4960
+Hal = 6562.8   
+NII_r = 6583.
+NII_b = 6548.
 
 # =============================================================================
 # Useful function 
@@ -102,6 +106,29 @@ def Flux_cor(Flux, Av, lam= 0.6563):
     
     return F
 
+
+
+def prop_calc(results):  
+    labels = list(results.keys())[1:]
+    res_plt = []
+    res_dict = {'name': results['name']}
+    for lbl in labels:
+        
+        array = results[lbl]
+        
+        p50,p16,p84 = np.percentile(array, (50,16,84))
+        p16 = p50-p16
+        p84 = p84-p50
+        
+        res_plt.append(p50)
+        res_dict[lbl] = np.array([p50,p16,p84])
+        
+    res_dict['popt'] = res_plt
+    return res_dict
+        
+
+    
+    
 # =============================================================================
 #  Main class
 # =============================================================================
@@ -779,12 +806,19 @@ class Cube:
         error = self.D1_spectrum_er.copy()
         z = self.z
         
-        
-        
         flat_samples, fitted_model = emfit.fitting_OIII(wave,flux,error,z, outflow=outflow)
         
+        prop = prop_calc(flat_samples)
+        
+        self.D1_fit_results = prop
         self.D1_fit_chain = flat_samples
         self.D1_fit_model = fitted_model
+        
+        print(SNR_calc(wave, flux, error[0], prop['popt'], 'OIII'))
+        
+        
+        
+        
       
 
     def astrometry_correction_image(self, img_file):
@@ -967,110 +1001,64 @@ class Cube:
         # Saving new coordinates and the new header
         self.HST_center_glob = center_global
         self.header = Header_cube_new
-        
 
-def flux_measure_ind(out,wave, mode, use='tot', error=0):
-        
-    if (mode =='OIII') &( use=='tot'):
-        
-        fl =( out.eval_components(x= wave)['o3rw_'] + out.eval_components(x= wave)['o3rn_']) *1.333
-        
-    if (mode =='OIII')&( use=='nar'):
-        
-        fl = out.eval_components(x= wave)['o3rn_'] *1.333
-        
-    if (mode =='OIII')&( use=='bro'):
-                
-        fl = out.eval_components(x= wave)['o3rw_'] *1.333
-        
-           
-    elif (mode =='OIIIs'):
-        
-        fl = out.eval_components(x= wave)['o3r_']*1.333
-        
+def SNR_calc(wave,flux, std, sol, mode):
+    wave = wave[np.invert(flux.mask)]
+    flux = flux.data[np.invert(flux.mask)]
     
-    elif (mode =='H') & (use=='tot'):       
-        wvs = np.where( (wave< out.params['Haw_center'].value + 1.5*out.params['Haw_fwhm'].value) & (wave> out.params['Haw_center'].value - 1.5*out.params['Haw_fwhm'].value))[0]
-        wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Han_'] + out.eval_components(x= wave)['Haw_']
+    wv_or = wave.copy()
     
-    
-    elif (mode =='H') & (use=='BPT'):
-        wvs = np.where( (wave< out.params['Han_center'].value + 1.5*out.params['Han_fwhm'].value) & (wave> out.params['Han_center'].value - 1.5*out.params['Han_fwhm'].value))[0]
-        wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Han_']
-        
-    elif (mode =='Hb') & (use=='tot'):
-        
-        fl = out.eval_components(x= wave)['Hbn_'] + out.eval_components(x= wave)['Hbw_']
-    
-    elif (mode =='Hb') & (use=='BPT'):    
-        
-        wvs = np.where( (wave< out.params['Hbn_center'].value + 1.5*out.params['Hbn_fwhm'].value) & (wave> out.params['Hbn_center'].value - 1.5*out.params['Hbn_fwhm'].value))[0]
-        wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Hbn_']
-        
-    
-    elif (mode =='Hb') & (use=='nar'):    
-        
+    if mode =='OIII':
+        center = OIIIr*(1+sol[0])/1e4
+        if len(sol)==4:
+            fwhm = sol[3]/3e5*center
             
-        wvs = np.where( (wave< out.params['Hbn_center'].value + 1.5*out.params['Hbn_fwhm'].value) & (wave> out.params['Hbn_center'].value - 1.5*out.params['Hbn_fwhm'].value))[0]
-        wave = wave[wvs]
+            model = gauss(wave, sol[2], center, fwhm/2.35)
+        elif len(sol)==7:
+            fwhm = sol[4]/3e5*center
             
-        fl = out.eval_components(x= wave)['Hbn_']
-        
-    elif (mode =='Hb') & (use=='bro'):    
-        
+            model = emfit.OIII_outflow(wave,  *sol)-sol[1]
             
-        #wvs = np.where( (wave< out.params['Hbw_center'].value + 2*out.params['Hbw_fwhm'].value) & (wave> out.params['Hbw_center'].value - 2*out.params['Hbw_fwhm'].value))[0]
-        #wave = wave[wvs]
-            
-        fl = out.eval_components(x= wave)['Hbw_']
         
-    elif (mode =='Hbs'):       
-        wvs = np.where( (wave< out.params['Hb_center'].value + 1.5*out.params['Hb_fwhm'].value) & (wave> out.params['Hb_center'].value - 1.5*out.params['Hb_fwhm'].value))[0]
-        wave = wave[wvs]
-        #    
-        fl = out.eval_components(x= wave)['Hb_']    
-        
-        
-    elif (mode =='NII'):       
-        wvs = np.where( (wave< out.params['Nr_center'].value + 1.5*out.params['Nr_fwhm'].value) & (wave> out.params['Nr_center'].value - 1.5*out.params['Nr_fwhm'].value))[0]
-        wave = wave[wvs] 
-        
-        fl = out.eval_components(x= wave)['Nr_']*1.333
-        
-        
-    elif (mode =='H') & (use=='broad'):
-        #wvs = np.where( (wave< out.params['Haw_center'].value + 1.5*out.params['Haw_fwhm'].value) & (wave> out.params['Haw_center'].value - 1.5*out.params['Haw_fwhm'].value))[0]
-        #wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Haw_']
-
-    import scipy.integrate as scpi
+    elif mode =='Hn':
+        center = Hal*(1+sol[0])/1e4
+        if len(sol)==5:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[2], center, fwhm/2.35)
+        elif len(sol)==8:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[2], center, fwhm/2.35)
     
-    Fit = scpi.simps(fl, wave) * 1e-13
-    
-    er = np.zeros_like(wave)
-    
-    if error == 0:
-        return Fit
-    else:   
-        try:
-            
-            for i in range(len(wave)):
-                er[i] =  out.eval_uncertainty(x=wave[i],sigma=1)[0]
-            
-            Error = Fit - scpi.simps(fl-er, wave)* 1e-13
+    elif mode =='Hblr':
+        center = Hal*(1+sol[0])/1e4
         
-        except:
-            Error = 0.1*Fit
-            print ('covar matrix fail. 10% errors')
-       
-        return Fit, Error
+        fwhm = sol[6]/3e5*center
+        model = gauss(wave, sol[3], center, fwhm/2.35)
+            
+    elif mode =='NII':
+        center = NII_r*(1+sol[0])/1e4
+        if len(sol)==5:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[3], center, fwhm/2.35)
+        elif len(sol)==8:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[4], center, fwhm/2.35)
+            
+      
+    else:
+        raise Exception('Sorry mode in in SNR_calc not understood')
+    
+    use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]   
+    flux_l = model[use]
+    n = len(use)
+    
+    SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+    if SNR < 0:
+        SNR=0
+    
+    return SNR
+    
+            
 
 '''
 
