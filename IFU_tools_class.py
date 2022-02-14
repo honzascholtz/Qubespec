@@ -14,7 +14,7 @@ from astropy.io import fits
 from astropy.wcs import wcs
 from astropy.nddata import Cutout2D
 
-import Fitting_tools_v2 as emfit
+import Fitting_tools_mcmc as emfit
 #import Plotting_tools as emplot
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -39,6 +39,18 @@ arrow = u'$\u2193$'
 PATH='/Users/jansen/My Drive/Astro/'
 
 PATH_store = PATH+'KASHz/'
+
+
+
+# =============================================================================
+# Useful function 
+# =============================================================================
+def gauss(x,k,mu,sig):
+    expo= -((x-mu)**2)/(sig*sig)
+    
+    y= k* e**expo
+    
+    return y
 
 def create_circular_mask(h, w, center=None, radius1 = 1, radius2 = 2):
 
@@ -73,6 +85,26 @@ def twoD_Gaussian(dm, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
                             + c*((y-yo)**2)))
     return g.ravel()
 
+
+def Av_calc(Falpha, Fbeta):
+    
+    Av = 1.964*4.12*np.log10(Falpha/Fbeta/2.86)
+    
+    return Av
+
+def Flux_cor(Flux, Av, lam= 0.6563):
+    
+    
+    Ebv = Av/4.12
+    Ahal = 3.325*Ebv
+    
+    F = Flux*10**(0.4*Ahal)
+    
+    return F
+
+# =============================================================================
+#  Main class
+# =============================================================================
 class Cube:
     
     def __init__(self, Full_path, z, ID, flag, savepath, Band):
@@ -159,7 +191,7 @@ class Cube:
         self.savepath = savepath
         self.header= header
         self.phys_size = np.array([Xph, Yph])
-        self.band = 'K'
+        self.band = Band
         
     
     def add_res(self, line_cat):
@@ -650,7 +682,7 @@ class Cube:
         self.Stacked_sky = stacked_sky
         
         
-        np.savetxt(PATH+'Four_Quasars/'+ID+'_Skyline_mask.txt', sky_clipped)
+        np.savetxt(self.savepath, sky_clipped)
         
 
         
@@ -682,7 +714,8 @@ class Cube:
             # 3 panel - The collpsed 1D spectrum of the galaxy - No masking
             # 4 panel - The collpsed 1D spectrum of the galaxy - Final masking
             
-            f, (ax1,ax2, ax3, ax4) = plt.subplots(4, sharex=True, figsize=(10,15))
+            f, (ax1,ax2, ax3, ax4) = plt.subplots(4, sharex=True,sharey=True, figsize=(10,15))
+            
             ax1.set_title('Stacked spectrum outside the galaxy')
         
             ax1.plot(wave, y+np.ones_like(stacked_sky)*hgh, 'g--')
@@ -708,8 +741,10 @@ class Cube:
             
             ax4.plot(wave, D1_spectra_new, drawstyle='steps-mid')
             ax4.set_ylabel('New spec')
+            
+            ax1.set_ylim(-0.02,0.2)
     
-    def fitting_collapse_Halpha(self, plot, broad = 1, cont=1):
+    def fitting_collapse_Halpha(self, plot, broad = 1):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
@@ -730,250 +765,314 @@ class Cube:
         
         fit_loc = np.where(((wave*1e4/(1+z))>6562.8-100)&((wave*1e4/(1+z))<6562.8+100))[0]
         
-        out, chi2 = emfit.fitting_Halpha_mul(wave,flux,error,z, broad=broad, cont=cont)
+        flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, BLR=broad)
         
-        outs = emfit.fitting_Halpha_sig(wave,flux,error,z)
-        
-        SNR,chi2 = SNR_calc(flux, wave, outs, 'H',z)
-        
-        SNR,chi2 = SNR_calc(flux, wave, out, 'H',z, mul=1)
-        
-        f, ax = plt.subplots(1)
+        self.D1_fit_chain = flat_samples
+        self.D1_fit_model = fitted_model
         
         
-        ax.plot(wave, flux-out.eval(x=wave), drawstyle='steps-mid')
+    
         
-        ax.set_xlim(6200*(1+z)/1e4, 7000*(1+z)/1e4)
+    def fitting_collapse_OIII(self,  plot, outflow=0):
+        wave = self.obs_wave.copy()
+        flux = self.D1_spectrum.copy()
+        error = self.D1_spectrum_er.copy()
+        z = self.z
         
-        if plot==1:    
-            f, (ax1) = plt.subplots(1)
         
-            ax1.set_title('Collapsed 1D spectrum')
-            ax1.set_xlabel('Rest Wavelegth (ang)')
-            ax1.set_ylabel('Flux')
+        
+        flat_samples, fitted_model = emfit.fitting_OIII(wave,flux,error,z, outflow=outflow)
+        
+        self.D1_fit_chain = flat_samples
+        self.D1_fit_model = fitted_model
+      
+
+    def astrometry_correction_image(self, img_file):
+        '''
+        Correcting the Astrometry of the Cube. Fits a 2D Gaussian to the HST image and assumes that the 
+        HST and Cube centroids are in the same location. 
+        '''
+        
+        
+        img=fits.getdata(img_file)
+        img_wcs= wcs.WCS(img_file).celestial
+        hdr=fits.getheader(img_file)
+        
+        # Sie of the new image - same as the cube
+        new_size = self.phys_size# size of the cube
+        # Finding the pixel scale of the HST
+        try:
+            pixscale=abs(hdr['CD1_1']*3600)
+        
+        except:
+            pixscale=abs(hdr['CDELT1']*3600)
             
-            from Plotting_tools import plotting_Halpha
         
-            plotting_Halpha(wave, flux, ax1, out, 'mul',z)
-            ax1.plot(wave[fit_loc]/(1+z)*1e4, outs.eval(x=wave[fit_loc]), 'k--')
+        # Loading the Catalogue coordinates - Chris sometimes uses ra and sometimes RA
+        Cat = self.cat
+        try:
+            Ra_opt = Cat['ra']
+            Dec_opt = Cat['dec']
+        
+        except:
+            Ra_opt = Cat['RA']
+            Dec_opt = Cat['DEC']
         
         
-        #Width_narrow = out.params['Han_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5
-        #Width_narrow_Er = out.params['Han_fwhm'].stderr/6562.8*2.9979e5
+        # Finding the position of the Galaxy in pix scale
+        opt_world= np.array([[Ra_opt,Dec_opt]])
+        opt_pixcrd = img_wcs.wcs_world2pix(opt_world, 0) # WCS transform
+        opt_x= (opt_pixcrd[0,0]) # X pixel
+        opt_y= (opt_pixcrd[0,1]) # Y pixel
         
-        print ('The width of a single Gauss', outs.params['Ha_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5)
+        position = np.array([opt_x, opt_y])
+    
+    
+        # Cutting out an image from the bigger image
+        cutout = Cutout2D(img, position, new_size/pixscale, wcs=img_wcs,mode='partial')
+           
+        # Extracting the new image and the new wcs solution 
+        img=(cutout.data).copy()
+        img_wcs=cutout.wcs
         
-        #print ('The width of a mul Gauss', out.params['Haw_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5, out.params['Han_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5)
         
-        print (' ')
-        print ('Flux Halpha narrow ', flux_measure_ind(out,wave, 'H', use='BPT'))
-        print ('Flux Halpha broad ', flux_measure_ind(out,wave, 'H', use='broad'))
-        print ('Flux NII ', flux_measure_ind(out,wave, 'NII', use='tot'))
-        print (' ')
         
+        # To avoid weird things on side of the stamps
+        img[np.isnan(img)] = 0
+      
+        # Finding the dimensions of the new image - need to create new XY grid for the 2D Gaussian 
+        shapes = np.array(np.shape(img))
+        
+        # Finding the initial condition- location of the maximum of the image
+        loc = np.where(img == img.max()) # Assumes that our AGN is the brightest thing in the image
+        
+        initial_guess = (np.max(img),loc[1][0],loc[0][0],5. , 5. ,0,0)
+        
+        # XID 522 in KMOS is just damn aweful 
+        if self.ID == 'XID_522':
+            print( 'XID_522: Changing initial conditions for Astrometry corrections')
+            initial_guess = (img[34,32],34,32,5. , 5. ,0,0)
+            
+            print (initial_guess)
+            
+            
+        #print 'Initial guesses', initial_guess
+        import scipy.optimize as opt
+        
+        x = np.linspace(0, shapes[1]-1, shapes[1])
+        y = np.linspace(0, shapes[0]-1, shapes[0])
+        x, y = np.meshgrid(x, y)   
+        
+        popt, pcov = opt.curve_fit(twoD_Gaussian, (x, y), img.ravel(), p0=initial_guess)
+        er = np.sqrt(np.diag(pcov))
+        print ('HST Cont', popt[1:3])
+        print ('HST Cont er', er[1:3])
+        popt_HST  = popt.copy()
+        # Extrating the XY coordinates of the center. Will be plotted later to check accuracy
+        center_C= popt[1:3]
+        
+        center_C1 = np.zeros(2)
+        center_C1[0] = center_C[1]
+        center_C1[1] = center_C[0]
+        
+        # Finding the Accurate HST based optical coordinates
+        center_global =  img_wcs.wcs_pix2world(np.array([center_C]), 0)[0] 
+        
+        cube_center = self.center_data[1:3]    
+    
+        # Old Header for plotting purposes
+        Header_cube_old = self.header.copy()
+        
+        # New Header 
+        Header_cube_new = self.header.copy()
+        Header_cube_new['CRPIX1'] = cube_center[0]+1
+        Header_cube_new['CRPIX2'] = cube_center[1]+1
+        Header_cube_new['CRVAL1'] = center_global[0]
+        Header_cube_new['CRVAL2'] = center_global[1]
+        
+        
+        # Saving new coordinates and the new header
+        self.HST_cent = center_global
+        self.header = Header_cube_new
+        
+        ###############
+        # DO check plots:    
+        f  = plt.figure(figsize=(10,7))
+        ax = f.add_subplot(121, projection=img_wcs)
+        
+        rms = np.std(img - img.mean(axis=0))
+        
+        ax.imshow((img), origin='low')#, vmin=0, vmax=3*rms)
+        ax.set_autoscale_on(False)
+        ax.plot(center_C[0], center_C[1], 'r*')
+        
+       
+        cube_wcs= wcs.WCS(Header_cube_new).celestial  
+        cont_map = self.Median_stack_white
+        popt_cube = self.center_data
+        
+        x = np.linspace(0, shapes[1]-1, shapes[1])
+        y = np.linspace(0, shapes[0]-1, shapes[0])
+        x, y = np.meshgrid(x, y)  
+        
+        
+        data_fit = twoD_Gaussian((x,y), *popt_cube)
+        
+        ax.contour( data_fit.reshape(shapes[0], shapes[1]), levels=(max(data_fit)*0.68,max(data_fit)*0.98),transform= ax.get_transform(cube_wcs), colors='r')
+        
+        cube_wcs= wcs.WCS(Header_cube_old).celestial  
         
           
-        self.D1_fit_Halpha_mul = out
-        self.D1_fit_Halpha_sig = outs
-        self.D1_fit_Halpha_SNR = SNR    
+        ax.contour( data_fit.reshape(shapes[0], shapes[1]), levels=(max(data_fit)*0.68,max(data_fit)*0.98),transform= ax.get_transform(cube_wcs), colors='g')
+          
+    
+        popt = cube_center
+        cube_wcs= wcs.WCS(Header_cube_new).celestial
         
+        ax = f.add_subplot(122, projection=cube_wcs)  
+        ax.imshow(cont_map, vmin=0, vmax= cont_map[int(popt[1]), int(popt[0])], origin='low')
+        
+        ax.plot(popt[0], popt[1],'r*')
+        
+        ax.contour(img, transform= ax.get_transform(img_wcs), colors='red',levels=(popt_HST[0]*0.68,popt_HST[0]*0.95), alpha=0.9)
+        
+        ax.set_xlim(40,60)
+        ax.set_ylim(40,57)
+        
+
+
+    def astrometry_correction_GAIA(self, path_to_gaia):
+        '''
+        Correcting the Astrometry of the Cube. Fits a 2D Gaussian to the HST image and assumes that the 
+        HST and Cube centroids are in the same location. 
+        '''
+        
+        from astropy.table import Table
+        Gaia = Table.read(path_to_gaia , format='ipac')
+        
+        cube_center = self.center_data[1:3]    
+    
+        # Old Header for plotting purposes
+        Header_cube_old = storage['header'].copy()
+        
+        # New Header 
+        Header_cube_new = self.header.copy()
+        Header_cube_new['CRPIX1'] = cube_center[0]+1
+        Header_cube_new['CRPIX2'] = cube_center[1]+1
+        Header_cube_new['CRVAL1'] = float(Gaia['ra'])
+        Header_cube_new['CRVAL2'] = float(Gaia['dec'])
+        
+        center_global= np.array([float(Gaia['ra']), float(Gaia['dec'])])
+        
+        # Saving new coordinates and the new header
+        self.HST_center_glob = center_global
+        self.header = Header_cube_new
+        
+
+def flux_measure_ind(out,wave, mode, use='tot', error=0):
+        
+    if (mode =='OIII') &( use=='tot'):
+        
+        fl =( out.eval_components(x= wave)['o3rw_'] + out.eval_components(x= wave)['o3rn_']) *1.333
+        
+    if (mode =='OIII')&( use=='nar'):
+        
+        fl = out.eval_components(x= wave)['o3rn_'] *1.333
+        
+    if (mode =='OIII')&( use=='bro'):
+                
+        fl = out.eval_components(x= wave)['o3rw_'] *1.333
+        
+           
+    elif (mode =='OIIIs'):
+        
+        fl = out.eval_components(x= wave)['o3r_']*1.333
+        
+    
+    elif (mode =='H') & (use=='tot'):       
+        wvs = np.where( (wave< out.params['Haw_center'].value + 1.5*out.params['Haw_fwhm'].value) & (wave> out.params['Haw_center'].value - 1.5*out.params['Haw_fwhm'].value))[0]
+        wave = wave[wvs]
+        
+        fl = out.eval_components(x= wave)['Han_'] + out.eval_components(x= wave)['Haw_']
+    
+    
+    elif (mode =='H') & (use=='BPT'):
+        wvs = np.where( (wave< out.params['Han_center'].value + 1.5*out.params['Han_fwhm'].value) & (wave> out.params['Han_center'].value - 1.5*out.params['Han_fwhm'].value))[0]
+        wave = wave[wvs]
+        
+        fl = out.eval_components(x= wave)['Han_']
+        
+    elif (mode =='Hb') & (use=='tot'):
+        
+        fl = out.eval_components(x= wave)['Hbn_'] + out.eval_components(x= wave)['Hbw_']
+    
+    elif (mode =='Hb') & (use=='BPT'):    
+        
+        wvs = np.where( (wave< out.params['Hbn_center'].value + 1.5*out.params['Hbn_fwhm'].value) & (wave> out.params['Hbn_center'].value - 1.5*out.params['Hbn_fwhm'].value))[0]
+        wave = wave[wvs]
+        
+        fl = out.eval_components(x= wave)['Hbn_']
+        
+    
+    elif (mode =='Hb') & (use=='nar'):    
         
             
-
-def astrometry_correction_image(self, img_file):
-    '''
-    Correcting the Astrometry of the Cube. Fits a 2D Gaussian to the HST image and assumes that the 
-    HST and Cube centroids are in the same location. 
-    '''
-    
-    
-    img=fits.getdata(img_file)
-    img_wcs= wcs.WCS(img_file).celestial
-    hdr=fits.getheader(img_file)
-    
-    # Sie of the new image - same as the cube
-    new_size = storage['Phys_size'] # size of the cube
-    # Finding the pixel scale of the HST
-    try:
-        pixscale=abs(hdr['CD1_1']*3600)
-    
-    except:
-        pixscale=abs(hdr['CDELT1']*3600)
+        wvs = np.where( (wave< out.params['Hbn_center'].value + 1.5*out.params['Hbn_fwhm'].value) & (wave> out.params['Hbn_center'].value - 1.5*out.params['Hbn_fwhm'].value))[0]
+        wave = wave[wvs]
+            
+        fl = out.eval_components(x= wave)['Hbn_']
         
-    
-    # Loading the Catalogue coordinates - Chris sometimes uses ra and sometimes RA
-    Cat = storage['Cat_entry']
-    try:
-        Ra_opt = Cat['ra']
-        Dec_opt = Cat['dec']
-    
-    except:
-        Ra_opt = Cat['RA']
-        Dec_opt = Cat['DEC']
-    
-    
-    # Finding the position of the Galaxy in pix scale
-    opt_world= np.array([[Ra_opt,Dec_opt]])
-    opt_pixcrd = img_wcs.wcs_world2pix(opt_world, 0) # WCS transform
-    opt_x= (opt_pixcrd[0,0]) # X pixel
-    opt_y= (opt_pixcrd[0,1]) # Y pixel
-    
-    position = np.array([opt_x, opt_y])
+    elif (mode =='Hb') & (use=='bro'):    
+        
+            
+        #wvs = np.where( (wave< out.params['Hbw_center'].value + 2*out.params['Hbw_fwhm'].value) & (wave> out.params['Hbw_center'].value - 2*out.params['Hbw_fwhm'].value))[0]
+        #wave = wave[wvs]
+            
+        fl = out.eval_components(x= wave)['Hbw_']
+        
+    elif (mode =='Hbs'):       
+        wvs = np.where( (wave< out.params['Hb_center'].value + 1.5*out.params['Hb_fwhm'].value) & (wave> out.params['Hb_center'].value - 1.5*out.params['Hb_fwhm'].value))[0]
+        wave = wave[wvs]
+        #    
+        fl = out.eval_components(x= wave)['Hb_']    
+        
+        
+    elif (mode =='NII'):       
+        wvs = np.where( (wave< out.params['Nr_center'].value + 1.5*out.params['Nr_fwhm'].value) & (wave> out.params['Nr_center'].value - 1.5*out.params['Nr_fwhm'].value))[0]
+        wave = wave[wvs] 
+        
+        fl = out.eval_components(x= wave)['Nr_']*1.333
+        
+        
+    elif (mode =='H') & (use=='broad'):
+        #wvs = np.where( (wave< out.params['Haw_center'].value + 1.5*out.params['Haw_fwhm'].value) & (wave> out.params['Haw_center'].value - 1.5*out.params['Haw_fwhm'].value))[0]
+        #wave = wave[wvs]
+        
+        fl = out.eval_components(x= wave)['Haw_']
 
-
-    # Cutting out an image from the bigger image
-    cutout = Cutout2D(img, position, new_size/pixscale, wcs=img_wcs,mode='partial')
+    import scipy.integrate as scpi
+    
+    Fit = scpi.simps(fl, wave) * 1e-13
+    
+    er = np.zeros_like(wave)
+    
+    if error == 0:
+        return Fit
+    else:   
+        try:
+            
+            for i in range(len(wave)):
+                er[i] =  out.eval_uncertainty(x=wave[i],sigma=1)[0]
+            
+            Error = Fit - scpi.simps(fl-er, wave)* 1e-13
+        
+        except:
+            Error = 0.1*Fit
+            print ('covar matrix fail. 10% errors')
        
-    # Extracting the new image and the new wcs solution 
-    img=(cutout.data).copy()
-    img_wcs=cutout.wcs
-    
-    
-    
-    # To avoid weird things on side of the stamps
-    img[np.isnan(img)] = 0
-  
-    # Finding the dimensions of the new image - need to create new XY grid for the 2D Gaussian 
-    shapes = np.array(np.shape(img))
-    
-    # Finding the initial condition- location of the maximum of the image
-    loc = np.where(img == img.max()) # Assumes that our AGN is the brightest thing in the image
-    
-    initial_guess = (np.max(img),loc[1][0],loc[0][0],5. , 5. ,0,0)
-    
-    # XID 522 in KMOS is just damn aweful 
-    if storage['X-ray ID'] == 'XID_522':
-        print( 'XID_522: Changing initial conditions for Astrometry corrections')
-        initial_guess = (img[34,32],34,32,5. , 5. ,0,0)
-        
-        print (initial_guess)
-        
-        
-    #print 'Initial guesses', initial_guess
-    import scipy.optimize as opt
-    
-    x = np.linspace(0, shapes[1]-1, shapes[1])
-    y = np.linspace(0, shapes[0]-1, shapes[0])
-    x, y = np.meshgrid(x, y)   
-    
-    popt, pcov = opt.curve_fit(twoD_Gaussian, (x, y), img.ravel(), p0=initial_guess)
-    er = np.sqrt(np.diag(pcov))
-    print ('HST Cont', popt[1:3])
-    print ('HST Cont er', er[1:3])
-    popt_HST  = popt.copy()
-    # Extrating the XY coordinates of the center. Will be plotted later to check accuracy
-    center_C= popt[1:3]
-    
-    center_C1 = np.zeros(2)
-    center_C1[0] = center_C[1]
-    center_C1[1] = center_C[0]
-    
-    # Finding the Accurate HST based optical coordinates
-    center_global =  img_wcs.wcs_pix2world(np.array([center_C]), 0)[0] 
-    
-    cube_center = storage['Median_stack_white_Center_data'][1:3]    
+        return Fit, Error
 
-    # Old Header for plotting purposes
-    Header_cube_old = storage['header'].copy()
-    
-    # New Header 
-    Header_cube_new = storage['header'].copy()
-    Header_cube_new['CRPIX1'] = cube_center[0]+1
-    Header_cube_new['CRPIX2'] = cube_center[1]+1
-    Header_cube_new['CRVAL1'] = center_global[0]
-    Header_cube_new['CRVAL2'] = center_global[1]
-    
-    
-    # Saving new coordinates and the new header
-    storage['HST_center_glob'] = center_global
-    storage['header'] = Header_cube_new
-    
-    ###############
-    # DO check plots:    
-    f  = plt.figure(figsize=(10,7))
-    ax = f.add_subplot(121, projection=img_wcs)
-    
-    rms = np.std(img - img.mean(axis=0))
-    
-    ax.imshow((img), origin='low')#, vmin=0, vmax=3*rms)
-    ax.set_autoscale_on(False)
-    ax.plot(center_C[0], center_C[1], 'r*')
-    
-   
-    cube_wcs= wcs.WCS(Header_cube_new).celestial  
-    cont_map = storage['Median_stack_white']
-    popt_cube = storage['Median_stack_white_Center_data']
-    
-    x = np.linspace(0, shapes[1]-1, shapes[1])
-    y = np.linspace(0, shapes[0]-1, shapes[0])
-    x, y = np.meshgrid(x, y)  
-    
-    
-    data_fit = twoD_Gaussian((x,y), *popt_cube)
-    
-    ax.contour( data_fit.reshape(shapes[0], shapes[1]), levels=(max(data_fit)*0.68,max(data_fit)*0.98),transform= ax.get_transform(cube_wcs), colors='r')
-    
-    cube_wcs= wcs.WCS(Header_cube_old).celestial  
-    cont_map = storage['Median_stack_white']
-      
-    ax.contour( data_fit.reshape(shapes[0], shapes[1]), levels=(max(data_fit)*0.68,max(data_fit)*0.98),transform= ax.get_transform(cube_wcs), colors='g')
-      
-
-    popt = cube_center
-    cube_wcs= wcs.WCS(Header_cube_new).celestial
-    
-    ax = f.add_subplot(122, projection=cube_wcs)  
-    ax.imshow(cont_map, vmin=0, vmax= cont_map[int(popt[1]), int(popt[0])], origin='low')
-    
-    ax.plot(popt[0], popt[1],'r*')
-    
-    ax.contour(img, transform= ax.get_transform(img_wcs), colors='red',levels=(popt_HST[0]*0.68,popt_HST[0]*0.95), alpha=0.9)
-    
-    ax.set_xlim(40,60)
-    ax.set_ylim(40,57)
-    
-    return storage
-
-
-def astrometry_correction_GAIA(storage):
-    '''
-    Correcting the Astrometry of the Cube. Fits a 2D Gaussian to the HST image and assumes that the 
-    HST and Cube centroids are in the same location. 
-    '''
-    
-    from astropy.table import Table, join, vstack, Column
-    Gaia = Table.read(PATH+'Four_Quasars/Catalogues/'+storage['X-ray ID']+'_Gaia.tbl' , format='ipac')
-    
-    
-    
-    
-    
-    cube_center = storage['Median_stack_white_Center_data'][1:3]    
-
-    # Old Header for plotting purposes
-    Header_cube_old = storage['header'].copy()
-    
-    # New Header 
-    Header_cube_new = storage['header'].copy()
-    Header_cube_new['CRPIX1'] = cube_center[0]+1
-    Header_cube_new['CRPIX2'] = cube_center[1]+1
-    Header_cube_new['CRVAL1'] = float(Gaia['ra'])
-    Header_cube_new['CRVAL2'] = float(Gaia['dec'])
-    
-    center_global= np.array([float(Gaia['ra']), float(Gaia['dec'])])
-    
-    # Saving new coordinates and the new header
-    storage['HST_center_glob'] = center_global
-    storage['header'] = Header_cube_new
-    
-    
-    
-    return storage
-
-#astrometry_correction(storage)
-
-
-
+'''
 
 def SNR_calc(flux, wave, solution, mode,z, mul=0):
     std = STD_calc(wave/(1+z)*1e4,flux, mode)
@@ -1075,141 +1174,6 @@ def SNR_calc(flux, wave, solution, mode,z, mul=0):
     
             
 
-def fitting_collapse_OIII(storage,z, plot):
-    wave = storage['obs_wave'].copy()
-    flux = storage['1D_spectrum'].copy()
-    error = storage['1D_spectrum_er'].copy()
-    
-    ID = storage['X-ray ID']
-    
-    
-    fit_loc = np.where((wave>4400*1e4/(1+z))&(wave<5300*1e4/(1+z)))[0]
-    #if ID=='HB89':
-    #    out = emfit.fitting_OIIIbkp_Hbeta_qso_mul(wave,flux,error,z)
-    #else:
-    
-    if ID=='LBQS':
-        out = emfit.fitting_OIII_Hbeta_qso_mul(wave,flux, error,z, hbw=4870.)
-    else:
-        out = emfit.fitting_OIII_Hbeta_qso_mul(wave,flux, error,z, hbw=4861.)
-    
-    
-    
-    outs, chi2s = emfit.fitting_OIII_sig(wave,flux,error,z)
-    
-    SNR,dat = SNR_calc(flux, wave, outs, 'OIII',z)
-    
-    
-    print( 'SNR of the line is ', SNR, ' and recovers ', dat, ' of the flux')
-    #print( 'The total flux of the OIII is ', flux_measure_ind(out,wave, 'OIII', use='tot' ))
-    
-    if plot==1:
-        f = plt.figure()
-        ax1 = f.add_axes([0.125, 0.2, 0.8,0.7])
-
-        axres = f.add_axes([0.125, 0.1, 0.8, 0.1])
-        
-        
-    
-        ax1.set_title('Collapsed 1D spectrum')
-        ax1.set_xlabel('Rest Wavelegth (ang)')
-        ax1.set_ylabel('Flux')
-    
-        from Plotting_tools import plotting_OIII_Hbeta
-        plotting_OIII_Hbeta(wave, flux, ax1, out, 'mul',z)
-        ax1.plot(wave[fit_loc], outs.eval(x=wave[fit_loc]), 'k--')
-        
-        #axres.plot(wave[fit_loc], out.eval(x=wave[fit_loc]), drawstyle='steps-mid' )
-        #axres.set_xlim(4700, 5100)
-    
-    storage['OIII_fit_collapse']= out   
-    storage['1D_fit_OIII_sig'] = outs
-    
-    storage['z_fit'] = (out.params['o3rn_center']*1e4/5008.)-1
-    
-    print ('Old redshift ', z, ' new z ', (out.params['o3rn_center']*1e4/5008.)-1 )
-
-    
-    storage['1D_fit_OIII_mul'] = out
-    storage['1D_fit_OIII_sig'] = outs
-    storage['1D_fit_OIII_SNR'] = SNR
-    
-    return storage
-
-
-def fitting_collapse_Halpha(storage,z, plot, broad = 1, cont=1):
-    wave = storage['obs_wave'].copy()
-    flux = storage['1D_spectrum'].copy()
-    error = storage['1D_spectrum_er'].copy()
-    
-    ID = storage['X-ray ID']
-    
-    fl = flux.data
-    ms = flux.mask
-    
-    #SII_ms = ms.copy()
-    #SII_ms[:] = False
-    #SII_ms[np.where(((wave*1e4/(1+z))<6741)&((wave*1e4/(1+z))> 6712))[0]] = True
-    
-    #msk = np.logical_or(SII_ms,ms)  
-    msk = ms
-    
-    flux = np.ma.array(data=fl, mask = msk)
-    
-    fit_loc = np.where(((wave*1e4/(1+z))>6562.8-100)&((wave*1e4/(1+z))<6562.8+100))[0]
-    
-    out, chi2 = emfit.fitting_Halpha_mul_testing(wave,flux,error,z, broad=broad, cont=cont)
-    
-    outs = emfit.fitting_Halpha_sig(wave,flux,error,z)
-    
-    SNR,chi2 = SNR_calc(flux, wave, outs, 'H',z)
-    
-    SNR,chi2 = SNR_calc(flux, wave, out, 'H',z, mul=1)
-    
-    f, ax = plt.subplots(1)
-    
-    
-    ax.plot(wave, flux-out.eval(x=wave), drawstyle='steps-mid')
-    
-    ax.set_xlim(6200*(1+z)/1e4, 7000*(1+z)/1e4)
-    
-    if plot==1:    
-        f, (ax1) = plt.subplots(1)
-    
-        ax1.set_title('Collapsed 1D spectrum')
-        ax1.set_xlabel('Rest Wavelegth (ang)')
-        ax1.set_ylabel('Flux')
-        
-        from Plotting_tools import plotting_Halpha
-    
-        plotting_Halpha(wave, flux, ax1, out, 'mul',z)
-        ax1.plot(wave[fit_loc]/(1+z)*1e4, outs.eval(x=wave[fit_loc]), 'k--')
-    
-    
-    #Width_narrow = out.params['Han_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5
-    #Width_narrow_Er = out.params['Han_fwhm'].stderr/6562.8*2.9979e5
-    
-    print ('The width of a single Gauss', outs.params['Ha_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5)
-    
-    #print ('The width of a mul Gauss', out.params['Haw_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5, out.params['Han_fwhm'].value*1e4/(1+z)/6562.8*2.9979e5)
-    
-    print (' ')
-    print ('Flux Halpha narrow ', flux_measure_ind(out,wave, 'H', use='BPT'))
-    print ('Flux Halpha broad ', flux_measure_ind(out,wave, 'H', use='broad'))
-    print ('Flux NII ', flux_measure_ind(out,wave, 'NII', use='tot'))
-    print (' ')
-    
-    storage['Halpha_fit_collapse']= out
-      
-    storage['1D_fit_Halpha_mul'] = out
-    storage['1D_fit_Halpha_sig'] = outs
-    storage['1D_fit_Halpha_SNR'] = SNR    
-    
-    return storage
-
-
-
-
 
 def Spaxel_fit_wrap_sig(storage, Line_info, obs_wv, flx_spax_m, error, mode,i,j ,broad):
     obs_wave = storage['obs_wave']
@@ -1291,19 +1255,8 @@ def Spaxel_fit_wrap_sig(storage, Line_info, obs_wv, flx_spax_m, error, mode,i,j 
         
         try:
             suc = 1
-            '''
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=0.)
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
             
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=-2.5/1e4*(1+z))
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
             
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=2.5/1e4*(1+z))
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
-            '''
             
             out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width*1.2)
             out_list.append(out)
@@ -1511,15 +1464,8 @@ def Spaxel_fit_sig(storage, mode, plot, sp_binning, localised = 0, broad=1, inst
                 
                     Residual[:,i,j] = flx_spax.data - out.eval(x=wv_obs)
                     Model[:,i,j] =  out.eval(x=wv_obs)   
-                '''   
-                dd,(axa,axb, axc) = plt.subplots(3,1, figsize=(5,15), sharex=True)
                 
                 
-                axa.plot(wv_obs, flx_spax_m.data)
-                axb.plot(wv_obs, out.eval(x=wv_obs))
-                
-                axc.plot(wv_obs, flx_spax_m.data - out.eval(x=wv_obs))              
-                '''
                 
                                
                 prhdr = storage['header']
@@ -1972,161 +1918,9 @@ def Spaxel_fit_mul(storage, mode, plot, sp_binning, localised = 0, broad=1, inst
     return storage
 
 
-def flux_measure_ind(out,wave, mode, use='tot', error=0):
-        
-    if (mode =='OIII') &( use=='tot'):
-        
-        fl =( out.eval_components(x= wave)['o3rw_'] + out.eval_components(x= wave)['o3rn_']) *1.333
-        
-    if (mode =='OIII')&( use=='nar'):
-        
-        fl = out.eval_components(x= wave)['o3rn_'] *1.333
-        
-    if (mode =='OIII')&( use=='bro'):
-                
-        fl = out.eval_components(x= wave)['o3rw_'] *1.333
-        
-           
-    elif (mode =='OIIIs'):
-        
-        fl = out.eval_components(x= wave)['o3r_']*1.333
-        
-    
-    elif (mode =='H') & (use=='tot'):       
-        wvs = np.where( (wave< out.params['Haw_center'].value + 1.5*out.params['Haw_fwhm'].value) & (wave> out.params['Haw_center'].value - 1.5*out.params['Haw_fwhm'].value))[0]
-        wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Han_'] + out.eval_components(x= wave)['Haw_']
-    
-    
-    elif (mode =='H') & (use=='BPT'):
-        wvs = np.where( (wave< out.params['Han_center'].value + 1.5*out.params['Han_fwhm'].value) & (wave> out.params['Han_center'].value - 1.5*out.params['Han_fwhm'].value))[0]
-        wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Han_']
-        
-    elif (mode =='Hb') & (use=='tot'):
-        
-        fl = out.eval_components(x= wave)['Hbn_'] + out.eval_components(x= wave)['Hbw_']
-    
-    elif (mode =='Hb') & (use=='BPT'):    
-        
-        wvs = np.where( (wave< out.params['Hbn_center'].value + 1.5*out.params['Hbn_fwhm'].value) & (wave> out.params['Hbn_center'].value - 1.5*out.params['Hbn_fwhm'].value))[0]
-        wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Hbn_']
-        
-    
-    elif (mode =='Hb') & (use=='nar'):    
-        
-            
-        wvs = np.where( (wave< out.params['Hbn_center'].value + 1.5*out.params['Hbn_fwhm'].value) & (wave> out.params['Hbn_center'].value - 1.5*out.params['Hbn_fwhm'].value))[0]
-        wave = wave[wvs]
-            
-        fl = out.eval_components(x= wave)['Hbn_']
-        
-    elif (mode =='Hb') & (use=='bro'):    
-        
-            
-        #wvs = np.where( (wave< out.params['Hbw_center'].value + 2*out.params['Hbw_fwhm'].value) & (wave> out.params['Hbw_center'].value - 2*out.params['Hbw_fwhm'].value))[0]
-        #wave = wave[wvs]
-            
-        fl = out.eval_components(x= wave)['Hbw_']
-        
-    elif (mode =='Hbs'):       
-        wvs = np.where( (wave< out.params['Hb_center'].value + 1.5*out.params['Hb_fwhm'].value) & (wave> out.params['Hb_center'].value - 1.5*out.params['Hb_fwhm'].value))[0]
-        wave = wave[wvs]
-        #    
-        fl = out.eval_components(x= wave)['Hb_']    
-        
-        
-    elif (mode =='NII'):       
-        wvs = np.where( (wave< out.params['Nr_center'].value + 1.5*out.params['Nr_fwhm'].value) & (wave> out.params['Nr_center'].value - 1.5*out.params['Nr_fwhm'].value))[0]
-        wave = wave[wvs] 
-        
-        fl = out.eval_components(x= wave)['Nr_']*1.333
-        
-        
-    elif (mode =='H') & (use=='broad'):
-        #wvs = np.where( (wave< out.params['Haw_center'].value + 1.5*out.params['Haw_fwhm'].value) & (wave> out.params['Haw_center'].value - 1.5*out.params['Haw_fwhm'].value))[0]
-        #wave = wave[wvs]
-        
-        fl = out.eval_components(x= wave)['Haw_']
 
-    import scipy.integrate as scpi
-    
-    Fit = scpi.simps(fl, wave) * 1e-13
-    
-    er = np.zeros_like(wave)
-    
-    if error == 0:
-        return Fit
-    else:   
-        try:
-            
-            for i in range(len(wave)):
-                er[i] =  out.eval_uncertainty(x=wave[i],sigma=1)[0]
-            
-            Error = Fit - scpi.simps(fl-er, wave)* 1e-13
-        
-        except:
-            Error = 0.1*Fit
-            print ('covar matrix fail. 10% errors')
-       
-        return Fit, Error
 
-def flux_measure(storage, mode, use='tot'):
-    
-    wave = storage['obs_wave']
-    
-    
-    if (mode =='OIII'):
-        out = storage['1D_fit_OIII_mul']
-        
-        fl = out.eval_components(x= wave)['o3rw_'] + out.eval_components(x= wave)['o3rn_']
-        #fl = fl*1.333
-        
-    
-    elif (mode =='H') & (use=='tot'):       
-        out = storage['1D_fit_Halpha_mul']
-        
-        fl = out.eval_components(x= wave)['Han_'] + out.eval_components(x= wave)['Haw_']
-    
-    elif (mode =='H') & (use=='BPT'):       
-        out = storage['1D_fit_Halpha_mul']
-        
-        fl = out.eval_components(x= wave)['Han_']
-        
-    elif (mode =='Hb') & (use=='tot'):
-        
-        out = storage['1D_fit_Hbeta_mul']
-        
-        fl = out.eval_components(x= wave)['Hbn_'] + out.eval_components(x= wave)['Hbw_']
-    
-    elif (mode =='Hb') & (use=='BPT'):        
-        out = storage['1D_fit_Hbeta_mul']
-        
-        fl = out.eval_components(x= wave)['Hbn_']
-        
-    elif (mode =='NII'):       
-        out = storage['1D_fit_Halpha_mul']
-        
-        fl = out.eval_components(x= wave)['Nr_']
 
-    import scipy.integrate as scpi
-    Fit = scpi.simps(fl, wave) * 1e-13
-    
-    return Fit
-    
-
-  
- 
-def gauss(x,k,mu,sig):
-    expo= -((x-mu)**2)/(sig*sig)
-    
-    y= k* e**expo
-    
-    return y
        
 def Upper_lim_calc(wave,flux,error,z, mode, width_test, fit_u):   
         
@@ -2459,24 +2253,7 @@ def W68_mes(out, mode, plot):
     return v10,v90, w80, v50
 
 
-def Av_calc(Falpha, Fbeta):
-    '''Calculating Av from Halpha flux and Hbeta flux
-    '''
-    
-    Av = 1.964*4.12*np.log10(Falpha/Fbeta/2.86)
-    
-    return Av
 
-def Flux_cor(Flux, Av, lam= 0.6563):
-    '''Correcting Halpha flux based on Av
-    '''
-    
-    Ebv = Av/4.12
-    Ahal = 3.325*Ebv
-    
-    F = Flux*10**(0.4*Ahal)
-    
-    return F
 
 def Sub_QSO(storage_H):
     ID = storage_H['X-ray ID']
@@ -2693,19 +2470,7 @@ def Spaxel_fit_wrap_sig_2L(storage, Line_info, obs_wv, flx_spax_m, error, mode,i
         
         try:
             suc = 1
-            '''
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=0.)
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
             
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=-2.5/1e4*(1+z))
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
-            
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=2.5/1e4*(1+z))
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
-            '''
             
             out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width*1.2)
             out_list.append(out)
@@ -2912,16 +2677,7 @@ def Spaxel_fit_sig_2L(storage, mode, plot, sp_binning, localised = 0, broad=1, i
                 
                 
                     Residual[:,i,j] = flx_spax.data - out.eval(x=wv_obs)
-                    Model[:,i,j] =  out.eval(x=wv_obs)   
-                '''   
-                dd,(axa,axb, axc) = plt.subplots(3,1, figsize=(5,15), sharex=True)
                 
-                
-                axa.plot(wv_obs, flx_spax_m.data)
-                axb.plot(wv_obs, out.eval(x=wv_obs))
-                
-                axc.plot(wv_obs, flx_spax_m.data - out.eval(x=wv_obs))              
-                '''
                 
                                
                 prhdr = storage['header']
@@ -3214,19 +2970,7 @@ def Spaxel_fit_wrap_sig_HB(storage, Line_info, obs_wv, flx_spax_m, error, mode,i
         
         try:
             suc = 1
-            '''
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=0.)
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
             
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=-2.5/1e4*(1+z))
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
-            
-            out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width, init_offset=2.5/1e4*(1+z))
-            out_list.append(out)
-            chi_list = np.append(chi_list, chi2)
-            '''
             
             out, chi2 = emfit.fitting_OIII_sig(obs_wv,flx_spax_m ,error,z, init_sig=width*1.2)
             out_list.append(out)
@@ -3434,15 +3178,7 @@ def Spaxel_fit_sig_HB(storage, mode, plot, sp_binning, localised = 0, broad=1, i
                 
                     Residual[:,i,j] = flx_spax.data - out.eval(x=wv_obs)
                     Model[:,i,j] =  out.eval(x=wv_obs)   
-                '''   
-                dd,(axa,axb, axc) = plt.subplots(3,1, figsize=(5,15), sharex=True)
                 
-                
-                axa.plot(wv_obs, flx_spax_m.data)
-                axb.plot(wv_obs, out.eval(x=wv_obs))
-                
-                axc.plot(wv_obs, flx_spax_m.data - out.eval(x=wv_obs))              
-                '''
                 
                                
                 prhdr = storage['header']
@@ -3651,3 +3387,4 @@ def Spaxel_fit_sig_HB(storage, mode, plot, sp_binning, localised = 0, broad=1, i
         hdulist_mod.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'_mod_HB.fits', overwrite=True)
         
     return storage
+'''

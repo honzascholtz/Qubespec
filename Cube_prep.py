@@ -42,7 +42,7 @@ fsz = gst.graph_format()
 import IFU_tools_class as IFU 
 
 plot_it=1
-
+'''
 IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/K_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_K.fits' 
 instrument = 'KMOS'
 ID = 'XID_587'
@@ -62,7 +62,34 @@ Cube.stack_sky(plot_it, expand=0)
 Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 
-Cube.fitting_collapse_Halpha( plot_it, broad=1, cont=1)
+Cube.fitting_collapse_Halpha( plot_it, broad=1)
+'''
+
+
+
+IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_H.fits' 
+instrument = 'KMOS'
+ID = 'XID_587'
+z= 2.2246
+
+
+Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', 'H')
+
+Cube.mask_emission()
+Cube.mask_sky( 1.5)
+Cube.collapse_white(plot_it)
+Cube.find_center( plot_it)
+
+Cube.choose_pixels(plot_it, rad= 0.5)#, flg='K587')
+
+Cube.stack_sky(plot_it, expand=0)
+Cube.D1_spectra_collapse( plot_it, addsave='_inner')
+
+
+Cube.fitting_collapse_OIII( plot_it, outflow=1)
+
+
+
 plt.show()
 
 
