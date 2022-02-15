@@ -43,37 +43,43 @@ import IFU_tools_class as IFU
 
 plot_it=1
 '''
-IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/K_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_K.fits' 
+IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_cdfs_39849_x_r_01spax.fits' 
 instrument = 'KMOS'
-ID = 'XID_587'
-z= 2.22461073724826
+ID = 'XID_208'
+z= 1.61
 
 
-Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', 'K')
+Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', 'H')
 
 Cube.mask_emission()
 Cube.mask_sky( 1.5)
 Cube.collapse_white(plot_it)
 Cube.find_center( plot_it)
 
-Cube.choose_pixels(plot_it, rad= 0.5)#, flg='K587')
+Cube.choose_pixels(plot_it, rad= 0.3)#, flg='K587')
 
 Cube.stack_sky(plot_it, expand=0)
 Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 
 Cube.fitting_collapse_Halpha( plot_it, broad=1)
+
+
+
 '''
 
-
+import importlib
+importlib.reload(IFU )
 
 IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_H.fits' 
+#IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_AGN6.fits' 
 instrument = 'KMOS'
-ID = 'XID_587'
+ID = 'XID_208'
 z= 2.2246
+#z= 1.61
+Band = 'H'
 
-
-Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', 'H')
+Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', Band)
 
 Cube.mask_emission()
 Cube.mask_sky( 1.5)
@@ -88,6 +94,7 @@ Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 Cube.fitting_collapse_OIII( plot_it, outflow=1)
 
+#Cube.Spaxel_fit_OIII()
 
 
 plt.show()
@@ -117,22 +124,6 @@ elif Sample['Sky_mask_flag_Hal'][i]==0:
 else:
     print 'Flag for pixel mask not understood'
 
-
-
-storage_H= IFU.fitting_collapse_Halpha(storage_H,z, plot_it, broad=New['Halpha_nBroad'][i])
-
-storage_H = IFU.create_line_map(storage_H,z, 'H', plot_it, diagnose=0)
-
-
-
-Sub_stor = IFU.substract_cube(storage_H, 'H')
-Sub_stor = IFU.D1_spectra_collapse(Sub_stor, Sub_stor['z_guess'], 'H', plot_it)
-Sub_stor = IFU.fitting_collapse_Halpha_wcont(Sub_stor,Sub_stor['z_guess'],  plot_it)
-
-
-emplot.Summary_plot(storage_H, 'H',z, ID, Sub_stor)
-
-pdf_plots.savefig()
       
 
 if Spat== True:

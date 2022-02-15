@@ -55,7 +55,7 @@ def Halpha_wBLR(x, z, cont, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR_fwhm, BL
     Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35
     Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35
     
-    Hal_blr = gauss(x, BLR_flux+BLR_offset, Hal_wv, BLR_vel_hal)
+    Hal_blr = gauss(x, BLR_flux, Hal_wv+BLR_offset, BLR_vel_hal)
     Hal_nar = gauss(x, Hal_flux, Hal_wv, Nar_vel_hal)
     
     NII_nar_r = gauss(x, NII_flux, NII_r, Nar_vel_niir)
@@ -75,7 +75,7 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
 def log_prior_Halpha_BLR(theta):
     z, cont, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR_fwhm, BLR_offset  = theta
     if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_flux<0.5 and 0<BLR_flux<0.5 and 0< NII_flux<0.5 \
-        and 150 < Nar_fwhm<900 and 1000<BLR_fwhm<6000 and -600 < BLR_offset <600:
+        and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<10000 and -200 < BLR_offset <200:
             return 0.0
     
     return -np.inf
@@ -137,8 +137,6 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
     
-    
-    
     fit_loc = np.where((wave>(6562.8-600)*(1+z)/1e4)&(wave<(6562.8+600)*(1+z)/1e4))[0]
        
     sel=  np.where(((wave<(6562.8+20)*(1+z)/1e4))& (wave>(6562.8-20)*(1+z)/1e4))[0]
@@ -150,7 +148,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     
     
     if BLR==1:
-        pos = np.array([z,np.mean(flux), peak/2, peak/4, peak/4, 400., 3000.,0])+ 1e-4 * np.random.randn(32, 8)
+        pos = np.array([z,np.mean(flux), peak/2, peak/4, peak/4, 400., 4000.,30])+ 1e-2 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
@@ -159,18 +157,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         sampler.run_mcmc(pos, N, progress=True);
     
         
-        flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
-    
-        plt.figure()
-        
-        plt.plot(wave[fit_loc], flux[fit_loc], drawstyle='steps-mid',)
-        
-        inds = np.random.randint(len(flat_samples), size=150)
-        for ind in inds:
-            sample = flat_samples[ind,:]
-            model = Halpha_wBLR(wave,*sample)
-            
-            plt.plot(wave, model, marker='', color='C1',alpha=0.1)       
+        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
             
         labels=('z', 'cont', 'Hal_flux','BLR_flux', 'NII_flux', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
         
@@ -180,6 +167,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
+        
         
         fitted_model = Halpha_wBLR
         
@@ -196,11 +184,8 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     
         sampler.run_mcmc(pos, N, progress=True);
     
-        
         flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
     
-
-            
         labels=('z', 'cont', 'Hal_flux', 'NII_flux', 'Nar_fwhm')
         fig = corner.corner(
             flat_samples, 
@@ -214,7 +199,13 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         res = {'name': 'Halpha_wth_BLR'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
-        
+    
+    popt = prop_calc(res)['popt'] 
+    plt.figure()
+    wvc = 6562*(1+popt[0])*1e4 
+    plt.plot(wave[fit_loc], flux[fit_loc], drawstyle='steps-mid')
+    plt.plot(wave, fitted_model(wave, *popt),'r--')
+    plt.plot(wave, gauss(wave, popt[3],wvc, popt[6]/3e5*wvc/2.35 ),'b--')
         
     return flat_samples, fitted_model
     
@@ -233,8 +224,7 @@ def OIII_outflow(x, z, cont, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_out, out_ve
     out_vel_wv = out_vel/3e5*OIIIr
     
     OIII_nar = gauss(x, OIIIn_flux, OIIIr, Nar_fwhm) + gauss(x, OIIIn_flux/3, OIIIb, Nar_fwhm)
-    
-    OIII_out = gauss(x, OIIIw_flux, OIIIr+out_vel_wv, Nar_fwhm) + gauss(x, OIIIw_flux/3, OIIIb+out_vel_wv, Out_fwhm)
+    OIII_out = gauss(x, OIIIw_flux, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_flux/3, OIIIb+out_vel_wv, Out_fwhm)
     
     
     return cont+ OIII_nar + OIII_out
@@ -252,7 +242,7 @@ def log_prior_OIII_outflow(theta):
     z, cont, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_out, out_vel = theta
     
     if 1.3 < z < 2.6 and 0 < cont<2 and 0<OIIIn_flux<2 and 0< OIIIw_flux<2 \
-        and 150 < OIII_fwhm<700 and 700 < OIII_out<2000 and -600<out_vel< 600:
+        and 150 < OIII_fwhm<700 and 600 < OIII_out<2000 and -900<out_vel< 600:
             return 0.0
     
     return -np.inf
@@ -323,7 +313,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     
     
     if outflow==1:
-        pos = np.array([z,np.mean(flux), peak/2, peak/4, 400., 900.,0])+ 1e-4 * np.random.randn(32, 7)
+        pos = np.array([z,np.mean(flux), peak/2, peak/4, 300., 700.,-100])+ 1e-2* np.random.randn(32, 7)
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
@@ -332,16 +322,18 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         sampler.run_mcmc(pos, N, progress=True);
     
         
-        flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
+        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
     
             
         labels=('z', 'cont', 'OIIIn_flux', 'OIIIw_flux', 'OIII_fwhm', 'OIII_out', 'out_vel')
+        
         fig = corner.corner(
             flat_samples, 
             labels=labels,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
+        
         
         fitted_model = OIII_outflow
         
@@ -362,12 +354,14 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
             
         labels=('z', 'cont', 'OIIIn_flux', 'OIII_fwhm')
+        '''
         fig = corner.corner(
             flat_samples, 
             labels=labels,
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
+        '''
         
         fitted_model = OIII
         
@@ -375,25 +369,6 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
         
-        
-    
-    plt.figure()
-    
-    popt = prop_calc(res)['popt']
-    
-    plt.plot(wave, flux, drawstyle='steps-mid')
-    
-    plt.plot(wave, fitted_model(wave, *popt),'r--', drawstyle='steps-mid')
-    '''
-    inds = np.random.randint(len(flat_samples), size=150)
-    
-    for ind in inds:
-        sample = flat_samples[ind,:]
-        model = fitted_model(wave,*sample)
-        
-        plt.plot(wave, model, marker='', color='C1',alpha=0.1)       
-     '''      
-            
     return res, fitted_model
     
 

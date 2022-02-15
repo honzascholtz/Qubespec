@@ -15,7 +15,7 @@ from astropy.wcs import wcs
 from astropy.nddata import Cutout2D
 
 import Fitting_tools_mcmc as emfit
-#import Plotting_tools as emplot
+import Plotting_tools_v2 as emplot
 from matplotlib.backends.backend_pdf import PdfPages
 
 
@@ -127,14 +127,70 @@ def prop_calc(results):
     return res_dict
         
 
+def SNR_calc(wave,flux, std, sol, mode):
+    wave = wave[np.invert(flux.mask)]
+    flux = flux.data[np.invert(flux.mask)]
     
+    wv_or = wave.copy()
     
-# =============================================================================
+    if mode =='OIII':
+        center = OIIIr*(1+sol[0])/1e4
+        if len(sol)==4:
+            fwhm = sol[3]/3e5*center
+            
+            model = gauss(wave, sol[2], center, fwhm/2.35)
+        elif len(sol)==7:
+            fwhm = sol[4]/3e5*center
+            
+            model = emfit.OIII_outflow(wave,  *sol)-sol[1]
+            
+        
+    elif mode =='Hn':
+        center = Hal*(1+sol[0])/1e4
+        if len(sol)==5:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[2], center, fwhm/2.35)
+        elif len(sol)==8:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[2], center, fwhm/2.35)
+    
+    elif mode =='Hblr':
+        center = Hal*(1+sol[0])/1e4
+        
+        fwhm = sol[6]/3e5*center
+        model = gauss(wave, sol[3], center, fwhm/2.35)
+            
+    elif mode =='NII':
+        center = NII_r*(1+sol[0])/1e4
+        if len(sol)==5:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[3], center, fwhm/2.35)
+        elif len(sol)==8:
+            fwhm = sol[4]/3e5*center
+            model = gauss(wave, sol[4], center, fwhm/2.35)
+            
+      
+    else:
+        raise Exception('Sorry mode in in SNR_calc not understood')
+    
+    use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]   
+    flux_l = model[use]
+    n = len(use)
+    
+    SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+    if SNR < 0:
+        SNR=0
+    
+    return SNR  
+    
+# ============================================================================
 #  Main class
 # =============================================================================
 class Cube:
     
     def __init__(self, Full_path, z, ID, flag, savepath, Band):
+        import importlib
+        importlib.reload(emfit )
     
         filemarker = fits.open(Full_path)
         
@@ -769,7 +825,7 @@ class Cube:
             ax4.plot(wave, D1_spectra_new, drawstyle='steps-mid')
             ax4.set_ylabel('New spec')
             
-            ax1.set_ylim(-0.02,0.2)
+            ax1.set_ylim(-0.05,0.4)
     
     def fitting_collapse_Halpha(self, plot, broad = 1):
         wave = self.obs_wave.copy()
@@ -816,10 +872,12 @@ class Cube:
         
         print(SNR_calc(wave, flux, error[0], prop['popt'], 'OIII'))
         
+        popt = prop['popt']
         
+        f, ax1 = plt.subplots(1)
         
+        emplot.plotting_OIII(wave, flux, ax1, prop,fitted_model)
         
-      
 
     def astrometry_correction_image(self, img_file):
         '''
@@ -987,7 +1045,7 @@ class Cube:
         cube_center = self.center_data[1:3]    
     
         # Old Header for plotting purposes
-        Header_cube_old = storage['header'].copy()
+        Header_cube_old = self.header.copy()
         
         # New Header 
         Header_cube_new = self.header.copy()
@@ -1001,164 +1059,225 @@ class Cube:
         # Saving new coordinates and the new header
         self.HST_center_glob = center_global
         self.header = Header_cube_new
+        
+    def Spaxel_fit_OIII(self, plot=0, sp_binning='Nearest', instrument='KMOS', add=''):
+        flux = self.flux.copy()
+        Mask= self.sky_clipped_1D
+        shapes = self.dim
+        ID = self.ID
+        
+        ThD_mask = self.sky_clipped.copy()
+        z = self.z
+        wv_obs = self.obs_wave.copy()
+        
+        Residual = np.zeros_like(flux).data
+        Model = np.zeros_like(flux).data
+            
+          
+        msk = Mask.copy()
+        Spax_mask = self.Sky_stack_mask[0,:,:]
+        
+        if (self.ID=='XID_587'):
+            print ('Masking special corners')
+            Spax_mask[:,0] = False
+            Spax_mask[:,1] = False
+            
+            Spax_mask[:,-1] = False
+            Spax_mask[:,-2] = False
+            
+            Spax_mask[0,:] = False
+            Spax_mask[1,:] = False
+            
+            Spax_mask[-1,:] = False
+            Spax_mask[-2,:] = False
+            
+# =============================================================================
+#   Unwrapping the cube    
+# =============================================================================
+        try:
+            arc = (self.header['CD2_2']*3600)
+        
+        except:
+            arc = (self.header['CDELT2']*3600)
+            
+        if arc> 0.17:            
+            upper_lim = 2            
+            step = 1
+           
+        elif arc< 0.17:            
+            upper_lim = 3 
+            step = 2
+            
+        x = range(shapes[0]-upper_lim)
+        y = range(shapes[1]-upper_lim) 
+        Unwrapped_cube = []        
+        for i in x: #progressbar.progressbar(x):
+            i= i+step
+            print (i,'/',len(x))
+            for j in y:
+                
+                j=j+step
+                #print i,j
+                Spax_mask_pick = ThD_mask.copy()
+                Spax_mask_pick[:,:,:] = True
+                Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
+                
+                #Spax_mask_pick= np.logical_or(Spax_mask_pick, ThD_mask)
+                flx_spax_t = np.ma.array(data=flux,mask=Spax_mask_pick)
+                
+                flx_spax = np.ma.median(flx_spax_t, axis=(1,2))                
+                flx_spax_m = np.ma.array(data = flx_spax.data, mask=msk)                
+                error = stats.sigma_clipped_stats(flx_spax_m,sigma=3)[2] * np.ones(len(flx_spax))
+                
+                Unwrapped_cube.append([i,j,flx_spax_m, error])
+                
+        
+        
+        '''
+        
+        #############################
+        # Binning Spaxel Fitting
+        #############################
+        if sp_binning== 'Nearest':
+            header = storage['header']
+            
+            try:
+                arc = (header['CD2_2']*3600)
+            
+            except:
+                arc = (header['CDELT2']*3600)
+            
+            Line_info[:,:,:] = np.nan
+            #Line_info = fits.getdata(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_Nearest_spaxel_fit.fits')
+            
+            if arc> 0.17:            
+                upper_lim = 2            
+                step = 1
+                
+                if localised==1:
+                    popt =  storage['Median_stack_white_Center_data'][1:3].copy()
+                    
+                    x = np.linspace(popt[0]-4, popt[0]+4, 9) 
+                    x =np.array(x, dtype=int)
+                    y = np.linspace(popt[1]-4, popt[1]+4, 9) 
+                    y =np.array(y, dtype=int)
+                
+                else:
+                    x = range(shapes[0]-upper_lim)
+                    y = range(shapes[1]-upper_lim)               
+                
+            elif arc< 0.17:            
+                upper_lim = 3 
+                step = 2
+                
+                if localised==1:
+                    popt =  storage['Median_stack_white_Center_data'][1:3].copy()
+                    
+                    x = np.linspace(popt[1]-12, popt[1]+12, 25) 
+                    x =np.array(x, dtype=int)
+                    y = np.linspace(popt[0]-12, popt[0]+12, 25) 
+                    y =np.array(y, dtype=int)
+                
+                                   
+                else:
+                    x = range(shapes[0]-upper_lim)
+                    y = range(shapes[1]-upper_lim)
+            
+            
+            #x = np.array([20])
+            #y = np.array([20])
+            for i in x: #progressbar.progressbar(x):
+                i= i+step
+                print (i,'/',len(x))
+                for j in y:
+                    
+                    j=j+step
+                    #print i,j
+                    Spax_mask_pick = ThD_mask.copy()
+                    Spax_mask_pick[:,:,:] = True
+                    Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
+                    
+                    #Spax_mask_pick= np.logical_or(Spax_mask_pick, ThD_mask)
+                    flx_spax_t = np.ma.array(data=flux,mask=Spax_mask_pick)
+                    
+                    flx_spax = np.ma.median(flx_spax_t, axis=(1,2))                
+                    flx_spax_m = np.ma.array(data = flx_spax.data, mask=msk)                
+                    error = STD_calc(wv_obs/(1+z)*1e4,flx_spax, mode)* np.ones(len(flx_spax))
+              
+                    SNR, Line_info,out, suc = Spaxel_fit_wrap_sig(storage, Line_info, wv_obs, flx_spax_m, error, mode,i,j, broad )
+                    
+                    if out !=1:
+                        try:
+                            
+                            out = out[0]
+                        except:
+                            out=out
+                    
+                    
+                        Residual[:,i,j] = flx_spax.data - out.eval(x=wv_obs)
+                        Model[:,i,j] =  out.eval(x=wv_obs)   
+                    
+                    
+                    
+                                   
+                    prhdr = storage['header']
+                    hdu = fits.PrimaryHDU(Line_info, header=prhdr)
+                    hdulist = fits.HDUList([hdu])
+        
+                    if mode == 'OIII':  
+                        if instrument =='KMOS':
+                            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
+                        
+                        elif instrument=='Sinfoni':
+                            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit_sin'+add+'.fits', overwrite=True)
+                            
+            
+            
+                    elif mode == 'H':
+                        if instrument =='KMOS':
+                            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
+                        
+                        elif instrument=='Sinfoni':
+                            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit_sin'+add+'.fits', overwrite=True)
+                            
+                            
+                    
+                    if (plot==1) &(suc==1):
+                        
+                        if (Spax_mask[i,j]==True) :
+                            ax1.set_title('Spaxel '+str(i)+', '+str(j)+' in Obj with SNR = "%.3f' % SNR )
+                            
+                                                  
+                            ax1.plot(wv_obs, flx_spax_m.data, color='grey', drawstyle='steps-mid')                       
+                            ax1.plot(wv_obs[np.invert(flx_spax_m.mask)], flx_spax_m.data[np.invert(flx_spax_m.mask)], drawstyle='steps-mid')                   
+                            ax1.plot(wv_obs, out.eval(x=wv_obs), 'r--')
+            
+                            if mode=='H':
+                                ax1.set_xlim(6400.*(1+z)/1e4, 6700.*(1+z)/1e4)
+                                
+                                ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Han_'], color='orange', linestyle='dashed')
+                                ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Haw_'], color='blue', linestyle='dashed')
+                                ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Nr_'], color='green', linestyle='dashed')
+                                ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Nb_'], color='limegreen', linestyle='dashed')
+                        
+                                Hal_cm = 6562.*(1+z)/1e4
+                        
+                                #print (out.params['Han_fwhm'].value/Hal_cm)*2.9979e5 
+                        
+                            elif mode=='OIII':
+                                cen = out.params['o3r_center'].value
+                                wid = out.params['o3r_fwhm'].value
+                                use = np.where((wv_obs< cen+wid)&(wv_obs> cen-wid))[0]
+                                
+                                ax1.plot(wv_obs, out.eval(x=wv_obs), 'k--')
+                                ax1.plot(wv_obs[use], out.eval_components(x= wv_obs[use])['o3r_'], 'r--')
+                                ax1.set_xlim(4900.*(1+z)/1e4, 5100.*(1+z)/1e4)
+                            
+                            #Spax.savefig()    
+                            ax1.clear()
+    '''
 
-def SNR_calc(wave,flux, std, sol, mode):
-    wave = wave[np.invert(flux.mask)]
-    flux = flux.data[np.invert(flux.mask)]
-    
-    wv_or = wave.copy()
-    
-    if mode =='OIII':
-        center = OIIIr*(1+sol[0])/1e4
-        if len(sol)==4:
-            fwhm = sol[3]/3e5*center
-            
-            model = gauss(wave, sol[2], center, fwhm/2.35)
-        elif len(sol)==7:
-            fwhm = sol[4]/3e5*center
-            
-            model = emfit.OIII_outflow(wave,  *sol)-sol[1]
-            
-        
-    elif mode =='Hn':
-        center = Hal*(1+sol[0])/1e4
-        if len(sol)==5:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[2], center, fwhm/2.35)
-        elif len(sol)==8:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[2], center, fwhm/2.35)
-    
-    elif mode =='Hblr':
-        center = Hal*(1+sol[0])/1e4
-        
-        fwhm = sol[6]/3e5*center
-        model = gauss(wave, sol[3], center, fwhm/2.35)
-            
-    elif mode =='NII':
-        center = NII_r*(1+sol[0])/1e4
-        if len(sol)==5:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[3], center, fwhm/2.35)
-        elif len(sol)==8:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[4], center, fwhm/2.35)
-            
-      
-    else:
-        raise Exception('Sorry mode in in SNR_calc not understood')
-    
-    use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]   
-    flux_l = model[use]
-    n = len(use)
-    
-    SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
-    if SNR < 0:
-        SNR=0
-    
-    return SNR
-    
-            
 
-'''
-
-def SNR_calc(flux, wave, solution, mode,z, mul=0):
-    std = STD_calc(wave/(1+z)*1e4,flux, mode)
-    wave = wave[np.invert(flux.mask)]
-    flux = flux.data[np.invert(flux.mask)]
-    
-    wv_or = wave.copy()
-    
-    
-    if (mode =='OIII') &(mul==0):
-        center = solution.params['o3r_center'].value        
-        fwhm = solution.params['o3r_fwhm'].value *2                
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-        
-    elif (mode =='OIII') & (mul==1):
-        center = solution.params['o3rw_center'].value        
-        fwhm = solution.params['o3rw_fwhm'].value *2                
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-        
-     
-    elif (mode=='H') &(mul==0):
-        center = solution.params['Ha_center'].value
-        fwhm = solution.params['Ha_fwhm'].value *1.
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-    
-    elif (mode=='H') &(mul==1):
-        center = solution.params['Han_center'].value
-        fwhm = solution.params['Han_fwhm'].value *1.
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-        
-        #print center, fwhm, len(use), std
-    
-    elif (mode=='Hb') &(mul==0):
-        center = solution.params['Hb_center'].value
-        fwhm = solution.params['Hb_fwhm'].value *1
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-    
-    elif (mode=='Hb') &(mul==1):
-        center = solution.params['Hbn_center'].value
-        fwhm = solution.params['Hbn_fwhm'].value *1
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-    
-    elif (mode=='Hbs'):
-        center = solution.params['Hb_center'].value
-        fwhm = solution.params['Hb_fwhm'].value *1
-        use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]
-        
-        #print center, fwhm, len(use), std
-        
-        
-    flux_p = flux[use]
-    wave = wave[use]
-    
-    import scipy.integrate as scpi
-    try:
-        Fit = scpi.simps( solution.eval(x=wave),wave )
-        Dat = scpi.simps( flux_p,wave )
-    
-        rat = Fit/Dat
-    
-    except:
-        rat = 1
-    if rat<0:
-        rat=0
-    
-    if (mul==1) & (mode=='H'):
-        flux_l = flux_p - (solution.eval_components(x= wave)['linear'] + 
-                           solution.eval_components(x= wave)['Haw_']+
-                           solution.eval_components(x= wave)['Nr_']+
-                           solution.eval_components(x= wave)['Nb_'] )
-    if (mul==1) & (mode=='OIII'):
-        flux_l = flux_p - (solution.eval_components(x= wave)['linear'] + 
-                           solution.eval_components(x= wave)['Hbw_']+
-                           solution.eval_components(x= wave)['o3bn_']+
-                           solution.eval_components(x= wave)['o3bw_']
-                            )
-        
-        
-        
-        
-    else:
-        flux_l = flux_p -  solution.eval_components(x= wave)['linear']
-        
-        
-    
-    n = len(use)
-    if std==0:
-        SNR=0
-    
-    
-    else:
-        SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
-        #print SNR
-       
-        if SNR < 0:
-            SNR=0
-    #print 'std ',std, ', #points ', n,  'SNR ', SNR, 'sum flux ', sum(flux_l)
-    return SNR, rat
     
             
 
@@ -1301,369 +1420,7 @@ def Spaxel_fit_wrap_sig(storage, Line_info, obs_wv, flx_spax_m, error, mode,i,j 
     
     return SNR, Line_info,out,suc
 
-
-def Spaxel_fit_sig(storage, mode, plot, sp_binning, localised = 0, broad=1, instrument='KMOS', add=''):
-    flux = storage['flux'].copy()
-    Mask= storage['sky_clipped_1D']
-    shapes = storage['dim']
-    
-    ThD_mask = storage['sky_clipped'].copy()
-    z = storage['z_guess']
-    wv_obs = storage['obs_wave'].copy()
-    
-    Residual = np.zeros_like(flux).data
-    Model = np.zeros_like(flux).data
-        
-      
-    ms = Mask.copy()
-    Spax_mask = storage['Sky_stack_mask'][0,:,:]
-    
-    if (storage['X-ray ID']=='XID_587'):
-        print ('Masking special corners')
-        Spax_mask[:,0] = False
-        Spax_mask[:,1] = False
-        
-        Spax_mask[:,-1] = False
-        Spax_mask[:,-2] = False
-        
-        Spax_mask[0,:] = False
-        Spax_mask[1,:] = False
-        
-        Spax_mask[-1,:] = False
-        Spax_mask[-2,:] = False
-        
-    
-    if mode =='H':
-        SII_ms = ms.copy()
-        SII_ms[:] = False
-        SII_ms[np.where((wv_obs<6741.*(1+z)/1e4)&(wv_obs> 6712*(1+z)/1e4))[0]] = True
-    
-        msk = np.logical_or(SII_ms, ms)    
-    
-    elif mode=='OIII':
-        msk = ms  
-    
-    ID = storage['X-ray ID']    
-    Line_info = np.zeros((6, shapes[0], shapes[1]))
-    
-    if plot==1:
-        f, (ax1) = plt.subplots(1)
-        
-        ax1.set_xlabel('Rest Wavelegth (ang)')
-        ax1.set_ylabel('Flux')
-        if sp_binning=='Individual':
-            
-            if instrument =='KMOS':
-                Spax = PdfPages(PATH+'KMOS_SIN/Graphs/Spax_fit/Individual/Spaxel_'+ID+'_'+mode+add+'.pdf')
-            
-            elif instrument=='Sinfoni':
-                Spax = PdfPages(PATH+'KMOS_SIN/Graphs/Spax_fit/Individual/Spaxel_'+ID+'_'+mode+'_sin'+add+'.pdf')
-            
-        
-        elif sp_binning=='Nearest':
-            if instrument =='KMOS':
-                Spax = PdfPages(PATH+'KMOS_SIN/Graphs/Spax_fit/Nearest/Spaxel_Nearest_'+ID+'_'+mode+add+'.pdf')
-            
-            elif instrument=='Sinfoni':
-                Spax = PdfPages(PATH+'KMOS_SIN/Graphs/Spax_fit/Nearest/Spaxel_Nearest_'+ID+'_'+mode+'_sin'+add+'.pdf')
-                
-    
-    
-    
-    import Plotting_tools as emplot
-    #############################
-    # Binning Spaxel Fitting
-    #############################
-    if sp_binning== 'Nearest':
-        header = storage['header']
-        
-        try:
-            arc = (header['CD2_2']*3600)
-        
-        except:
-            arc = (header['CDELT2']*3600)
-        
-        Line_info[:,:,:] = np.nan
-        #Line_info = fits.getdata(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_Nearest_spaxel_fit.fits')
-        
-        if arc> 0.17:            
-            upper_lim = 2            
-            step = 1
-            
-            if localised==1:
-                popt =  storage['Median_stack_white_Center_data'][1:3].copy()
-                
-                x = np.linspace(popt[0]-4, popt[0]+4, 9) 
-                x =np.array(x, dtype=int)
-                y = np.linspace(popt[1]-4, popt[1]+4, 9) 
-                y =np.array(y, dtype=int)
-            
-            else:
-                x = range(shapes[0]-upper_lim)
-                y = range(shapes[1]-upper_lim)               
-            
-        elif arc< 0.17:            
-            upper_lim = 3 
-            step = 2
-            
-            if localised==1:
-                popt =  storage['Median_stack_white_Center_data'][1:3].copy()
-                
-                x = np.linspace(popt[1]-12, popt[1]+12, 25) 
-                x =np.array(x, dtype=int)
-                y = np.linspace(popt[0]-12, popt[0]+12, 25) 
-                y =np.array(y, dtype=int)
-            
-                               
-            else:
-                x = range(shapes[0]-upper_lim)
-                y = range(shapes[1]-upper_lim)
-        
-        
-        #x = np.array([20])
-        #y = np.array([20])
-        for i in x: #progressbar.progressbar(x):
-            i= i+step
-            print (i,'/',len(x))
-            for j in y:
-                
-                j=j+step
-                #print i,j
-                Spax_mask_pick = ThD_mask.copy()
-                Spax_mask_pick[:,:,:] = True
-                Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
-                
-                #Spax_mask_pick= np.logical_or(Spax_mask_pick, ThD_mask)
-                flx_spax_t = np.ma.array(data=flux,mask=Spax_mask_pick)
-                
-                flx_spax = np.ma.median(flx_spax_t, axis=(1,2))                
-                flx_spax_m = np.ma.array(data = flx_spax.data, mask=msk)                
-                error = STD_calc(wv_obs/(1+z)*1e4,flx_spax, mode)* np.ones(len(flx_spax))
-          
-                SNR, Line_info,out, suc = Spaxel_fit_wrap_sig(storage, Line_info, wv_obs, flx_spax_m, error, mode,i,j, broad )
-                
-                if out !=1:
-                    try:
-                        
-                        out = out[0]
-                    except:
-                        out=out
-                
-                
-                    Residual[:,i,j] = flx_spax.data - out.eval(x=wv_obs)
-                    Model[:,i,j] =  out.eval(x=wv_obs)   
-                
-                
-                
-                               
-                prhdr = storage['header']
-                hdu = fits.PrimaryHDU(Line_info, header=prhdr)
-                hdulist = fits.HDUList([hdu])
-    
-                if mode == 'OIII':  
-                    if instrument =='KMOS':
-                        hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
-                    
-                    elif instrument=='Sinfoni':
-                        hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit_sin'+add+'.fits', overwrite=True)
-                        
-        
-        
-                elif mode == 'H':
-                    if instrument =='KMOS':
-                        hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
-                    
-                    elif instrument=='Sinfoni':
-                        hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit_sin'+add+'.fits', overwrite=True)
-                        
-                        
-                
-                if (plot==1) &(suc==1):
-                    
-                    if (Spax_mask[i,j]==True) :
-                        ax1.set_title('Spaxel '+str(i)+', '+str(j)+' in Obj with SNR = "%.3f' % SNR )
-                        
-                                              
-                        ax1.plot(wv_obs, flx_spax_m.data, color='grey', drawstyle='steps-mid')                       
-                        ax1.plot(wv_obs[np.invert(flx_spax_m.mask)], flx_spax_m.data[np.invert(flx_spax_m.mask)], drawstyle='steps-mid')                   
-                        ax1.plot(wv_obs, out.eval(x=wv_obs), 'r--')
-        
-                        if mode=='H':
-                            ax1.set_xlim(6400.*(1+z)/1e4, 6700.*(1+z)/1e4)
-                            
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Han_'], color='orange', linestyle='dashed')
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Haw_'], color='blue', linestyle='dashed')
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Nr_'], color='green', linestyle='dashed')
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Nb_'], color='limegreen', linestyle='dashed')
-                    
-                            Hal_cm = 6562.*(1+z)/1e4
-                    
-                            #print (out.params['Han_fwhm'].value/Hal_cm)*2.9979e5 
-                    
-                        elif mode=='OIII':
-                            cen = out.params['o3r_center'].value
-                            wid = out.params['o3r_fwhm'].value
-                            use = np.where((wv_obs< cen+wid)&(wv_obs> cen-wid))[0]
-                            
-                            ax1.plot(wv_obs, out.eval(x=wv_obs), 'k--')
-                            ax1.plot(wv_obs[use], out.eval_components(x= wv_obs[use])['o3r_'], 'r--')
-                            ax1.set_xlim(4900.*(1+z)/1e4, 5100.*(1+z)/1e4)
-                        
-                        #Spax.savefig()    
-                        ax1.clear()
-    #############################
-    # Individual Spaxel Fitting
-    #############################
-    elif sp_binning== 'Individual':
-        
-        header = storage['header']
-        
-        try:
-            arc = (header['CD2_2']*3600)
-        
-        except:
-            arc = (header['CDELT2']*3600)
-        
-        Line_info[:,:,:] = np.nan
-        #Line_info = fits.getdata(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_Nearest_spaxel_fit.fits')
-        
-        if arc> 0.17:            
-            upper_lim = 2            
-            step = 1
-            
-            if localised==1:
-                popt =  storage['Median_stack_white_Center_data'][1:3].copy()
-                
-                x = np.linspace(popt[0]-4, popt[0]+4, 9) 
-                x =np.array(x, dtype=int)
-                y = np.linspace(popt[1]-4, popt[1]+4, 9) 
-                y =np.array(y, dtype=int)
-            
-            else:
-                x = range(shapes[0]-upper_lim)
-                y = range(shapes[1]-upper_lim)               
-            
-        elif arc< 0.17:            
-            upper_lim = 3 
-            step = 2
-            
-            if localised==1:
-                popt =  storage['Median_stack_white_Center_data'][1:3].copy()
-                
-                x = np.linspace(popt[1]-12, popt[1]+12, 25) 
-                x =np.array(x, dtype=int)
-                y = np.linspace(popt[0]-12, popt[0]+12, 25) 
-                y =np.array(y, dtype=int)
-            
-                #x = np.linspace(35, 65, 31) 
-                #x =np.array(x, dtype=int)
-                #y = np.linspace(35, 65, 31) 
-                #y =np.array(y, dtype=int)
-                #x = np.array([45])-2
-                #y = np.array([47])-2
-                
-            else:
-                x = range(shapes[0]-upper_lim)
-                y = range(shapes[1]-upper_lim)
-        
-        
-        for i in x: #progressbar.progressbar(x):
-            i= i+step
-            print (i,'/',len(x))
-            for j in y:
-                
-                
-                flx_spax = flux[:,i,j]
-                flx_spax_m = np.ma.array(data=flx_spax, mask= msk)
-                error =   STD_calc(wv_obs*(1+z)/1e4,flx_spax, mode)* np.ones(len(flx_spax))
-            
-                SNR, Line_info,out, suc = Spaxel_fit_wrap_sig(storage, Line_info, wv_obs, flx_spax_m, error, mode,i,j, broad )
-                
-                prhdr = storage['header']
-                hdu = fits.PrimaryHDU(Line_info, header=prhdr)
-                
-                hdulist = fits.HDUList([hdu])
-    
-                if mode == 'OIII':            
-                    hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
-        
-        
-                elif mode == 'H':     
-                    hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
-        
-                if (plot==1) &(suc==1): 
-                    if (Spax_mask[i,j]==True) :
-                        ax1.set_title('Spaxel '+str(i)+', '+str(j)+' in Obj with SNR = "%.3f' % SNR )
-                        
-                                              
-                        ax1.plot(wv_obs, flx_spax_m.data, color='grey', drawstyle='steps-mid')                       
-                        ax1.plot(wv_obs[np.invert(flx_spax_m.mask)], flx_spax_m.data[np.invert(flx_spax_m.mask)], drawstyle='steps-mid')                   
-                        ax1.plot(wv_obs, out.eval(x=wv_obs), 'r--')
-        
-                        if mode=='H':
-                            ax1.set_xlim(6400.*(1+z)/1e4, 6700.*(1+z)/1e4)
-                            
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Han_'], color='orange', linestyle='dashed')
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Haw_'], color='blue', linestyle='dashed')
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Nr_'], color='green', linestyle='dashed')
-                            ax1.plot(wv_obs, out.eval_components(x=wv_obs)['Nb_'], color='limegreen', linestyle='dashed')
-                    
-                            Hal_cm = 6562.*(1+z)/1e4
-                    
-                            #print (out.params['Han_fwhm'].value/Hal_cm)*2.9979e5 
-                    
-                        elif mode=='OIII':
-                            cen = out.params['o3r_center'].value
-                            wid = out.params['o3r_fwhm'].value
-                            use = np.where((wv_obs< cen+wid)&(wv_obs> cen-wid))[0]
-                            
-                            ax1.plot(wv_obs, out.eval(x=wv_obs), 'k--')
-                            ax1.plot(wv_obs[use], out.eval_components(x= wv_obs[use])['o3r_'], 'r--')
-                            ax1.set_xlim(4900.*(1+z)/1e4, 5100.*(1+z)/1e4)
-                        
-                        Spax.savefig()    
-                        ax1.clear()
-    if plot==1:
-        Spax.close()
-    
-    prhdr = storage['header']
-    hdu = fits.PrimaryHDU(Line_info, header=prhdr)
-    hdulist = fits.HDUList([hdu])
-    
-    hdu_res = fits.PrimaryHDU(Residual, header=prhdr)
-    hdulist_res = fits.HDUList([hdu_res])
-    
-    hdu_mod = fits.PrimaryHDU(Model, header=prhdr)
-    hdulist_mod = fits.HDUList([hdu_mod])
-    
-    if mode == 'OIII':
-        if instrument =='KMOS':
-            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
-            
-            
-                    
-        elif instrument=='Sinfoni':
-            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/OIII/'+ID+'_'+sp_binning+'_spaxel_fit_sin'+add+'.fits', overwrite=True)
-            
-                        
-        
-        
-    elif mode == 'H':
-        if instrument =='KMOS':
-            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'.fits', overwrite=True)
-            
-                
-                
-        elif instrument=='Sinfoni':
-            hdulist.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit_sin'+add+'.fits', overwrite=True)
-            print ('Saving Halpha Sinfoni')
-        
-        hdulist_res.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'_res.fits', overwrite=True)
-        hdulist_mod.writeto(PATH+'KMOS_SIN/Results_storage/Halpha/'+ID+'_'+sp_binning+'_spaxel_fit'+add+'_mod.fits', overwrite=True)
-        
-    return storage
-
-
+'''
 
 def Spaxel_fit_wrap_mul(storage, Line_info, obs_wv, flx_spax_m, error, Residual, mode,i,j ,broad):
     
