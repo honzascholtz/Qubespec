@@ -74,19 +74,21 @@ importlib.reload(IFU )
 IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_H.fits' 
 #IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_AGN6.fits' 
 instrument = 'KMOS'
-ID = 'XID_208'
+ID = 'XID_587'
 z= 2.2246
 #z= 1.61
 Band = 'H'
 
-Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', Band)
+Save_path = 'path'
+
+Cube = IFU.Cube(IFU_cube_path, z, ID, instrument,Save_path , Band)
 
 Cube.mask_emission()
 Cube.mask_sky( 1.5)
 Cube.collapse_white(plot_it)
 Cube.find_center( plot_it)
 
-Cube.choose_pixels(plot_it, rad= 0.5)#, flg='K587')
+Cube.choose_pixels(plot_it, rad= 0.7)#, flg='K587')
 
 Cube.stack_sky(plot_it, expand=0)
 Cube.D1_spectra_collapse( plot_it, addsave='_inner')

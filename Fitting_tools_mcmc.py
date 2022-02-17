@@ -85,8 +85,11 @@ def log_probability_Halpha_BLR(theta, x, y, yerr):
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_Halpha_BLR(theta, x, y, yerr)
+    
 
-
+# =============================================================================
+# Function to fit just Halpha
+# =============================================================================
 def Halpha(x, z, cont, Hal_flux, NII_flux, Nar_fwhm):
     Hal_wv = 6562.8*(1+z)/1e4     
     NII_r = 6583.*(1+z)/1e4
@@ -102,11 +105,7 @@ def Halpha(x, z, cont, Hal_flux, NII_flux, Nar_fwhm):
     NII_nar_b = gauss(x, NII_flux/3, NII_b, Nar_vel_niib)
     
     return cont+Hal_nar+NII_nar_r+NII_nar_b
-    
 
-# =============================================================================
-# Function to fit just Halpha
-# =============================================================================
 def log_likelihood_Halpha(theta, x, y, yerr):
     
     model = Halpha(x,*theta)
@@ -297,7 +296,6 @@ def log_probability_OIII(theta, x, y, yerr):
 # =============================================================================
     
 def fitting_OIII(wave, fluxs, error,z, outflow=0):
-    from lmfit.models import GaussianModel, LorentzianModel, LinearModel, QuadraticModel
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]

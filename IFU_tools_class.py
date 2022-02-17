@@ -879,7 +879,7 @@ class Cube:
         emplot.plotting_OIII(wave, flux, ax1, prop,fitted_model)
         
 
-    def astrometry_correction_image(self, img_file):
+    def astrometry_correction_HST(self, img_file):
         '''
         Correcting the Astrometry of the Cube. Fits a 2D Gaussian to the HST image and assumes that the 
         HST and Cube centroids are in the same location. 

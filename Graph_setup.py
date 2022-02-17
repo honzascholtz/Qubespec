@@ -1,5 +1,4 @@
-def clear_slate_protocol():
-    plt.close('all')
+def clean_slate_protocol():
     import matplotlib
     matplotlib.rcdefaults()
     matplotlib.rcParams['figure.figsize'] = (5.5,4.5)
