@@ -135,39 +135,39 @@ def SNR_calc(wave,flux, std, sol, mode):
     
     if mode =='OIII':
         center = OIIIr*(1+sol[0])/1e4
-        if len(sol)==4:
-            fwhm = sol[3]/3e5*center
-            
-            model = gauss(wave, sol[2], center, fwhm/2.35)
-        elif len(sol)==7:
+        if len(sol)==5:
             fwhm = sol[4]/3e5*center
             
-            model = emfit.OIII_outflow(wave,  *sol)-sol[1]
+            model = gauss(wave, sol[3], center, fwhm/2.35)
+        elif len(sol)==8:
+            fwhm = sol[5]/3e5*center
+            
+            model = emfit.OIII_outflow(wave,  *sol)-wave*sol[2]+sol[1]
             
         
     elif mode =='Hn':
         center = Hal*(1+sol[0])/1e4
-        if len(sol)==5:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[2], center, fwhm/2.35)
-        elif len(sol)==8:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[2], center, fwhm/2.35)
+        if len(sol)==6:
+            fwhm = sol[5]/3e5*center
+            model = gauss(wave, sol[3], center, fwhm/2.35)
+        elif len(sol)==9:
+            fwhm = sol[5]/3e5*center
+            model = gauss(wave, sol[3], center, fwhm/2.35)
     
     elif mode =='Hblr':
         center = Hal*(1+sol[0])/1e4
         
-        fwhm = sol[6]/3e5*center
-        model = gauss(wave, sol[3], center, fwhm/2.35)
+        fwhm = sol[7]/3e5*center
+        model = gauss(wave, sol[4], center, fwhm/2.35)
             
     elif mode =='NII':
         center = NII_r*(1+sol[0])/1e4
         if len(sol)==5:
-            fwhm = sol[4]/3e5*center
-            model = gauss(wave, sol[3], center, fwhm/2.35)
-        elif len(sol)==8:
-            fwhm = sol[4]/3e5*center
+            fwhm = sol[5]/3e5*center
             model = gauss(wave, sol[4], center, fwhm/2.35)
+        elif len(sol)==8:
+            fwhm = sol[5]/3e5*center
+            model = gauss(wave, sol[5], center, fwhm/2.35)
             
       
     else:
@@ -176,12 +176,49 @@ def SNR_calc(wave,flux, std, sol, mode):
     use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]   
     flux_l = model[use]
     n = len(use)
-    
     SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
     if SNR < 0:
         SNR=0
     
     return SNR  
+
+def BIC_calc(wave,fluxm,error, model, results, mode):
+    popt = results['popt']
+    z= popt[0]
+    
+    if mode=='OIII':
+        
+        flux = fluxm.data[np.invert(fluxm.mask)]
+        wave = wave[np.invert(fluxm.mask)]
+        error = error[np.invert(fluxm.mask)]
+        
+        fit_loc = np.where((wave>4900*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+        
+        flux = flux[fit_loc]
+        wave = wave[fit_loc]
+        error = error[fit_loc]
+        
+        y_model = model(wave, *popt)
+        chi2 = sum(((flux-y_model)/error)**2)
+        BIC = chi2+ len(popt)*np.log(len(flux))
+    
+    if mode=='Halpha':
+        
+        flux = fluxm.data[np.invert(fluxm.mask)]
+        wave = wave[np.invert(fluxm.mask)]
+        error = error[np.invert(fluxm.mask)]
+        
+        fit_loc = np.where((wave>(6562.8-600)*(1+z)/1e4)&(wave<(6562.8+600)*(1+z)/1e4))[0]
+        
+        flux = flux[fit_loc]
+        wave = wave[fit_loc]
+        error = error[fit_loc]
+        
+        y_model = model(wave, *popt)
+        chi2 = sum(((flux-y_model)/error)**2)
+        BIC = chi2+ len(popt)*np.log(len(flux))
+    
+    return chi2, BIC
     
 # ============================================================================
 #  Main class
@@ -834,24 +871,43 @@ class Cube:
         z = self.z
         
         
-        fl = flux.data
-        ms = flux.mask
+        flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0)
+
+        prop_sig = prop_calc(flat_samples_sig)
         
-        #SII_ms = ms.copy()
-        #SII_ms[:] = False
-        #SII_ms[np.where(((wave*1e4/(1+z))<6741)&((wave*1e4/(1+z))> 6712))[0]] = True
         
-        #msk = np.logical_or(SII_ms,ms)  
-        msk = ms
+        y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+        chi2S = sum(((flux.data-y_model_sig)/error)**2)
+        BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
         
-        flux = np.ma.array(data=fl, mask = msk)
+        flat_samples_out, fitted_model_out = emfit.fitting_Halpha(wave,flux,error,z, BLR=1)
+        prop_out = prop_calc(flat_samples_out)
         
-        fit_loc = np.where(((wave*1e4/(1+z))>6562.8-100)&((wave*1e4/(1+z))<6562.8+100))[0]
+        chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
+        chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'Halpha')
         
-        flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, BLR=broad)
         
-        self.D1_fit_chain = flat_samples
-        self.D1_fit_model = fitted_model
+        if BICM-BICS <-2:
+            print('Delta BIC' , BICM-BICS, ' ')
+            self.D1_fit_results = prop_out
+            self.D1_fit_chain = flat_samples_out
+            self.D1_fit_model = fitted_model_out
+        
+        else:
+            print('Delta BIC' , BICM-BICS, ' ')
+            self.D1_fit_results = prop_sig
+            self.D1_fit_chain = flat_samples_sig
+            self.D1_fit_model = fitted_model_sig
+            
+        
+        print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn'))
+        
+        f, ax1 = plt.subplots(1)
+        
+        emplot.plotting_Halpha(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
+        
+        
+
         
         
     
@@ -862,21 +918,39 @@ class Cube:
         error = self.D1_spectrum_er.copy()
         z = self.z
         
-        flat_samples, fitted_model = emfit.fitting_OIII(wave,flux,error,z, outflow=outflow)
+        flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
+        prop_sig = prop_calc(flat_samples_sig)
         
-        prop = prop_calc(flat_samples)
+        y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+        chi2S = sum(((flux.data-y_model_sig)/error)**2)
+        BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
         
-        self.D1_fit_results = prop
-        self.D1_fit_chain = flat_samples
-        self.D1_fit_model = fitted_model
+        flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1)
+        prop_out = prop_calc(flat_samples_out)
         
-        print(SNR_calc(wave, flux, error[0], prop['popt'], 'OIII'))
+        chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
+        chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'OIII')
         
-        popt = prop['popt']
+        
+        if BICM-BICS <-2:
+            print('Delta BIC' , BICM-BICS, ' ')
+            self.D1_fit_results = prop_out
+            self.D1_fit_chain = flat_samples_out
+            self.D1_fit_model = fitted_model_out
+        
+        else:
+            print('Delta BIC' , BICM-BICS, ' ')
+            self.D1_fit_results = prop_sig
+            self.D1_fit_chain = flat_samples_sig
+            self.D1_fit_model = fitted_model_sig
+            
+        
+        print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII'))
+        
         
         f, ax1 = plt.subplots(1)
         
-        emplot.plotting_OIII(wave, flux, ax1, prop,fitted_model)
+        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
         
 
     def astrometry_correction_HST(self, img_file):
@@ -1278,8 +1352,8 @@ class Cube:
     '''
 
 
-    
-            
+ 
+        
 
 
 def Spaxel_fit_wrap_sig(storage, Line_info, obs_wv, flx_spax_m, error, mode,i,j ,broad):

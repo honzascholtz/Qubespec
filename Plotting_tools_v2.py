@@ -105,7 +105,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
     ax.set_xlim(4920,5050 )
 
     
-    if len(popt)==7:
+    if len(popt)==8:
         OIIIr = 5008
         OIIIb = 4960
         
@@ -125,107 +125,50 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
                  gauss(wv_rest[fit_loc], sol['OIIIw_flux'][0]/3, OIIIb, fwhm) \
                      ,color= 'blue', linestyle ='dashed')
             
-    
-        
-        
-        
-        
-    
-    
-   
 
+
+
+
+def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
+    popt = sol['popt']
+    z = popt[0]
+    print(len(popt))
     
-def plotting_Halpha(wave, fluxs, ax, out, mode,z, title=1, yscale='model'):
-    
-    #try:
-    #    z =  (out.params['Han_center'].value*1e4/6562.)-1
-    #except:
-    #    z= (out.params['Ha_center'].value*1e4/6562.)-1
-        
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
-    
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
    
     flux = fluxs.data[np.invert(fluxs.mask)]
     wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         
-    fit_loc_sc = np.where((wv_rst_sc>6000.)&(wv_rst_sc<6999.))[0]   
+    fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7500))[0]   
     
-    #from scipy.signal import medfilt as mdf
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
 
-    try:
-        ax.plot(wv_rest[fit_loc], out.eval(x=wave[fit_loc]), 'r--')
-        #ax.set_ylim(min(flux[fit_loc]), max(out.eval(x=wave[fit_loc]))*1.1)
-    
-    except:
-        out= out[0]
-        ax.plot(wv_rest[fit_loc], out.eval(x=wave[fit_loc]), 'r--')
-        
-        
+    y_tot = fitted_model(wave[fit_loc], *popt)
 
+    ax.plot(wv_rest[fit_loc], y_tot, 'r--')
+
+
+    ax.set_ylim(-0.1*max(y_tot), max(y_tot)*1.1)
+    ax.set_xlim(6562-250,6562+250 )
     ax.tick_params(direction='in')
-    ax.set_xlim(6200, 6999)
     
-    cnt = 0 #out.eval_components(x=wave[fit_loc])['linear']
-    
-    if yscale=='model':
-        ax.set_ylim(-0.1*max(out.eval(x=wave[fit_loc])), max(out.eval(x=wave[fit_loc]))*1.1)
-    
-    elif yscale=='spec':
-        ax.set_ylim(min(flux[fit_loc_sc])*1.1, max(flux[fit_loc_sc])*1.1)
+    Hal_wv = 6562*(1+z)/1e4
+    BLR_wv = 6562*(1+z)/1e4+ popt[8]/3e5*Hal_wv
+    NII_r = 6583.*(1+z)/1e4
+    NII_b = 6548.*(1+z)/1e4
+    if len(popt)==9:
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[3], Hal_wv, popt[6]/3e5*Hal_wv/2.35), \
+                color='orange', linestyle='dashed')
+        
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[4], BLR_wv, popt[7]/3e5*Hal_wv/2.35), \
+                color='magenta', linestyle='dashed')
             
-    if mode=='mul':
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Haw_'], color='magenta', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Han_'], color='orange', linestyle='dotted')
-        
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Nr_'], color='green', linestyle='-.')
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Nb_'], color='limegreen', linestyle='-.')
-        
-        #ax.plot(wv_rest[fit_loc],cnt,'k--')
-        
-        try: 
-            broad = int(out.params['Haw_fwhm'].value/6562.8*2.9979e5/(1+z)*1e4)
-        except:
-            try:
-                broad = int(out.params['Haw_sigma'].value/6562.8*2.9979e5/(1+z)*1e4)*2.3
-            except:
-                broad =1
-            
-        narow = int(out.params['Han_fwhm'].value/6562.8*2.9979e5/(1+z)*1e4)
-        
-        if title==1:    
-            ax.set_title('B,N '+ str(broad)+', '+ str(narow)+' km/s'  )
-            
-        try:
-            ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Hao_'], color='red', linestyle='dashed')
-        except:
-            dssssls=1
-            
-    
-    elif mode=='out':
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Haw_'], color='blue', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Nrw_'], color='blue', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Nbw_'], color='blue', linestyle='dashed')
-        
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Han_'],color='orange', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Nr_'], color='limegreen', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Nb_'], color='limegreen', linestyle='dashed')
-        
-        broad = int(out.params['Haw_fwhm'].value/6562.8*2.9979e5/(1+z)*1e4)
-        narow = int(out.params['Han_fwhm'].value/6562.8*2.9979e5/(1+z)*1e4)
-        
-        if title==1:    
-            ax.set_title('B,N '+ str(broad)+', '+ str(narow)+' km/s'  )
-    
-        
-    
-    elif mode=='sig':
-        ax.plot(wv_rest[fit_loc], out.eval_components(x=wave[fit_loc])['Ha_'], 'b--')
-    
-    else:
-        print ('mode not understood')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[5], NII_r, popt[6]/3e5*Hal_wv/2.35), \
+                color='darkgreen', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[5]/3, NII_b, popt[6]/3e5*Hal_wv/2.35), \
+                color='darkgreen', linestyle='dashed')
         
 def overide_axes_labels(fig,ax,lims,showx=1,showy=1,labelx=1,labely=1,color='k',fewer_x=0,pruney=0,prunex=0,tick_color='k', tickin=0, labelsize=12, white=0):
     #over rides axis labels generated by wcsaxes in order to put relative coordinates in 

@@ -41,9 +41,9 @@ fsz = gst.graph_format()
 
 import IFU_tools_class as IFU 
 
-plot_it=1
-'''
-IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_cdfs_39849_x_r_01spax.fits' 
+plot_it=0
+
+IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_cdfs_39849_x_r.fits' 
 instrument = 'KMOS'
 ID = 'XID_208'
 z= 1.61
@@ -62,7 +62,7 @@ Cube.stack_sky(plot_it, expand=0)
 Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 
-Cube.fitting_collapse_Halpha( plot_it, broad=1)
+Cube.fitting_collapse_Halpha( plot_it)
 
 
 
@@ -88,23 +88,23 @@ Cube.mask_sky( 1.5)
 Cube.collapse_white(plot_it)
 Cube.find_center( plot_it)
 
-Cube.choose_pixels(plot_it, rad= 0.7)#, flg='K587')
+Cube.choose_pixels(plot_it, rad= 0.3)#, flg='K587')
 
 Cube.stack_sky(plot_it, expand=0)
 Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 
-Cube.fitting_collapse_OIII( plot_it, outflow=1)
+Cube.fitting_collapse_OIII( plot_it)
 
 #Cube.Spaxel_fit_OIII()
-
+'''
 
 plt.show()
 
 
+
+
 '''
-
-
 storage_H = IFU.choose_pixels(storage_H, plot_it, rad= rds , flg = fl)
 
 storage_H = IFU.astrometry_correction(storage_H)
