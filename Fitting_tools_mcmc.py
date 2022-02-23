@@ -48,8 +48,8 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
     
-    Nar_sig= Nar_fwhm/3e5*Hal_wv/2.35
-    BLR_sig = BLR_fwhm/3e5*Hal_wv/2.35
+    Nar_sig= Nar_fwhm/3e5*Hal_wv/2.355
+    BLR_sig = BLR_fwhm/3e5*Hal_wv/2.355
     
     BLR_wv = Hal_wv + BLR_offset/3e5*Hal_wv
     
@@ -67,13 +67,13 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
     
     model = Halpha_wBLR(x,*theta)
     sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(2*np.pi*sigma2))
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
 def log_prior_Halpha_BLR(theta):
     z, cont, cont_grad ,Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR_fwhm, BLR_offset  = theta
     if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_flux<0.5 and 0<BLR_flux<0.5 and 0< NII_flux<0.5 \
-        and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<20000 and -200 < BLR_offset <200 and -1 <cont_grad<1:
+        and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<9000 and -200 < BLR_offset <200 and -1 <cont_grad<1:
             return 0.0
     
     return -np.inf
@@ -93,9 +93,9 @@ def Halpha(x, z, cont,cont_grad,  Hal_flux, NII_flux, Nar_fwhm):
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
     
-    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35
-    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35
-    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35
+    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.355
+    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.355
+    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.355
     
     Hal_nar = gauss(x, Hal_flux, Hal_wv, Nar_vel_hal)
     
@@ -108,7 +108,7 @@ def log_likelihood_Halpha(theta, x, y, yerr):
     
     model = Halpha(x,*theta)
     sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(2*np.pi*sigma2))
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
 def log_prior_Halpha(theta):
@@ -134,7 +134,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
     
-    fit_loc = np.where((wave>(6562.8-400)*(1+z)/1e4)&(wave<(6562.8+400)*(1+z)/1e4))[0]
+    fit_loc = np.where((wave>(6562.8-200)*(1+z)/1e4)&(wave<(6562.8+200)*(1+z)/1e4))[0]
        
     sel=  np.where(((wave<(6562.8+20)*(1+z)/1e4))& (wave>(6562.8-20)*(1+z)/1e4))[0]
     flux_zoom = flux[sel]
@@ -154,7 +154,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         sampler.run_mcmc(pos, N, progress=True);
     
         
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
             
         labels=('z', 'cont','cont_grad', 'Hal_flux','BLR_flux', 'NII_flux', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
 
@@ -181,7 +181,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     
         sampler.run_mcmc(pos, N, progress=True);
     
-        flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
+        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
     
         labels=('z', 'cont','cont_grad', 'Hal_flux', 'NII_flux', 'Nar_fwhm')
         '''
@@ -198,16 +198,8 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
     
-        # =============================================================================
-        #         Testing with curve_fit
-        # =============================================================================
-        from scipy.optimize import curve_fit
-                
-        init = [z,np.mean(flux),0.001, peak/2, peak/4, peak/4, 400., 4000.,30]
-
-        popt, pcov = curve_fit(Halpha_wBLR, wave[fit_loc], flux[fit_loc], sigma=error[fit_loc], p0=init)                                
+            
         
-        print(popt)
     return res, fitted_model
     
   
@@ -219,8 +211,8 @@ def OIII_outflow(x, z, cont,cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_o
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
-    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35
-    Out_fwhm = OIII_out/3e5*OIIIr/2.35
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.355
+    Out_fwhm = OIII_out/3e5*OIIIr/2.355
     
     out_vel_wv = out_vel/3e5*OIIIr
     
@@ -235,16 +227,16 @@ def OIII_outflow(x, z, cont,cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_o
 def log_likelihood_OIII_outflow(theta, x, y, yerr):
     
     model = OIII_outflow(x,*theta)
-    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(2*np.pi*sigma2))
+    sigma2 = yerr*yerr
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
 def log_prior_OIII_outflow(theta):
     z, cont, cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_out, out_vel = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<2 and 0<OIIIn_flux<2 and 0< OIIIw_flux<2 \
-        and 150 < OIII_fwhm<700 and 600 < OIII_out<2000 and -900<out_vel< 600 \
-            and -1< cont_grad<1:
+    if 1.3 < z < 2.6 and 0 < cont<3 and 0<OIIIn_flux<2 and 0< OIIIw_flux<2 \
+        and 150 < OIII_fwhm<500 and 600 < OIII_out<2000 and -900<out_vel< 600 \
+            and -2< cont_grad<2:
             return 0.0
     
     return -np.inf
@@ -264,7 +256,7 @@ def OIII(x, z, cont, cont_grad, OIIIn_flux,  OIII_fwhm):
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
-    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.355
     
     OIII_nar = gauss(x, OIIIn_flux, OIIIr, Nar_fwhm) + gauss(x, OIIIn_flux/3, OIIIb, Nar_fwhm)
     return cont+x*cont_grad+ OIII_nar 
@@ -275,7 +267,7 @@ def log_likelihood_OIII(theta, x, y, yerr):
     
     model = OIII(x,*theta)
     sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(2*np.pi*sigma2))
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
 def log_prior_OIII(theta):
