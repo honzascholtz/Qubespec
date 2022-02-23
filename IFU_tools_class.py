@@ -151,7 +151,7 @@ def SNR_calc(wave,flux, std, sol, mode):
             fwhm = sol[5]/3e5*center
             model = gauss(wave, sol[3], center, fwhm/2.35)
         elif len(sol)==9:
-            fwhm = sol[5]/3e5*center
+            fwhm = sol[6]/3e5*center
             model = gauss(wave, sol[3], center, fwhm/2.35)
     
     elif mode =='Hblr':
@@ -166,7 +166,7 @@ def SNR_calc(wave,flux, std, sol, mode):
             fwhm = sol[5]/3e5*center
             model = gauss(wave, sol[4], center, fwhm/2.35)
         elif len(sol)==8:
-            fwhm = sol[5]/3e5*center
+            fwhm = sol[6]/3e5*center
             model = gauss(wave, sol[5], center, fwhm/2.35)
             
       
@@ -870,6 +870,17 @@ class Cube:
         error = self.D1_spectrum_er.copy()
         z = self.z
         
+        fl = flux.data
+        ms = flux.mask
+        
+        SII_ms = ms.copy()
+        SII_ms[:] = False
+        SII_ms[np.where(((wave*1e4/(1+z))<6741)&((wave*1e4/(1+z))> 6712))[0]] = True
+        
+        msk = np.logical_or(SII_ms,ms)    
+        
+        flux = np.ma.array(data=fl, mask = msk)
+        
         
         flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0)
 
@@ -889,28 +900,27 @@ class Cube:
         
         if BICM-BICS <-2:
             print('Delta BIC' , BICM-BICS, ' ')
+            print('BICM', BICM)
             self.D1_fit_results = prop_out
             self.D1_fit_chain = flat_samples_out
             self.D1_fit_model = fitted_model_out
+            
+            self.z = prop_out['popt'][0]
         
         else:
             print('Delta BIC' , BICM-BICS, ' ')
             self.D1_fit_results = prop_sig
             self.D1_fit_chain = flat_samples_sig
             self.D1_fit_model = fitted_model_sig
+            self.z = prop_sig['popt'][0]
             
-        
-        print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn'))
+        print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr'))
         
         f, ax1 = plt.subplots(1)
         
         emplot.plotting_Halpha(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
         
         
-
-        
-        
-    
         
     def fitting_collapse_OIII(self,  plot, outflow=0):
         wave = self.obs_wave.copy()
@@ -937,12 +947,14 @@ class Cube:
             self.D1_fit_results = prop_out
             self.D1_fit_chain = flat_samples_out
             self.D1_fit_model = fitted_model_out
+            self.z = prop_out['popt'][0]
         
         else:
             print('Delta BIC' , BICM-BICS, ' ')
             self.D1_fit_results = prop_sig
             self.D1_fit_chain = flat_samples_sig
             self.D1_fit_model = fitted_model_sig
+            self.z = prop_sig['popt'][0]
             
         
         print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII'))
