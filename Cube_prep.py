@@ -43,11 +43,16 @@ import IFU_tools_class as IFU
 
 plot_it=0
 
+
+'''
+
 IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_cdfs_39849_x_r.fits' 
 instrument = 'KMOS'
 ID = 'XID_208'
 z= 1.61
 
+
+    
 
 Cube = IFU.Cube(IFU_cube_path, z, ID, instrument, 'path', 'H')
 
@@ -64,23 +69,37 @@ Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 Cube.fitting_collapse_Halpha( plot_it)
 
+wave = Cube.obs_wave.copy()
+flux = Cube.D1_spectrum.copy()
+error = Cube.D1_spectrum_er.copy()
 
 
+
+plt.show()
 '''
+
 
 import importlib
 importlib.reload(IFU )
 
 IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_H.fits' 
-#IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_AGN6.fits' 
+IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_AGN6.fits' 
 instrument = 'KMOS'
 ID = 'XID_587'
 z= 2.2246
-#z= 1.61
-Band = 'H'
+z= 1.61
+Band = 'YJ'
+
 
 Save_path = 'path'
+'''
 
+IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_cdfs_42968_x.fits'
+instrument = 'KMOS'
+ID = 'XID_208'
+z= 1.61
+Band = 'YJ'
+'''
 Cube = IFU.Cube(IFU_cube_path, z, ID, instrument,Save_path , Band)
 
 Cube.mask_emission()
@@ -95,51 +114,6 @@ Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 
 Cube.fitting_collapse_OIII( plot_it)
-
-#Cube.Spaxel_fit_OIII()
-'''
-
+Cube.report()
 plt.show()
 
-
-
-
-'''
-storage_H = IFU.choose_pixels(storage_H, plot_it, rad= rds , flg = fl)
-
-storage_H = IFU.astrometry_correction(storage_H)
-pdf_plots.savefig()
-
-
-if Sample['Sky_mask_flag_Hal'][i]==1:
-
-    msk = np.loadtxt(PATH+'KMOS_SIN/Masks/'+Hal_band+'_band/'+ID+'_pixel.mask')
-    spcm = np.array(msk, dtype=int)
-
-    print spcm
-
-    storage_H = IFU.stack_sky(storage_H, Hal_band,plot_it, spcm, expand=0)
-
-elif Sample['Sky_mask_flag_Hal'][i]==0:
-    storage_H = IFU.stack_sky(storage_H, Hal_band, plot_it, expand=0)
-
-else:
-    print 'Flag for pixel mask not understood'
-
-      
-
-if Spat== True:
-    storage_H = IFU.Spaxel_fit_sig(storage_H, 'H',1, binning,broad=New['Halpha_nBroad'][i], localised=0 )
-
-
-emplot.Spax_fit_plot_sig(storage_H, 'H', z, ID, binning, addsave='_inner')
-
-
-#IFU.Broad_PSF(storage_H, ID,z, binning)
-
-if (ID=='XID_751') | (ID=='XID_614') | (ID=='XID_427') :
-    IFU.Regions_cube(storage_H, 'H', broad=0)
-
-else:
-    IFU.Regions_cube(storage_H, 'H')       
-'''

@@ -898,6 +898,8 @@ class Cube:
         chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'Halpha')
         
         
+        
+        
         if BICM-BICS <-2:
             print('Delta BIC' , BICM-BICS, ' ')
             print('BICM', BICM)
@@ -906,6 +908,9 @@ class Cube:
             self.D1_fit_model = fitted_model_out
             
             self.z = prop_out['popt'][0]
+            
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
+            self.dBIC = BICM-BICS
         
         else:
             print('Delta BIC' , BICM-BICS, ' ')
@@ -914,7 +919,10 @@ class Cube:
             self.D1_fit_model = fitted_model_sig
             self.z = prop_sig['popt'][0]
             
-        print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr'))
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
+            self.dBIC = BICM-BICS
+            
+        print(SNR)
         
         f, ax1 = plt.subplots(1)
         
@@ -948,6 +956,8 @@ class Cube:
             self.D1_fit_chain = flat_samples_out
             self.D1_fit_model = fitted_model_out
             self.z = prop_out['popt'][0]
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
+            self.dBIC = BICM-BICS
         
         else:
             print('Delta BIC' , BICM-BICS, ' ')
@@ -955,6 +965,8 @@ class Cube:
             self.D1_fit_chain = flat_samples_sig
             self.D1_fit_model = fitted_model_sig
             self.z = prop_sig['popt'][0]
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
+            self.dBIC = BICM-BICS
             
         
         print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII'))
@@ -1145,6 +1157,24 @@ class Cube:
         # Saving new coordinates and the new header
         self.HST_center_glob = center_global
         self.header = Header_cube_new
+    
+    def report(self):
+        
+        results = self.D1_fit_results
+        print('')
+        print('Model: ', results['name'])
+        print('SNR of the line: ', self.SNR)
+        print('dBIC of ', self.dBIC)
+        
+        for key in results.keys():
+            
+            if key == 'name' or key =='popt':
+                print('')
+            else:
+                print(key, results[key])
+                
+        
+        
         
     def Spaxel_fit_OIII(self, plot=0, sp_binning='Nearest', instrument='KMOS', add=''):
         flux = self.flux.copy()
