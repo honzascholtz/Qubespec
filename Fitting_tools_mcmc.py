@@ -31,10 +31,10 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N=2000
+N=5000
 def gauss(x, k, mu,sig):
 
-    expo= -((x-mu)**2)/(sig*sig)
+    expo= -((x-mu)**2)/(2*sig*sig)
     
     y= k* e**expo
     
@@ -48,8 +48,8 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
     
-    Nar_sig= Nar_fwhm/3e5*Hal_wv/2.355
-    BLR_sig = BLR_fwhm/3e5*Hal_wv/2.355
+    Nar_sig= Nar_fwhm/3e5*Hal_wv/2.35482
+    BLR_sig = BLR_fwhm/3e5*Hal_wv/2.35482
     
     BLR_wv = Hal_wv + BLR_offset/3e5*Hal_wv
     
@@ -93,9 +93,9 @@ def Halpha(x, z, cont,cont_grad,  Hal_flux, NII_flux, Nar_fwhm):
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
     
-    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.355
-    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.355
-    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.355
+    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
+    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
+    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
     
     Hal_nar = gauss(x, Hal_flux, Hal_wv, Nar_vel_hal)
     
@@ -211,8 +211,8 @@ def OIII_outflow(x, z, cont,cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_o
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
-    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.355
-    Out_fwhm = OIII_out/3e5*OIIIr/2.355
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
     
     out_vel_wv = out_vel/3e5*OIIIr
     
@@ -256,7 +256,7 @@ def OIII(x, z, cont, cont_grad, OIIIn_flux,  OIII_fwhm):
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
-    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.355
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     
     OIII_nar = gauss(x, OIIIn_flux, OIIIr, Nar_fwhm) + gauss(x, OIIIn_flux/3, OIIIb, Nar_fwhm)
     return cont+x*cont_grad+ OIII_nar 
@@ -363,8 +363,19 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
             res[labels[i]] = flat_samples[:,i]
         
     return res, fitted_model
-    
 
+
+
+def Fitting_OIII_unwrap(lst, wave, z):
+    
+    i,j,flx_spax_m, error = lst
+    print(i,j)
+    
+    flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0)
+    
+    
+    return i,j,prop_calc(flat_samples_sig)
+    
     
 def prop_calc(results):  
     labels = list(results.keys())[1:]

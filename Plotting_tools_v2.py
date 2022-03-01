@@ -47,7 +47,7 @@ import Fitting_tools_mcmc as emfit
 
 def gauss(x, k, mu,sig):
 
-    expo= -((x-mu)**2)/(sig*sig)
+    expo= -((x-mu)**2)/(2*sig*sig)
     
     y= k* e**expo
     
