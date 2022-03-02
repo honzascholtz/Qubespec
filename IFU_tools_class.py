@@ -924,7 +924,7 @@ class Cube:
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
             self.dBIC = BICM-BICS
             
-        print(SNR)
+        print(self.SNR)
         
         f, ax1 = plt.subplots(1)
         
