@@ -18,6 +18,8 @@ import Fitting_tools_mcmc as emfit
 import Plotting_tools_v2 as emplot
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
+import emcee
+import corner
 
 from astropy import stats
 
@@ -221,6 +223,62 @@ def BIC_calc(wave,fluxm,error, model, results, mode):
         BIC = chi2+ len(popt)*np.log(len(flux))
     
     return chi2, BIC
+
+def unwrap_chain(res):
+    keys = list(res.keys())[1:]
+    
+    chains = np.zeros(( len(res[keys[0]]), len(keys) ))
+    
+    for i in range(len(keys)):
+        
+        chains[:,i] = res[keys[i]]
+        
+    return chains
+    
+
+def flux_calc(res, mode):
+    
+    if mode=='OIIIt':
+        wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
+        if len(res['popt'])==8:
+            o3 = 5008*(1+res['z'][0])/1e4
+            
+            o3n = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+        
+            o3w = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
+            
+            o3t = o3n+o3w
+        elif len(res['popt'])==5:
+            o3 = 5008*(1+res['z'][0])/1e4
+            
+            o3t = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+
+    if mode=='OIIIn':
+        wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
+        if len(res['popt'])==8:
+            o3 = 5008*(1+res['z'][0])/1e4
+            o3t = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+        
+        
+        elif len(res['popt'])==5:
+            o3 = 5008*(1+res['z'][0])/1e4
+            o3t = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+    
+    if mode=='OIIIw':
+        wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
+        if len(res['popt'])==8:
+            o3 = 5008*(1+res['z'][0])/1e4
+            o3t = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
+        elif len(res['popt'])==5:
+            o3t = np.zeros_like(wave)
+        
+    import scipy.integrate as scpi
+        
+    Flux = scpi.simps(o3t, wave)*1e-13
+        
+    return Flux
+        
+        
     
 # ============================================================================
 #  Main class
@@ -585,15 +643,13 @@ class Cube:
         D1_spectra = np.ma.sum(flux, axis=(1,2))
         D1_spectra = np.ma.array(data = D1_spectra.data, mask=mask_sky_1D)
         
-        D1_s = np.ma.sum(np.ma.array(data=self.flux.data, mask= mask_spax) , axis=(1,2))
-        
         wave= self.obs_wave
         
         if plot==1:
             plt.figure()
             plt.title('Collapsed 1D spectrum from D1_spectra_collapse fce')
             
-            plt.plot(wave, D1_s, drawstyle='steps-mid', color='grey')
+            plt.plot(wave, D1_spectra, drawstyle='steps-mid', color='grey')
             plt.plot(wave, np.ma.array(data= D1_spectra, mask=self.sky_clipped_1D), drawstyle='steps-mid')
             
         
@@ -640,17 +696,18 @@ class Cube:
         
         
         header  = self.header
+        
         try:
-            arc = np.round(1.3/(header['CD2_2']*3600))
+            Radius = np.round(1.2/(header['CD2_2']*3600))
         
         except:
-            arc = np.round(1.3/(header['CDELT2']*3600))
+            Radius = np.round(1.2/(header['CDELT2']*3600))
             
         
         for ix in range(shapes[0]):
             for iy in range(shapes[1]):
                 dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
-                if dist< arc:
+                if dist< Radius:
                     mask_collapse[:,ix,iy] = True
         
         try:
@@ -893,11 +950,11 @@ class Cube:
         chi2S = sum(((flux.data-y_model_sig)/error)**2)
         BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
         
-        flat_samples_out, fitted_model_out = emfit.fitting_Halpha(wave,flux,error,z, BLR=1)
-        prop_out = prop_calc(flat_samples_out)
+        flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z, BLR=1)
+        prop_blr = prop_calc(flat_samples_blr)
         
         chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
-        chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'Halpha')
+        chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_blr, prop_blr, 'Halpha')
         
         
         
@@ -905,15 +962,15 @@ class Cube:
         if BICM-BICS <-2:
             print('Delta BIC' , BICM-BICS, ' ')
             print('BICM', BICM)
-            self.D1_fit_results = prop_out
-            self.D1_fit_chain = flat_samples_out
-            self.D1_fit_model = fitted_model_out
+            self.D1_fit_results = prop_blr
+            self.D1_fit_chain = flat_samples_blr
+            self.D1_fit_model = fitted_model_blr
             
-            self.z = prop_out['popt'][0]
+            self.z = prop_blr['popt'][0]
             
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
             self.dBIC = BICM-BICS
-        
+            labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
         else:
             print('Delta BIC' , BICM-BICS, ' ')
             self.D1_fit_results = prop_sig
@@ -923,7 +980,15 @@ class Cube:
             
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
             self.dBIC = BICM-BICS
+            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm')
             
+        fig = corner.corner(
+            unwrap_chain(self.D1_fit_chain), 
+            labels=labels,
+            quantiles=[0.16, 0.5, 0.84],
+            show_titles=True,
+            title_kwargs={"fontsize": 12})
+        
         print(self.SNR)
         
         f, ax1 = plt.subplots(1)
@@ -960,6 +1025,12 @@ class Cube:
             self.z = prop_out['popt'][0]
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
             self.dBIC = BICM-BICS
+            
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel')
+            
+            
+            
+            
         
         else:
             print('Delta BIC' , BICM-BICS, ' ')
@@ -970,6 +1041,15 @@ class Cube:
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
             self.dBIC = BICM-BICS
             
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm')
+            
+            
+        fig = corner.corner(
+            unwrap_chain(self.D1_fit_chain), 
+            labels=labels,
+            quantiles=[0.16, 0.5, 0.84],
+            show_titles=True,
+            title_kwargs={"fontsize": 12})
         
         print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII'))
         
@@ -1265,7 +1345,7 @@ class Cube:
         
     
     
-    def Spaxel_fitting_OIII(self):
+    def Spaxel_fitting_OIII_MCMC(self):
         import pickle
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
@@ -1284,7 +1364,27 @@ class Cube:
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( results,fp)     
+    
+    def Spaxel_fitting_OIII_lqs(self):
+        import pickle
+        import Fitting_tools_lqs as emfit_lqs
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
         
+        results = []
+        
+        for i in range(len(Unwrapped_cube)):
+            
+            row = Unwrapped_cube[i]
+            
+            results.append( emfit_lqs.Fitting_OIII_unwrap(row, self.obs_wave, self.z))
+        
+        self.spaxel_fit_raw = results
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
+            pickle.dump( results,fp)     
    
     
     def Map_creation_OIII(self):
@@ -1296,14 +1396,22 @@ class Cube:
             
         map_vel = np.zeros(self.dim[:2])
         map_vel[:,:] = np.nan
+        
+        map_fwhm = np.zeros(self.dim[:2])
+        map_fwhm[:,:] = np.nan
+        
         for row in range(len(results)):
-            
             i,j, res_spx = results[row]
             z = res_spx['popt'][0]
-            map_vel[i,j] = (wvo3-(5008*(1+z)/1e4))/wvo3*3e8
+            map_vel[i,j] = (wvo3-(5008*(1+z)/1e4))/wvo3*3e5
+            
+            map_fwhm[i,j] = res_spx['popt'][4]
+            
         plt.figure()
-        plt.imshow(map_vel)
-
+        plt.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-100, vmax=100)
+        
+        plt.figure()
+        plt.imshow(map_fwhm, origin='lower')
 
 
 # =============================================================================

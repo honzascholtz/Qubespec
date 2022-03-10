@@ -71,7 +71,7 @@ Cube.fitting_collapse_Halpha( plot_it)
 
 wave = Cube.obs_wave.copy()
 flux = Cube.D1_spectrum.copy()
-error = Cube.D1_spectrum_er.copy()
+error = Cube.D1_spectrum_er.copy
 
 
 
@@ -83,12 +83,12 @@ import importlib
 importlib.reload(IFU )
 
 IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/H_band/COMBINE_SHIFT_SCI_RECONSTRUCTED_GS3_19791_H.fits' 
-IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_AGN6.fits' 
+#IFU_cube_path = PATH +'KMOS_SIN/KMOS_data/YJ_band/COMBINE_SHIFT_AGN6.fits' 
 instrument = 'KMOS'
 ID = 'XID_587'
 z= 2.2246
-z= 1.61
-Band = 'YJ'
+#z= 1.61
+Band = 'H'
 
 
 Save_path = 'path'
@@ -115,5 +115,12 @@ Cube.D1_spectra_collapse( plot_it, addsave='_inner')
 
 Cube.fitting_collapse_OIII( plot_it)
 Cube.report()
+
+print('Flux total ', IFU.flux_calc(Cube.D1_fit_results, 'OIIIt'))
+print('Flux narrow ', IFU.flux_calc(Cube.D1_fit_results, 'OIIIn'))
+print('Flux wide ', IFU.flux_calc(Cube.D1_fit_results, 'OIIIw'))
+
+
+
 plt.show()
 
