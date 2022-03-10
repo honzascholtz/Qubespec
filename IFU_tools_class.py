@@ -247,34 +247,51 @@ def flux_calc(res, mode):
         
             o3w = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
             
-            o3t = o3n+o3w
+            model = o3n+o3w
         elif len(res['popt'])==5:
             o3 = 5008*(1+res['z'][0])/1e4
             
-            o3t = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
 
-    if mode=='OIIIn':
+    elif mode=='OIIIn':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         if len(res['popt'])==8:
             o3 = 5008*(1+res['z'][0])/1e4
-            o3t = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
         
         
         elif len(res['popt'])==5:
             o3 = 5008*(1+res['z'][0])/1e4
-            o3t = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
     
-    if mode=='OIIIw':
+    elif mode=='OIIIw':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         if len(res['popt'])==8:
             o3 = 5008*(1+res['z'][0])/1e4
             o3t = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
         elif len(res['popt'])==5:
-            o3t = np.zeros_like(wave)
+            model = np.zeros_like(wave)
+    
+    elif mode=='Han':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        hn = 6565*(1+res['z'][0])/1e4
+        
+        model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
+    
+    elif mode=='Hblr':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        hn = 6565*(1+res['z'][0])/1e4
+        
+        model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+    
+    elif mode=='NII':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        nii = 6583*(1+res['z'][0])/1e4
+        model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
         
     import scipy.integrate as scpi
         
-    Flux = scpi.simps(o3t, wave)*1e-13
+    Flux = scpi.simps(model, wave)*1e-13
         
     return Flux
         

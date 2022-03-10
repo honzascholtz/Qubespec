@@ -73,7 +73,9 @@ wave = Cube.obs_wave.copy()
 flux = Cube.D1_spectrum.copy()
 error = Cube.D1_spectrum_er.copy
 
-
+print('Flux Halpha narrow ', IFU.flux_calc(Cube.D1_fit_results, 'Han'))
+print('Flux Halpha BLR ', IFU.flux_calc(Cube.D1_fit_results, 'Hblr'))
+print('Flux [NII] narrow ', IFU.flux_calc(Cube.D1_fit_results, 'NII'))
 
 plt.show()
 '''
