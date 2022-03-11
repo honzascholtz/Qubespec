@@ -268,7 +268,7 @@ def flux_calc(res, mode):
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         if len(res['popt'])==8:
             o3 = 5008*(1+res['z'][0])/1e4
-            o3t = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
+            model = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
         elif len(res['popt'])==5:
             model = np.zeros_like(wave)
     
