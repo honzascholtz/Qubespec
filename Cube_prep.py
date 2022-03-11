@@ -122,7 +122,9 @@ print('Flux total ', IFU.flux_calc(Cube.D1_fit_results, 'OIIIt'))
 print('Flux narrow ', IFU.flux_calc(Cube.D1_fit_results, 'OIIIn'))
 print('Flux wide ', IFU.flux_calc(Cube.D1_fit_results, 'OIIIw'))
 
-
+Cube.unwrap_cube(rad=0.8)
+Cube.Spaxel_fitting_OIII_MCMC()
+Cube.Map_creation_OIII()
 
 plt.show()
 
