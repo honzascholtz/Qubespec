@@ -31,7 +31,7 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N=5000
+N=3000
 def gauss(x, k, mu,sig):
 
     expo= -((x-mu)**2)/(2*sig*sig)
@@ -43,7 +43,7 @@ def gauss(x, k, mu,sig):
 # =============================================================================
 #  Function for fitting Halpha with BLR
 # =============================================================================
-def Halpha_wBLR(x,z,cont, cont_grad, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR_fwhm, BLR_offset):
+def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset):
     Hal_wv = 6562.8*(1+z)/1e4     
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
@@ -54,11 +54,11 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR
     BLR_wv = Hal_wv + BLR_offset/3e5*Hal_wv
     
     contm = cont+ x*cont_grad
-    Hal_nar = gauss(x, Hal_flux, Hal_wv, Nar_sig)
-    Hal_blr = gauss(x, BLR_flux, BLR_wv, BLR_sig)
+    Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_sig)
+    Hal_blr = gauss(x, BLR_peak, BLR_wv, BLR_sig)
     
-    NII_rg = gauss(x, NII_flux, NII_r, Nar_sig)
-    NII_bg = gauss(x, NII_flux/3, NII_b, Nar_sig)
+    NII_rg = gauss(x, NII_peak, NII_r, Nar_sig)
+    NII_bg = gauss(x, NII_peak/3, NII_b, Nar_sig)
     
     return contm + Hal_nar + Hal_blr + NII_rg + NII_bg
     
@@ -71,8 +71,8 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
 
 
 def log_prior_Halpha_BLR(theta):
-    z, cont, cont_grad ,Hal_flux, BLR_flux, NII_flux, Nar_fwhm, BLR_fwhm, BLR_offset  = theta
-    if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_flux<0.5 and 0<BLR_flux<0.5 and 0< NII_flux<0.5 \
+    z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset  = theta
+    if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_peak<0.5 and 0<BLR_peak<0.5 and 0< NII_peak<0.5 \
         and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<9000 and -200 < BLR_offset <200 and -1 <cont_grad<1:
             return 0.0
     
@@ -88,7 +88,7 @@ def log_probability_Halpha_BLR(theta, x, y, yerr):
 # =============================================================================
 # Function to fit just Halpha
 # =============================================================================
-def Halpha(x, z, cont,cont_grad,  Hal_flux, NII_flux, Nar_fwhm):
+def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm):
     Hal_wv = 6562.8*(1+z)/1e4     
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
@@ -97,10 +97,10 @@ def Halpha(x, z, cont,cont_grad,  Hal_flux, NII_flux, Nar_fwhm):
     Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
     Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
     
-    Hal_nar = gauss(x, Hal_flux, Hal_wv, Nar_vel_hal)
+    Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
     
-    NII_nar_r = gauss(x, NII_flux, NII_r, Nar_vel_niir)
-    NII_nar_b = gauss(x, NII_flux/3, NII_b, Nar_vel_niib)
+    NII_nar_r = gauss(x, NII_peak, NII_r, Nar_vel_niir)
+    NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_vel_niib)
     
     return cont+x*cont_grad+Hal_nar+NII_nar_r+NII_nar_b
 
@@ -112,8 +112,8 @@ def log_likelihood_Halpha(theta, x, y, yerr):
 
 
 def log_prior_Halpha(theta):
-    z, cont,cont_grad, Hal_flux, NII_flux, Nar_fwhm,  = theta
-    if 1.3 < z < 2.6 and 0 < cont<1 and 0<Hal_flux<2 and 0< NII_flux<1 \
+    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  = theta
+    if 1.3 < z < 2.6 and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<1 \
         and 150 < Nar_fwhm<900 and -1 <cont_grad<1:
             return 0.0
     
@@ -156,14 +156,9 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
             
-        labels=('z', 'cont','cont_grad', 'Hal_flux','BLR_flux', 'NII_flux', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
+        labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
 
-        fig = corner.corner(
-            flat_samples, 
-            labels=labels,
-            quantiles=[0.16, 0.5, 0.84],
-            show_titles=True,
-            title_kwargs={"fontsize": 12})
+        
         
         
         fitted_model = Halpha_wBLR
@@ -183,15 +178,8 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
     
-        labels=('z', 'cont','cont_grad', 'Hal_flux', 'NII_flux', 'Nar_fwhm')
-        '''
-        fig = corner.corner(
-            flat_samples, 
-            labels=labels,
-            quantiles=[0.16, 0.5, 0.84],
-            show_titles=True,
-            title_kwargs={"fontsize": 12})
-        '''
+        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm')
+        
         fitted_model = Halpha
         
         res = {'name': 'Halpha_wth_BLR'}
@@ -207,7 +195,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
 # =============================================================================
 #    functions to fit [OIII] only with outflow
 # =============================================================================
-def OIII_outflow(x, z, cont,cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_out, out_vel):
+def OIII_outflow(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel):
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
@@ -216,8 +204,8 @@ def OIII_outflow(x, z, cont,cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_o
     
     out_vel_wv = out_vel/3e5*OIIIr
     
-    OIII_nar = gauss(x, OIIIn_flux, OIIIr, Nar_fwhm) + gauss(x, OIIIn_flux/3, OIIIb, Nar_fwhm)
-    OIII_out = gauss(x, OIIIw_flux, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_flux/3, OIIIb+out_vel_wv, Out_fwhm)
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
     
     
     return cont+x*cont_grad+ OIII_nar + OIII_out
@@ -232,9 +220,9 @@ def log_likelihood_OIII_outflow(theta, x, y, yerr):
 
 
 def log_prior_OIII_outflow(theta):
-    z, cont, cont_grad, OIIIn_flux, OIIIw_flux, OIII_fwhm, OIII_out, out_vel = theta
+    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<3 and 0<OIIIn_flux<2 and 0< OIIIw_flux<2 \
+    if 1.3 < z < 2.6 and 0 < cont<3 and 0<OIIIn_peak<2 and 0< OIIIw_peak<2 \
         and 150 < OIII_fwhm<500 and 600 < OIII_out<2000 and -900<out_vel< 600 \
             and -2< cont_grad<2:
             return 0.0
@@ -252,13 +240,13 @@ def log_probability_OIII_outflow(theta, x, y, yerr):
 # =============================================================================
 #  Function to fit [OIII] without outflow
 # =============================================================================
-def OIII(x, z, cont, cont_grad, OIIIn_flux,  OIII_fwhm):
+def OIII(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm):
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     
-    OIII_nar = gauss(x, OIIIn_flux, OIIIr, Nar_fwhm) + gauss(x, OIIIn_flux/3, OIIIb, Nar_fwhm)
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
     return cont+x*cont_grad+ OIII_nar 
     
 
@@ -271,10 +259,10 @@ def log_likelihood_OIII(theta, x, y, yerr):
 
 
 def log_prior_OIII(theta):
-    z, cont, cont_grad, OIIIn_flux, OIII_fwhm = theta
+    z, cont, cont_grad, OIIIn_peak, OIII_fwhm = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<1 and 0<OIIIn_flux<1 \
-        and 150 < OIII_fwhm<700 and -1<cont_grad<1:
+    if 1.3 < z < 2.6 and 0 < cont<1 and 0<OIIIn_peak<1 \
+        and 250 < OIII_fwhm<700 and -1<cont_grad<1:
             return 0.0
     
     return -np.inf
@@ -318,15 +306,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
     
             
-        labels=('z', 'cont','cont_grad', 'OIIIn_flux', 'OIIIw_flux', 'OIII_fwhm', 'OIII_out', 'out_vel')
-        
-        fig = corner.corner(
-            flat_samples, 
-            labels=labels,
-            quantiles=[0.16, 0.5, 0.84],
-            show_titles=True,
-            title_kwargs={"fontsize": 12})
-        
+        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel')
         
         fitted_model = OIII_outflow
         
@@ -344,17 +324,10 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         sampler.run_mcmc(pos, N, progress=True);
     
         
-        flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
+        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
             
-        labels=('z', 'cont','cont_grad', 'OIIIn_flux', 'OIII_fwhm')
-        '''
-        fig = corner.corner(
-            flat_samples, 
-            labels=labels,
-            quantiles=[0.16, 0.5, 0.84],
-            show_titles=True,
-            title_kwargs={"fontsize": 12})
-        '''
+        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm')
+        
         
         fitted_model = OIII
         
@@ -372,7 +345,6 @@ def Fitting_OIII_unwrap(lst, wave, z):
     print(i,j)
     
     flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0)
-    
     
     return i,j,prop_calc(flat_samples_sig)
     

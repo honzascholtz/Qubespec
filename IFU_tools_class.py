@@ -142,11 +142,15 @@ def SNR_calc(wave,flux, std, sol, mode):
         if len(sol)==5:
             fwhm = sol[4]/3e5*center
             
-            model = gauss(wave, sol[3], center, fwhm/2.35)
+            model = flux- (wave*sol[2]+sol[1]) #gauss(wave, sol[3], center, fwhm/2.35) # emfit.OIII(wave,  *sol)
         elif len(sol)==8:
-            fwhm = sol[5]/3e5*center
+            fwhms = sol[5]/3e5*center
+            fwhm = sol[6]/3e5*center
             
-            model = emfit.OIII_outflow(wave,  *sol)-wave*sol[2]+sol[1]
+            center = OIIIr*(1+sol[0])/1e4
+            centerw = OIIIr*(1+sol[0])/1e4 + sol[7]/3e5*center
+            
+            model = emfit.OIII_outflow(wave,  *sol)- (wave*sol[2]+sol[1]) #gauss(wave, sol[3], center, fwhms/2.35) + gauss(wave, sol[4], centerw, fwhm/2.35)  #emfit.OIII_outflow(wave,  *sol)- wave*sol[2]+sol[1]
             
         
     elif mode =='Hn':
@@ -155,7 +159,7 @@ def SNR_calc(wave,flux, std, sol, mode):
             fwhm = sol[5]/3e5*center
             model = gauss(wave, sol[3], center, fwhm/2.35)
         elif len(sol)==9:
-            fwhm = sol[6]/3e5*center
+            fwhm = sol[6]/3e5*center*2
             model = gauss(wave, sol[3], center, fwhm/2.35)
     
     elif mode =='Hblr':
@@ -175,10 +179,11 @@ def SNR_calc(wave,flux, std, sol, mode):
             
       
     else:
-        raise Exception('Sorry mode in in SNR_calc not understood')
+        raise Exception('Sorry mode in SNR_calc not understood')
     
-    use = np.where((wave< center+fwhm)&(wave> center-fwhm))[0]   
+    use = np.where((wave< center+fwhm*2)&(wave> center-fwhm*2))[0]   
     flux_l = model[use]
+    
     n = len(use)
     SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
     if SNR < 0:
@@ -1068,7 +1073,7 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
         
-        print(SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII'))
+        print(self.SNR)
         
         
         f, ax1 = plt.subplots(1)
@@ -1356,6 +1361,16 @@ class Cube:
                     error = stats.sigma_clipped_stats(flx_spax_m,sigma=3)[2] * np.ones(len(flx_spax))
                     
                     Unwrapped_cube.append([i,j,flx_spax_m, error])
+                    if i==20 and j==20:
+                        plt.figure()
+                        plt.plot(wv_obs, flx_spax_m, color='grey', drawstyle='steps-mid', alpha=0.2)
+                         
+                        fluxplt = flx_spax_m.data[np.invert(flx_spax_m.mask)]
+                        wv_obs = wv_obs[np.invert(flx_spax_m.mask)]
+                          
+                          
+                        plt.plot(wv_obs, fluxplt, drawstyle='steps-mid')
+
         
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "wb") as fp:
             pickle.dump(Unwrapped_cube, fp)      
@@ -1408,29 +1423,80 @@ class Cube:
         z0 = self.z
     
         wvo3 = 5008*(1+z0)/1e4
+        # =============================================================================
+        #         Importing all the data necessary to post process
+        # =============================================================================
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "rb") as fp:
             results= pickle.load(fp)
             
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        # =============================================================================
+        #         Setting up the maps
+        # =============================================================================
         map_vel = np.zeros(self.dim[:2])
         map_vel[:,:] = np.nan
         
         map_fwhm = np.zeros(self.dim[:2])
         map_fwhm[:,:] = np.nan
         
+        map_flux = np.zeros(self.dim[:2])
+        map_flux[:,:] = np.nan
+        
+        map_snr = np.zeros(self.dim[:2])
+        map_snr[:,:] = np.nan
+        # =============================================================================
+        #        Filling these maps  
+        # =============================================================================
+        f,ax= plt.subplots(1)
+        import Plotting_tools_v2 as emplot
+        
+        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_OIII_fit_detection_only.pdf')
+        
+        
         for row in range(len(results)):
             i,j, res_spx = results[row]
+            i,j, flx_spax_m, error = Unwrapped_cube[row]
+            
             z = res_spx['popt'][0]
-            map_vel[i,j] = (wvo3-(5008*(1+z)/1e4))/wvo3*3e5
+            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx['popt'], 'OIII')
+            map_snr[i,j]= SNR
+            if SNR>3:
             
-            map_fwhm[i,j] = res_spx['popt'][4]
-            
-        plt.figure()
-        plt.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-100, vmax=100)
+                map_vel[i,j] = ((5008*(1+z)/1e4)-wvo3)/wvo3*3e5
+                map_fwhm[i,j] = res_spx['popt'][4]
+                map_flux[i,j] = flux_calc(res_spx, 'OIIIt')
+                
+                
+                emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, emfit.OIII)
+                ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
+                Spax.savefig()  
+                ax.clear()
+          
+        Spax.close() 
         
-        plt.figure()
-        plt.imshow(map_fwhm, origin='lower')
-
-
+        self.Flux_map = map_flux
+        self.Vel_map = map_vel
+        self.FWHM_map = map_fwhm
+        self.SNR_map = map_snr
+        
+        f, axes = plt.subplots(2,2, figsize=(10,10))
+        axes[0,0].imshow(map_flux,vmax=5e-18, origin='lower')
+        axes[0,0].set_title('Flux map')
+        
+        
+        axes[1,0].imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200)
+        axes[1,0].set_title('Velocity offset map')
+        
+        
+        axes[0,1].imshow(map_fwhm,vmin=100, origin='lower')
+        axes[0,1].set_title('FWHM map')
+        
+        axes[1,1].imshow(map_snr,vmin=3, vmax=20, origin='lower')
+        axes[1,1].set_title('SNR map')
+        
+        
 # =============================================================================
 # Old and to be developed code        
 # =============================================================================

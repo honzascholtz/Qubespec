@@ -80,7 +80,6 @@ def twoD_Gaussian(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 
 def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
     popt = sol['popt']
-    print(len(popt))
     z = popt[0]
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>4930)&(wv_rest<5200))[0]
@@ -109,20 +108,20 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
         OIIIr = 5008
         OIIIb = 4960
         
-        fwhm = sol['OIII_fwhm'][0]/3e5/2.35*OIIIr
+        fwhm = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
         
         
-        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIn_flux'][0],OIIIr, fwhm) +\
-                 gauss(wv_rest[fit_loc], sol['OIIIn_flux'][0]/3, OIIIb, fwhm) \
+        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) +\
+                 gauss(wv_rest[fit_loc], sol['OIIIn_peak'][0]/3, OIIIb, fwhm) \
                      ,color= 'green', linestyle ='dashed')
          
         OIIIr = 5008+ sol['out_vel'][0]/3e5*OIIIr
         OIIIb = 4960 + sol['out_vel'][0]/3e5*OIIIb
         
-        fwhm = sol['OIII_out'][0]/3e5/2.35*OIIIr
+        fwhm = sol['OIIIw_fwhm'][0]/3e5/2.35*OIIIr
         
-        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIw_flux'][0],OIIIr, fwhm) +\
-                 gauss(wv_rest[fit_loc], sol['OIIIw_flux'][0]/3, OIIIb, fwhm) \
+        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0],OIIIr, fwhm) +\
+                 gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0]/3, OIIIb, fwhm) \
                      ,color= 'blue', linestyle ='dashed')
             
 
