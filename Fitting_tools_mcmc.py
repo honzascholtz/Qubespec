@@ -43,10 +43,13 @@ def gauss(x, k, mu,sig):
 # =============================================================================
 #  Function for fitting Halpha with BLR
 # =============================================================================
-def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset):
+def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk):
     Hal_wv = 6562.8*(1+z)/1e4     
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
+    
+    SII_r = 6731.*(1+z)/1e4   
+    SII_b = 6716.*(1+z)/1e4   
     
     Nar_sig= Nar_fwhm/3e5*Hal_wv/2.35482
     BLR_sig = BLR_fwhm/3e5*Hal_wv/2.35482
@@ -60,7 +63,10 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR
     NII_rg = gauss(x, NII_peak, NII_r, Nar_sig)
     NII_bg = gauss(x, NII_peak/3, NII_b, Nar_sig)
     
-    return contm + Hal_nar + Hal_blr + NII_rg + NII_bg
+    SII_rg = gauss(x, SII_rpk, SII_r, Nar_sig)
+    SII_bg = gauss(x, SII_bpk, SII_b, Nar_sig)
+    
+    return contm + Hal_nar + Hal_blr + NII_rg + NII_bg + SII_rg + SII_bg
     
 
 def log_likelihood_Halpha_BLR(theta, x, y, yerr):
@@ -71,9 +77,10 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
 
 
 def log_prior_Halpha_BLR(theta):
-    z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset  = theta
+    z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta
     if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_peak<0.5 and 0<BLR_peak<0.5 and 0< NII_peak<0.5 \
-        and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<9000 and -200 < BLR_offset <200 and -1 <cont_grad<1:
+        and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<9000 and -200 < BLR_offset <200 and -1 <cont_grad<1 \
+            and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
             return 0.0
     
     return -np.inf
@@ -88,7 +95,7 @@ def log_probability_Halpha_BLR(theta, x, y, yerr):
 # =============================================================================
 # Function to fit just Halpha
 # =============================================================================
-def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm):
+def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk):
     Hal_wv = 6562.8*(1+z)/1e4     
     NII_r = 6583.*(1+z)/1e4
     NII_b = 6548.*(1+z)/1e4
@@ -97,12 +104,18 @@ def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm):
     Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
     Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
     
+    SII_r = 6731.*(1+z)/1e4   
+    SII_b = 6716.*(1+z)/1e4   
+    
     Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
     
     NII_nar_r = gauss(x, NII_peak, NII_r, Nar_vel_niir)
     NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_vel_niib)
     
-    return cont+x*cont_grad+Hal_nar+NII_nar_r+NII_nar_b
+    SII_rg = gauss(x, SII_rpk, SII_r, Nar_vel_hal)
+    SII_bg = gauss(x, SII_bpk, SII_b, Nar_vel_hal)
+    
+    return cont+x*cont_grad+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg
 
 def log_likelihood_Halpha(theta, x, y, yerr):
     
@@ -112,9 +125,9 @@ def log_likelihood_Halpha(theta, x, y, yerr):
 
 
 def log_prior_Halpha(theta):
-    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  = theta
+    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
     if 1.3 < z < 2.6 and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<1 \
-        and 150 < Nar_fwhm<900 and -1 <cont_grad<1:
+        and 150 < Nar_fwhm<900 and -1 <cont_grad<1 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
             return 0.0
     
     return -np.inf
@@ -145,7 +158,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     
     
     if BLR==1:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, peak/4, 400., 4000.,30])+ 1e-2 * np.random.randn(32, 9)
+        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, peak/4, 400., 4000.,30,peak/6, peak/6])+ 1e-2 * np.random.randn(32, 11)
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
@@ -156,7 +169,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
             
-        labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
+        labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
 
         
         
@@ -168,7 +181,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
             res[labels[i]] = flat_samples[:,i]
     
     if BLR==0:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 400.])+ 1e-4 * np.random.randn(32, 6)
+        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 400.,peak/6, peak/6 ])+ 1e-4 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
@@ -178,7 +191,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
     
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
     
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm')
+        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
         
         fitted_model = Halpha
         
@@ -279,6 +292,9 @@ def log_probability_OIII(theta, x, y, yerr):
 # =============================================================================
     
 def fitting_OIII(wave, fluxs, error,z, outflow=0):
+    import os
+
+    os.environ["OMP_NUM_THREADS"] = "1"
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
@@ -296,12 +312,12 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     if outflow==1:
         pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100])+ 1e-2* np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
-    
+        import multiprocess as mp
+        
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))
-    
+                nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))# pool=pool)
+        
         sampler.run_mcmc(pos, N, progress=True);
-    
         
         flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
     
@@ -317,12 +333,11 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     if outflow==0:
         pos = np.array([z,np.mean(flux),0.001, peak/2,  400.])+ 1e-4 * np.random.randn(32, 5)
         nwalkers, ndim = pos.shape
-    
+        
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))
     
         sampler.run_mcmc(pos, N, progress=True);
-    
         
         flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
             

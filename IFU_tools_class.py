@@ -155,10 +155,10 @@ def SNR_calc(wave,flux, std, sol, mode):
         
     elif mode =='Hn':
         center = Hal*(1+sol[0])/1e4
-        if len(sol)==6:
+        if len(sol)==8:
             fwhm = sol[5]/3e5*center
             model = gauss(wave, sol[3], center, fwhm/2.35)
-        elif len(sol)==9:
+        elif len(sol)==11:
             fwhm = sol[6]/3e5*center*2
             model = gauss(wave, sol[3], center, fwhm/2.35)
     
@@ -170,10 +170,10 @@ def SNR_calc(wave,flux, std, sol, mode):
             
     elif mode =='NII':
         center = NII_r*(1+sol[0])/1e4
-        if len(sol)==5:
+        if len(sol)==8:
             fwhm = sol[5]/3e5*center
             model = gauss(wave, sol[4], center, fwhm/2.35)
-        elif len(sol)==8:
+        elif len(sol)==11:
             fwhm = sol[6]/3e5*center
             model = gauss(wave, sol[5], center, fwhm/2.35)
             
@@ -952,13 +952,7 @@ class Cube:
         z = self.z
         
         fl = flux.data
-        ms = flux.mask
-        
-        SII_ms = ms.copy()
-        SII_ms[:] = False
-        SII_ms[np.where(((wave*1e4/(1+z))<6741)&((wave*1e4/(1+z))> 6712))[0]] = True
-        
-        msk = np.logical_or(SII_ms,ms)    
+        msk = flux.mask
         
         flux = np.ma.array(data=fl, mask = msk)
         
@@ -992,7 +986,7 @@ class Cube:
             
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
             self.dBIC = BICM-BICS
-            labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset')
+            labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
         else:
             print('Delta BIC' , BICM-BICS, ' ')
             self.D1_fit_results = prop_sig
@@ -1002,7 +996,7 @@ class Cube:
             
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
             self.dBIC = BICM-BICS
-            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm')
+            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
             
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
