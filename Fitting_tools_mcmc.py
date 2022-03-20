@@ -208,9 +208,11 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
 # =============================================================================
 #    functions to fit [OIII] only with outflow
 # =============================================================================
-def OIII_outflow(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel):
+def OIII_outflow(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm):
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
+    Hbeta = 4861.*(1+z)/1e4 
+    
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     Out_fwhm = OIII_out/3e5*OIIIr/2.35482
@@ -220,8 +222,10 @@ def OIII_outflow(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_o
     OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
     OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
     
+    Hbeta_fwhm = Hbeta_fwhm/3e5*Hbeta/2.35482
+    Hbeta_nar = gauss(x, Hbeta_peak, Hbeta, Hbeta_fwhm )
     
-    return cont+x*cont_grad+ OIII_nar + OIII_out
+    return cont+x*cont_grad+ OIII_nar + OIII_out + Hbeta_nar
     
 
 
@@ -233,11 +237,11 @@ def log_likelihood_OIII_outflow(theta, x, y, yerr):
 
 
 def log_prior_OIII_outflow(theta):
-    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel = theta
+    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<3 and 0<OIIIn_peak<2 and 0< OIIIw_peak<2 \
+    if 1.3 < z < 2.6 and 0 < cont<3000 and 0<OIIIn_peak<5000 and 0< OIIIw_peak<5000 \
         and 150 < OIII_fwhm<500 and 600 < OIII_out<2000 and -900<out_vel< 600 \
-            and -2< cont_grad<2:
+            and -2< cont_grad<2 and 0<Hbeta_peak<5000 and 100<Hbeta_fwhm<700:
             return 0.0
     
     return -np.inf
@@ -253,14 +257,21 @@ def log_probability_OIII_outflow(theta, x, y, yerr):
 # =============================================================================
 #  Function to fit [OIII] without outflow
 # =============================================================================
-def OIII(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm):
+def OIII(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak, Hbeta_fwhm):
     OIIIr = 5008.*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
+    
+    Hbeta = 4861.*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     
     OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
-    return cont+x*cont_grad+ OIII_nar 
+    
+    Hbeta_fwhm = Hbeta_fwhm/3e5*Hbeta/2.35482
+    
+    Hbeta_nar = gauss(x,Hbeta_peak, Hbeta, Hbeta_fwhm)
+    
+    return cont+x*cont_grad+ OIII_nar + Hbeta_nar
     
 
 
@@ -272,10 +283,10 @@ def log_likelihood_OIII(theta, x, y, yerr):
 
 
 def log_prior_OIII(theta):
-    z, cont, cont_grad, OIIIn_peak, OIII_fwhm = theta
+    z, cont, cont_grad, OIIIn_peak, OIII_fwhm, Hbeta_peak, Hbeta_fwhm = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<1 and 0<OIIIn_peak<1 \
-        and 250 < OIII_fwhm<700 and -1<cont_grad<1:
+    if 1.3 < z < 2.6 and 0 < cont<4 and 0<OIIIn_peak<5000 \
+        and 250 < OIII_fwhm<700 and -1<cont_grad<1 and 0<Hbeta_peak<5000 and 100<Hbeta_fwhm<700:
             return 0.0
     
     return -np.inf
@@ -299,7 +310,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
     
-    fit_loc = np.where((wave>4900*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+    fit_loc = np.where((wave>4800*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
     
     sel=  np.where((wave<5025*(1+z)/1e4)& (wave>4980*(1+z)/1e4))[0]
     flux_zoom = flux[sel]
@@ -310,7 +321,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     
     
     if outflow==1:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100])+ 1e-2* np.random.randn(32, 8)
+        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak/4, 200])+ 1e-2* np.random.randn(32,10)
         nwalkers, ndim = pos.shape
         import multiprocess as mp
         
@@ -322,7 +333,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
     
             
-        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel')
+        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
         
         fitted_model = OIII_outflow
         
@@ -331,7 +342,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
             res[labels[i]] = flat_samples[:,i]
     
     if outflow==0:
-        pos = np.array([z,np.mean(flux),0.001, peak/2,  400.])+ 1e-4 * np.random.randn(32, 5)
+        pos = np.array([z,np.mean(flux),0.001, peak/2,  400., peak/4,200])+ 1e-4 * np.random.randn(32, 7)
         nwalkers, ndim = pos.shape
         
         sampler = emcee.EnsembleSampler(
@@ -341,7 +352,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         
         flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
             
-        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm')
+        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
         
         
         fitted_model = OIII

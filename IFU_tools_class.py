@@ -47,6 +47,10 @@ OIIIb = 4960
 Hal = 6562.8   
 NII_r = 6583.
 NII_b = 6548.
+Hbe = 4861.
+
+SII_r = 6731
+SII_b = 6716
 
 # =============================================================================
 # Useful function 
@@ -139,11 +143,11 @@ def SNR_calc(wave,flux, std, sol, mode):
     
     if mode =='OIII':
         center = OIIIr*(1+sol[0])/1e4
-        if len(sol)==5:
+        if len(sol)==7:
             fwhm = sol[4]/3e5*center
             
             model = flux- (wave*sol[2]+sol[1]) #gauss(wave, sol[3], center, fwhm/2.35) # emfit.OIII(wave,  *sol)
-        elif len(sol)==8:
+        elif len(sol)==10:
             fwhms = sol[5]/3e5*center
             fwhm = sol[6]/3e5*center
             
@@ -177,11 +181,54 @@ def SNR_calc(wave,flux, std, sol, mode):
             fwhm = sol[6]/3e5*center
             model = gauss(wave, sol[5], center, fwhm/2.35)
             
+    elif mode =='NII':
+        center = NII_r*(1+sol[0])/1e4
+        if len(sol)==8:
+            fwhm = sol[5]/3e5*center
+            model = gauss(wave, sol[4], center, fwhm/2.35)
+        elif len(sol)==11:
+            fwhm = sol[6]/3e5*center
+            model = gauss(wave, sol[5], center, fwhm/2.35)
+    
+    elif mode =='Hb':
+        center = Hbe*(1+sol[0])/1e4
+        if len(sol)==8:
+            fwhm = sol[6]/3e5*center
+            model = gauss(wave, sol[5], center, fwhm/2.35)
+        elif len(sol)==10:
+            fwhm = sol[9]/3e5*center
+            model = gauss(wave, sol[8], center, fwhm/2.35)
+    
+    elif mode =='SII':
+        center = SII_r*(1+sol[0])/1e4
+        if len(sol)==8:
+            fwhm = sol[5]/3e5*center
+            model_r = gauss(wave, sol[6], center, fwhm/2.35) 
+            model_b = gauss(wave, sol[7], center, fwhm/2.35) 
+        elif len(sol)==11:
+            fwhm = sol[6]/3e5*center
+            model_r = gauss(wave, sol[9], center, fwhm/2.35)
+            model_b = gauss(wave, sol[9], center, fwhm/2.35)
+        model = model_r + model_b
+        
+        center = 6724*(1+sol[0])/1e4
+        
+        use = np.where((wave< center+fwhm*2)&(wave> center-fwhm*2))[0]   
+        flux_l = model[use]
+        
+        n = len(use)
+        SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+        if SNR < 0:
+            SNR=0
+        
+        return SNR
+        
+        
       
     else:
         raise Exception('Sorry mode in SNR_calc not understood')
     
-    use = np.where((wave< center+fwhm*2)&(wave> center-fwhm*2))[0]   
+    use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0]   
     flux_l = model[use]
     
     n = len(use)
@@ -201,7 +248,7 @@ def BIC_calc(wave,fluxm,error, model, results, mode):
         wave = wave[np.invert(fluxm.mask)]
         error = error[np.invert(fluxm.mask)]
         
-        fit_loc = np.where((wave>4900*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+        fit_loc = np.where((wave>4800*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
         
         flux = flux[fit_loc]
         wave = wave[fit_loc]
@@ -245,7 +292,7 @@ def flux_calc(res, mode):
     
     if mode=='OIIIt':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
-        if len(res['popt'])==8:
+        if len(res['popt'])==10:
             o3 = 5008*(1+res['z'][0])/1e4
             
             o3n = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
@@ -253,28 +300,28 @@ def flux_calc(res, mode):
             o3w = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
             
             model = o3n+o3w
-        elif len(res['popt'])==5:
+        elif len(res['popt'])==7:
             o3 = 5008*(1+res['z'][0])/1e4
             
             model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
 
     elif mode=='OIIIn':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
-        if len(res['popt'])==8:
+        if len(res['popt'])==10:
             o3 = 5008*(1+res['z'][0])/1e4
             model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
         
         
-        elif len(res['popt'])==5:
+        elif len(res['popt'])==7:
             o3 = 5008*(1+res['z'][0])/1e4
             model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
     
     elif mode=='OIIIw':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
-        if len(res['popt'])==8:
+        if len(res['popt'])==10:
             o3 = 5008*(1+res['z'][0])/1e4
             model = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
-        elif len(res['popt'])==5:
+        elif len(res['popt'])==7:
             model = np.zeros_like(wave)
     
     elif mode=='Han':
@@ -293,6 +340,35 @@ def flux_calc(res, mode):
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         nii = 6583*(1+res['z'][0])/1e4
         model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+    
+    elif mode=='NII':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        nii = 6583*(1+res['z'][0])/1e4
+        model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+        
+    elif mode=='Hbeta':
+        wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
+        hbeta = 4861*(1+res['z'][0])/1e4
+        model = gauss(wave, res['Hbeta_peak'][0], hbeta, res['Hbeta_fwhm'][0]/2.355/3e5*hbeta  )
+        
+    elif mode=='SII':
+        SII_r = 6731.*(1+res['z'][0])/1e4   
+        SII_b = 6716.*(1+res['z'][0])/1e4   
+        
+        wave = np.linspace(6600,6800,200)*(1+res['z'][0])/1e4
+        
+        model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
+        model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
+        
+        import scipy.integrate as scpi
+            
+        Flux_r = scpi.simps(model_r, wave)*1e-13
+        Flux_b = scpi.simps(model_b, wave)*1e-13
+        
+        return Flux_r, Flux_b
+    
+    else:
+        raise Exception('Sorry mode in SNR_calc not understood')
         
     import scipy.integrate as scpi
         
@@ -323,7 +399,7 @@ class Cube:
         
         elif flag=='Sinfoni':
             header = filemarker[0].header # FITS header in HDU 1
-            flux_temp  = filemarker[0].data/1.0e-13*1e4
+            flux_temp  = filemarker[0].data/1.0e-13#*1e4
                              
             filemarker.close()  # FITS HDU file marker closed
         
@@ -985,6 +1061,7 @@ class Cube:
             self.z = prop_blr['popt'][0]
             
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
+            self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
             self.dBIC = BICM-BICS
             labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
         else:
@@ -995,6 +1072,8 @@ class Cube:
             self.z = prop_sig['popt'][0]
             
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
+            self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+            
             self.dBIC = BICM-BICS
             labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
             
@@ -1006,6 +1085,7 @@ class Cube:
             title_kwargs={"fontsize": 12})
         
         print(self.SNR)
+        print(self.SNR_sii)
         
         f, ax1 = plt.subplots(1)
         
@@ -1040,9 +1120,10 @@ class Cube:
             self.D1_fit_model = fitted_model_out
             self.z = prop_out['popt'][0]
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
             self.dBIC = BICM-BICS
             
-            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel')
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
             
             
             
@@ -1055,9 +1136,10 @@ class Cube:
             self.D1_fit_model = fitted_model_sig
             self.z = prop_sig['popt'][0]
             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
             self.dBIC = BICM-BICS
             
-            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm')
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
             
             
         fig = corner.corner(
@@ -1068,6 +1150,7 @@ class Cube:
             title_kwargs={"fontsize": 12})
         
         print(self.SNR)
+        print(self.SNR_hb)
         
         
         f, ax1 = plt.subplots(1)

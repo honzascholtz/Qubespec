@@ -104,9 +104,9 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
     ax.set_xlim(4800,5050 )
 
     
-    if len(popt)==8:
-        OIIIr = 5008
-        OIIIb = 4960
+    if len(popt)==10:
+        OIIIr = 5008.
+        OIIIb = 4960.
         
         fwhm = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
         
@@ -123,6 +123,12 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
         plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0],OIIIr, fwhm) +\
                  gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0]/3, OIIIb, fwhm) \
                      ,color= 'blue', linestyle ='dashed')
+        
+        Hbeta= 4861.
+        fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+            
+        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+                     color= 'orange', linestyle ='dashed')
             
 
 
@@ -173,9 +179,9 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[5]/3, NII_b, popt[6]/3e5*Hal_wv/2.35), \
                 color='darkgreen', linestyle='dashed')
             
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[9]/3, SII_r, popt[6]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[9], SII_r, popt[6]/3e5*Hal_wv/2.35), \
                 color='darkblue', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[10]/3, SII_b, popt[6]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[10], SII_b, popt[6]/3e5*Hal_wv/2.35), \
                 color='darkblue', linestyle='dashed')
             
     if len(popt)==8:
@@ -187,9 +193,9 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[4]/3, NII_b, popt[5]/3e5*Hal_wv/2.35), \
                 color='darkgreen', linestyle='dashed')
             
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[6]/3, SII_r, popt[5]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[6], SII_r, popt[5]/3e5*Hal_wv/2.35), \
                 color='darkblue', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[7]/3, SII_b, popt[5]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[7], SII_b, popt[5]/3e5*Hal_wv/2.35), \
                 color='darkblue', linestyle='dashed')
             
         
