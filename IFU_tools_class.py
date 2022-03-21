@@ -192,7 +192,7 @@ def SNR_calc(wave,flux, std, sol, mode):
     
     elif mode =='Hb':
         center = Hbe*(1+sol[0])/1e4
-        if len(sol)==8:
+        if len(sol)==7:
             fwhm = sol[6]/3e5*center
             model = gauss(wave, sol[5], center, fwhm/2.35)
         elif len(sol)==10:
