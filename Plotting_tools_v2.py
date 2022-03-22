@@ -97,9 +97,10 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
     y_tot = fitted_model(wave[fit_loc], *popt)
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
+    
+    flt = np.where((wv_rest[fit_loc]>4900)&(wv_rest[fit_loc]<5100))[0]
 
-
-    ax.set_ylim(-0.1*max(y_tot), max(y_tot)*1.1)
+    ax.set_ylim(-0.1*max(y_tot[flt]), max(y_tot[flt])*1.1)
     ax.tick_params(direction='in')
     ax.set_xlim(4800,5050 )
 
