@@ -93,9 +93,16 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
     
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
 
-    
     y_tot = fitted_model(wave[fit_loc], *popt)
-
+    
+    if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
+        Hbeta= 4861.
+        fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+        
+        y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm)
+        
+        sol['Hbeta_peak'][0] = 0
+        
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
     
     flt = np.where((wv_rest[fit_loc]>4900)&(wv_rest[fit_loc]<5100))[0]
@@ -127,6 +134,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
         
         Hbeta= 4861.
         fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+    
             
         plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
                      color= 'orange', linestyle ='dashed')

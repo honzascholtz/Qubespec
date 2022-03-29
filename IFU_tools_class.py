@@ -869,6 +869,7 @@ class Cube:
             print ('Masking based on YJ band')
             # Actually masking the weird features: Edges + that 1.27 annoying bit
             weird = np.where((wave>1.25) &(wave<1.285))[0]
+            #weird = np.where((wave>1.28499) &(wave<1.285))[0]
             weird = np.append(weird, np.where((wave<1.020))[0])
             weird = np.append(weird, np.where((wave>1.35))[0])
             weird = np.append(weird, np.where((wave>1.31168)&(wave< 1.3140375))[0])
@@ -1558,20 +1559,35 @@ class Cube:
         self.FWHM_map = map_fwhm
         self.SNR_map = map_snr
         
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        x = int(self.center_data[1]); y= int(self.center_data[2])
         f, axes = plt.subplots(2,2, figsize=(10,10))
-        axes[0,0].imshow(map_flux,vmax=5e-18, origin='lower')
+        flx = axes[0,0].imshow(map_flux,vmax=map_flux[y,x], origin='lower')
         axes[0,0].set_title('Flux map')
+        divider = make_axes_locatable(axes[0,0])
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(flx, cax=cax, orientation='vertical')
         
         
-        axes[1,0].imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200)
+        vel = axes[1,0].imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200)
         axes[1,0].set_title('Velocity offset map')
+        divider = make_axes_locatable(axes[1,0])
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(vel, cax=cax, orientation='vertical')
         
         
-        axes[0,1].imshow(map_fwhm,vmin=100, origin='lower')
+        fw = axes[0,1].imshow(map_fwhm,vmin=100, origin='lower')
         axes[0,1].set_title('FWHM map')
+        divider = make_axes_locatable(axes[0,1])
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
         
-        axes[1,1].imshow(map_snr,vmin=3, vmax=20, origin='lower')
+        snr = axes[1,1].imshow(map_snr,vmin=3, vmax=20, origin='lower')
         axes[1,1].set_title('SNR map')
+        divider = make_axes_locatable(axes[1,1])
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(snr, cax=cax, orientation='vertical')
         
         
 # =============================================================================

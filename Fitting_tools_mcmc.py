@@ -236,18 +236,20 @@ def log_likelihood_OIII_outflow(theta, x, y, yerr):
     return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
-def log_prior_OIII_outflow(theta):
+def log_prior_OIII_outflow(theta,zguess):
+    #zguess = np.loadtxt('zguess.txt')
+    
     z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<3000 and 0<OIIIn_peak<5000 and 0< OIIIw_peak<5000 \
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<3 and 0<OIIIn_peak<2 and 0< OIIIw_peak<2 \
         and 150 < OIII_fwhm<500 and 600 < OIII_out<2000 and -900<out_vel< 600 \
-            and -2< cont_grad<2 and 0<Hbeta_peak<5000 and 100<Hbeta_fwhm<700:
+            and -2< cont_grad<2 and 0<Hbeta_peak<2 and 100<Hbeta_fwhm<4000:
             return 0.0
     
     return -np.inf
 
-def log_probability_OIII_outflow(theta, x, y, yerr):
-    lp = log_prior_OIII_outflow(theta)
+def log_probability_OIII_outflow(theta, x, y, yerr, zguess):
+    lp = log_prior_OIII_outflow(theta,zguess)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_OIII_outflow(theta, x, y, yerr)  
@@ -282,17 +284,18 @@ def log_likelihood_OIII(theta, x, y, yerr):
     return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
-def log_prior_OIII(theta):
+def log_prior_OIII(theta,zguess):
+    
     z, cont, cont_grad, OIIIn_peak, OIII_fwhm, Hbeta_peak, Hbeta_fwhm = theta
     
-    if 1.3 < z < 2.6 and 0 < cont<4 and 0<OIIIn_peak<5000 \
-        and 250 < OIII_fwhm<700 and -1<cont_grad<1 and 0<Hbeta_peak<5000 and 100<Hbeta_fwhm<700:
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<1 and 0<OIIIn_peak<2 \
+        and 250 < OIII_fwhm<700 and -1<cont_grad<1 and 0<Hbeta_peak<2 and 100<Hbeta_fwhm<4000:
             return 0.0
     
     return -np.inf
 
-def log_probability_OIII(theta, x, y, yerr):
-    lp = log_prior_OIII(theta)
+def log_probability_OIII(theta, x, y, yerr,zguess):
+    lp = log_prior_OIII(theta,zguess)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_OIII(theta, x, y, yerr)  
@@ -310,7 +313,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
     
-    fit_loc = np.where((wave>4800*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+    fit_loc = np.where((wave>4800*(1+z)/1e4)&(wave<5050*(1+z)/1e4))[0]
     
     sel=  np.where((wave<5025*(1+z)/1e4)& (wave>4980*(1+z)/1e4))[0]
     flux_zoom = flux[sel]
@@ -319,14 +322,19 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     peak_loc = np.argmax(flux_zoom)
     peak = (np.max(flux_zoom))
     
+    ##plt.figure()
+    #plt.plot(wave[fit_loc], flux[fit_loc])
+    #plt.plot(wave_zoom, flux_zoom)
+    #plt.fill_between(wave[fit_loc], flux[fit_loc]+error[fit_loc], flux[fit_loc]-error[fit_loc], alpha=0.1)
+    
     
     if outflow==1:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak/4, 200])+ 1e-2* np.random.randn(32,10)
+        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak/4, 600])+ 1e-2* np.random.randn(32,10)
         nwalkers, ndim = pos.shape
         import multiprocess as mp
         
         sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))# pool=pool)
+                nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))#, kwargs=(zguess=z))# pool=pool)
         
         sampler.run_mcmc(pos, N, progress=True);
         
@@ -342,11 +350,11 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
             res[labels[i]] = flat_samples[:,i]
     
     if outflow==0:
-        pos = np.array([z,np.mean(flux),0.001, peak/2,  400., peak/4,200])+ 1e-4 * np.random.randn(32, 7)
+        pos = np.array([z,np.mean(flux),0.001, peak/2,  400., peak/4,600])+ 1e-4 * np.random.randn(32, 7)
         nwalkers, ndim = pos.shape
         
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))
+            nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
     
         sampler.run_mcmc(pos, N, progress=True);
         
