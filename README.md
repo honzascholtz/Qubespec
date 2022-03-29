@@ -6,6 +6,8 @@ Graph_setup sets up matplotlib to make plots that Dave and Chris like.
 
 CHANGELOG:
 
+29/3 - redhsift is now fitted +-0.05 - done for safety reasons. Improved plotting of Hbeta and emission line/velocity maps
+
 21/3 - Fixed bug in SNR_calc for non outflow [OIII] fit. 
 
 20/3 - Added fitting of narrow Hbeta, [SII] including SNR calc and Flux calculation. Fixed some type-2 Halpha plotting problems. 
