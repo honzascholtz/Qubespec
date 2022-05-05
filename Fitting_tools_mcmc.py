@@ -31,7 +31,7 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N=3000
+N=10000
 def gauss(x, k, mu,sig):
 
     expo= -((x-mu)**2)/(2*sig*sig)
@@ -322,14 +322,16 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     peak_loc = np.argmax(flux_zoom)
     peak = (np.max(flux_zoom))
     
-    ##plt.figure()
-    #plt.plot(wave[fit_loc], flux[fit_loc])
-    #plt.plot(wave_zoom, flux_zoom)
-    #plt.fill_between(wave[fit_loc], flux[fit_loc]+error[fit_loc], flux[fit_loc]-error[fit_loc], alpha=0.1)
+    selb =  np.where((wave<4880*(1+z)/1e4)& (wave>4820*(1+z)/1e4))[0]
+    flux_zoomb = flux[selb]
+    wave_zoomb = wave[selb]
+    
+    peak_loc_beta = np.argmax(flux_zoomb)
+    peak_beta = (np.max(flux_zoomb))
     
     
     if outflow==1:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak/4, 600])+ 1e-2* np.random.randn(32,10)
+        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600])+ 1e-2* np.random.randn(32,10)
         nwalkers, ndim = pos.shape
         import multiprocess as mp
         
