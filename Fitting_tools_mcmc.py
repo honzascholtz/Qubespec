@@ -325,10 +325,11 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
     selb =  np.where((wave<4880*(1+z)/1e4)& (wave>4820*(1+z)/1e4))[0]
     flux_zoomb = flux[selb]
     wave_zoomb = wave[selb]
-    
-    peak_loc_beta = np.argmax(flux_zoomb)
-    peak_beta = (np.max(flux_zoomb))
-    
+    try:
+        peak_loc_beta = np.argmax(flux_zoomb)
+        peak_beta = (np.max(flux_zoomb))
+    except:
+        peak_hbeta = peak/3
     
     if outflow==1:
         pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600])+ 1e-2* np.random.randn(32,10)
