@@ -31,7 +31,7 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N=10000
+N=5000
 def gauss(x, k, mu,sig):
 
     expo= -((x-mu)**2)/(2*sig*sig)
@@ -329,7 +329,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         peak_loc_beta = np.argmax(flux_zoomb)
         peak_beta = (np.max(flux_zoomb))
     except:
-        peak_hbeta = peak/3
+        peak_beta = peak/3
     
     if outflow==1:
         pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600])+ 1e-2* np.random.randn(32,10)
@@ -353,7 +353,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
             res[labels[i]] = flat_samples[:,i]
     
     if outflow==0:
-        pos = np.array([z,np.mean(flux),0.001, peak/2,  400., peak/4,600])+ 1e-4 * np.random.randn(32, 7)
+        pos = np.array([z,np.mean(flux),0.001, peak/2,  400., peak_beta,600])+ 1e-4 * np.random.randn(32, 7)
         nwalkers, ndim = pos.shape
         
         sampler = emcee.EnsembleSampler(
