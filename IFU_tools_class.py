@@ -960,7 +960,7 @@ class Cube:
         self.Stacked_sky = stacked_sky
         
         
-        np.savetxt(self.savepath, sky_clipped)
+        np.savetxt(self.savepath+'clp.txt', sky_clipped)
         
 
         
@@ -1099,6 +1099,7 @@ class Cube:
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
         z = self.z
+        ID = self.ID
         
         flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
         prop_sig = prop_calc(flat_samples_sig)
@@ -1125,10 +1126,6 @@ class Cube:
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
-            
-            
-            
-            
         
         else:
             print('Delta BIC' , BICM-BICS, ' ')
@@ -1141,6 +1138,30 @@ class Cube:
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+         
+        if ID=='cdfs_751':
+            print('Delta BIC' , BICM-BICS, ' ')
+            self.D1_fit_results = prop_sig
+            self.D1_fit_chain = flat_samples_sig
+            self.D1_fit_model = fitted_model_sig
+            self.z = prop_sig['popt'][0]
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
+            self.dBIC = BICM-BICS
+            
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+            
+        if ID=='cid_346':
+            print('Delta BIC' , BICM-BICS, ' ')
+            self.D1_fit_results = prop_out
+            self.D1_fit_chain = flat_samples_out
+            self.D1_fit_model = fitted_model_out
+            self.z = prop_out['popt'][0]
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
+            self.dBIC = BICM-BICS
+            
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
             
             
         fig = corner.corner(
@@ -1155,8 +1176,20 @@ class Cube:
         
         
         f, ax1 = plt.subplots(1)
-        
         emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
+        
+        g, (ax1,ax2) = plt.subplots(2)
+        emplot.plotting_OIII(wave, flux, ax1, prop_sig , fitted_model_sig)
+        emplot.plotting_OIII(wave, flux, ax2, prop_out ,fitted_model_out)
+        
+        self.fit_plot = [f,ax1]
+        
+    
+    def save_fit_info(self):
+        results = [self.D1_fit_results, self.dBIC, self.SNR]
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_best_fit.txt', "wb") as fp:
+            pickle.dump( results,fp)     
         
 
     def astrometry_correction_HST(self, img_file):
@@ -1466,36 +1499,36 @@ class Cube:
         
         for i in range(len(Unwrapped_cube)):
             
-            row = Unwrapped_cube[i]
-            
-            results.append( emfit.Fitting_OIII_unwrap(row, self.obs_wave, self.z))
+            results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
         
         self.spaxel_fit_raw = results
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( results,fp)     
-    
-    def Spaxel_fitting_OIII_lqs(self):
+            
+    def Spaxel_fitting_OIII_MCMC_mp(self):
         import pickle
-        import Fitting_tools_lqs as emfit_lqs
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
             
         print('import of the unwrap cube - done')
         
-        results = []
+        obs_wave = self.obs_wave.copy()
+        z = self.z
         
-        for i in range(len(Unwrapped_cube)):
+        #for i in range(len(Unwrapped_cube)):   
+            #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
+        import concurrent.futures
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            executor.map(emfit.Fitting_OIII_unwrap, Unwrapped_cube, [obs_wave]*len(Unwrapped_cube), [z]*len(Unwrapped_cube) )
             
-            row = Unwrapped_cube[i]
             
-            results.append( emfit_lqs.Fitting_OIII_unwrap(row, self.obs_wave, self.z))
-        
+            
         self.spaxel_fit_raw = results
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( results,fp)     
-   
+
     
     def Map_creation_OIII(self):
         z0 = self.z
@@ -1562,78 +1595,74 @@ class Cube:
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
         x = int(self.center_data[1]); y= int(self.center_data[2])
-        f, axes = plt.subplots(2,2, figsize=(10,10))
-        flx = axes[0,0].imshow(map_flux,vmax=map_flux[y,x], origin='lower')
-        axes[0,0].set_title('Flux map')
-        divider = make_axes_locatable(axes[0,0])
+        f = plt.figure( figsize=(10,10))
+        
+        IFU_header = self.header
+        
+        deg_per_pix = IFU_header['CDELT2']
+        arc_per_pix = deg_per_pix*3600
+        
+        
+        Offsets_low = -self.center_data[1:3]
+        Offsets_hig = self.dim[0:2] - self.center_data[1:3]
+        
+        lim = np.array([ Offsets_low[0], Offsets_hig[0],
+                         Offsets_low[1], Offsets_hig[1] ])
+    
+        lim_sc = lim*arc_per_pix
+        
+        ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
+        ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
+        ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
+        ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
+        
+        flx = ax1.imshow(map_flux,vmax=map_flux[y,x], origin='lower', extent= lim_sc)
+        ax1.set_title('Flux map')
+        divider = make_axes_locatable(ax1)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(flx, cax=cax, orientation='vertical')
         
+        #lims = 
+        #emplot.overide_axes_labels(f, axes[0,0], lims)
         
-        vel = axes[1,0].imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200)
-        axes[1,0].set_title('Velocity offset map')
-        divider = make_axes_locatable(axes[1,0])
+        
+        vel = ax2.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200, extent= lim_sc)
+        ax2.set_title('Velocity offset map')
+        divider = make_axes_locatable(ax2)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(vel, cax=cax, orientation='vertical')
         
         
-        fw = axes[0,1].imshow(map_fwhm,vmin=100, origin='lower')
-        axes[0,1].set_title('FWHM map')
-        divider = make_axes_locatable(axes[0,1])
+        fw = ax3.imshow(map_fwhm,vmin=100, origin='lower', extent= lim_sc)
+        ax3.set_title('FWHM map')
+        divider = make_axes_locatable(ax3)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
         
-        snr = axes[1,1].imshow(map_snr,vmin=3, vmax=20, origin='lower')
-        axes[1,1].set_title('SNR map')
-        divider = make_axes_locatable(axes[1,1])
+        snr = ax4.imshow(map_snr,vmin=3, vmax=20, origin='lower', extent= lim_sc)
+        ax4.set_title('SNR map')
+        divider = make_axes_locatable(ax4)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(snr, cax=cax, orientation='vertical')
         
+        hdr = self.header.copy()
+        hdr['X_cent'] = x
+        hdr['Y_cent'] = y 
         
-# =============================================================================
-# Old and to be developed code        
-# =============================================================================
-def Spaxel_fitting_OIII_mp(self):
-    import pickle
-    with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
-        Unwrapped_cube= pickle.load(fp)
+        Line_info = np.zeros((4,self.dim[0],self.dim[1]))
+        Line_info[0,:,:] = map_flux
+        Line_info[1,:,:] = map_vel
+        Line_info[2,:,:] = map_fwhm
+        Line_info[3,:,:] = map_snr
         
-    print('import of the unwrap cube - done')
-    
-
-    ## DONT FORGET TO RUN THE FOLLOWING COMMAND IN TERMINAL
-    ## ipcluster start -n 4
-    ## where 4 is the number of parallel processes.
-    from ipyparallel import Client
-    import itertools
-    
-    cs = Client()
-    view = cs[:]
-    view.activate()
-    
-    with view.sync_imports():
-        import numpy as np
-        from astropy.io import fits as pyfits
-        from astropy import wcs
-        from astropy.table import Table, join, vstack
-        from matplotlib.backends.backend_pdf import PdfPages
-        import pickle
-        from scipy.optimize import curve_fit
-
-        import emcee
-        import corner
-        import Fitting_tools_mcmc as emfit
-    
+        prhdr = hdr
+        hdu = fits.PrimaryHDU(Line_info, header=prhdr)
+        hdulist = fits.HDUList([hdu])
         
         
-    ## This is how you declare variables in all the nodes at once...
-    
-    view.push(dict(c = 3.0e8, N=2000))
-    #b3 = view.map_sync(fitting_data_leastsq,fluxes_full[:N_max],Noise_sig[:N_max],itertools.repeat(wavelengths_full,N_max))
-    #flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
-    
-    b3 = view.map_sync(emfit.Fitting_OIII_unwrap, Unwrapped_cube, itertools.repeat(self.obs_wave, self.z))     
-
+        hdulist.writeto(self.savepath+self.ID+'_OIII_fits_maps.fits', overwrite=True)
+            
+        
 '''
 
 def W68_mes(out, mode, plot):
