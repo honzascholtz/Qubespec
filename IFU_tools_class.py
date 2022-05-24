@@ -62,6 +62,11 @@ def gauss(x,k,mu,sig):
     
     return y
 
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
 def create_circular_mask(h, w, center=None, radius=None):
 
     if center is None: # use the middle of the image
@@ -154,9 +159,11 @@ def SNR_calc(wave,flux, std, sol, mode):
             center = OIIIr*(1+sol[0])/1e4
             centerw = OIIIr*(1+sol[0])/1e4 + sol[7]/3e5*center
             
+            print(centerw, center, sol[7])
+            
             model = emfit.OIII_outflow(wave,  *sol)- (wave*sol[2]+sol[1]) #gauss(wave, sol[3], center, fwhms/2.35) + gauss(wave, sol[4], centerw, fwhm/2.35)  #emfit.OIII_outflow(wave,  *sol)- wave*sol[2]+sol[1]
             
-        
+            
     elif mode =='Hn':
         center = Hal*(1+sol[0])/1e4
         if len(sol)==8:
@@ -213,8 +220,9 @@ def SNR_calc(wave,flux, std, sol, mode):
         
         center = 6724*(1+sol[0])/1e4
         
-        use = np.where((wave< center+fwhm*2)&(wave> center-fwhm*2))[0]   
+        use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0]   
         flux_l = model[use]
+        
         
         n = len(use)
         SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
@@ -222,9 +230,7 @@ def SNR_calc(wave,flux, std, sol, mode):
             SNR=0
         
         return SNR
-        
-        
-      
+    
     else:
         raise Exception('Sorry mode in SNR_calc not understood')
     
@@ -362,8 +368,8 @@ def flux_calc(res, mode):
         
         import scipy.integrate as scpi
             
-        Flux_r = scpi.simps(model_r, wave)*1e-13
-        Flux_b = scpi.simps(model_b, wave)*1e-13
+        Flux_r = scpi.simps(model_r, wave)*1e-12
+        Flux_b = scpi.simps(model_b, wave)*1e-12
         
         return Flux_r, Flux_b
     
@@ -376,8 +382,99 @@ def flux_calc(res, mode):
         
     return Flux
         
-        
+def W80_OIII_calc( function, sol, chains, plot):
+    popt = sol['popt']     
     
+    import scipy.integrate as scpi
+    
+    cent =  5008.*(1+popt[0])/1e4
+    
+    bound1 =  cent + 2000/3e5*cent
+    bound2 =  cent - 2000/3e5*cent
+    Ni = 500
+    
+    wvs = np.linspace(bound2, bound1, Ni)
+    N= 100
+    
+    if len(popt)==10:
+        OIIIr = 5008.*(1+popt[0])/1e4
+        
+        fwhms = np.random.choice(chains['OIIIn_fwhm'], N)/3e5/2.35*OIIIr
+        fwhmws = np.random.choice(chains['OIIIw_fwhm'], N)/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + np.random.choice(chains['out_vel'], N)/3e5*OIIIr
+        
+        peakn = np.random.choice(chains['OIIIn_peak'], N)
+        peakw = np.random.choice(chains['OIIIw_peak'], N)
+        
+        v10s = np.zeros(N)
+        v90s = np.zeros(N)
+        w80s = np.zeros(N)
+        
+        for i in range(N):
+            y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
+            
+            Int = np.zeros(Ni-1)
+    
+            for j in range(Ni-1):
+
+                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+            Int = Int/max(Int)   
+
+            wv10 = wvs[find_nearest(Int, 0.1)]
+            wv90 = wvs[find_nearest(Int, 0.9)]
+            wv50 = wvs[find_nearest(Int, 0.5)]
+
+            v10 = (wv10-cent)/cent*3e5
+            v90 = (wv90-cent)/cent*3e5
+            v50 = (wv50-cent)/cent*3e5
+            
+            w80 = v90-v10
+            
+            v10s[i] = v10
+            v90s[i] = v90
+            w80s[i] = w80
+    
+    if len(popt)==7:
+        OIIIr = 5008.*(1+popt[0])/1e4
+        
+        fwhms = np.random.choice(chains['OIIIn_fwhm'], N)/3e5/2.35*OIIIr
+        peakn = np.random.choice(chains['OIIIn_peak'], N)
+        
+        
+        v10s = np.zeros(N)
+        v90s = np.zeros(N)
+        w80s = np.zeros(N)
+        
+        for i in range(N):
+            y = gauss(wvs, peakn[i],OIIIr, fwhms[i])
+            
+            Int = np.zeros(Ni-1)
+    
+            for j in range(Ni-1):
+
+                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+            Int = Int/max(Int)   
+
+            wv10 = wvs[find_nearest(Int, 0.1)]
+            wv90 = wvs[find_nearest(Int, 0.9)]
+            wv50 = wvs[find_nearest(Int, 0.5)]
+
+            v10 = (wv10-cent)/cent*3e5
+            v90 = (wv90-cent)/cent*3e5
+            v50 = (wv50-cent)/cent*3e5
+            
+            w80 = v90-v10
+            
+            v10s[i] = v10
+            v90s[i] = v90
+            w80s[i] = w80
+            
+            
+    return [np.median(v10s), np.std(v10s)], [np.median(v90s), np.std(v90s)], [np.median(w80s), np.std(w80s)]
+            
 # ============================================================================
 #  Main class
 # =============================================================================
@@ -393,7 +490,7 @@ class Cube:
         if flag=='KMOS':
             
             header = filemarker[1].header # FITS header in HDU 1
-            flux_temp  = filemarker[1].data/1.0e-13   
+            flux_temp  = filemarker[1].data/1.0e-13  
                              
             filemarker.close()  # FITS HDU file marker closed
         
@@ -645,14 +742,27 @@ class Cube:
             initial_guess = (data[loc[1][0], loc[0][0]],loc[1][0],loc[0][0],1,1,0,0)
             
             print ('Initial guesses', initial_guess)
-            dm = (x,y)
-            popt, pcov = opt.curve_fit(twoD_Gaussian, dm, data.ravel(), p0=initial_guess)
             
-            er = np.sqrt(np.diag(pcov))
-        
-            print ('Cont loc ', popt[1:3])
-            print ('Cont loc er', er[1:3])
-            self.center_data = popt 
+            try:
+                dm = (x,y)
+                popt, pcov = opt.curve_fit(twoD_Gaussian, dm, data.ravel(), p0=initial_guess)
+                
+                er = np.sqrt(np.diag(pcov))
+            
+                print ('Cont loc ', popt[1:3])
+                print ('Cont loc er', er[1:3])
+                
+            except:
+                print('Failed fit to the continuum - switching to the center of the cube')
+                popt = np.zeros(7)
+                popt[1] = int(self.dim[0]/2); popt[2] = int(self.dim[1]/2) 
+            
+            if (popt[1]<3) | (popt[2]<3):
+                print('Failed fit to the continuum - switching to the center of the cube')
+                popt = np.zeros(7)
+                popt[1] = int(self.dim[0]/2); popt[2] = int(self.dim[1]/2) 
+                
+            self.center_data = popt      
             
             
             
@@ -734,7 +844,7 @@ class Cube:
         mask_sky_1D = self.sky_clipped_1D.copy()
         
         
-        total_mask = mask_spax 
+        total_mask = np.logical_or( mask_spax, self.flux.mask)
         # M
         flux = np.ma.array(data=self.flux.data, mask= total_mask) 
         
@@ -747,7 +857,7 @@ class Cube:
             plt.figure()
             plt.title('Collapsed 1D spectrum from D1_spectra_collapse fce')
             
-            plt.plot(wave, D1_spectra, drawstyle='steps-mid', color='grey')
+            plt.plot(wave, D1_spectra.data, drawstyle='steps-mid', color='grey')
             plt.plot(wave, np.ma.array(data= D1_spectra, mask=self.sky_clipped_1D), drawstyle='steps-mid')
             
         
@@ -756,7 +866,13 @@ class Cube:
        
         
         self.D1_spectrum = D1_spectra
-        self.D1_spectrum_er = stats.sigma_clipped_stats(D1_spectra,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+        self.D1_spectrum_er = stats.sigma_clipped_stats(D1_spectra,sigma=2)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+        
+        if self.ID =='cdfs_220':
+            self.D1_spectrum_er = 0.05*np.ones(len(self.D1_spectrum))
+        if self.ID =='cid_346':
+            self.D1_spectrum_er = 0.005*np.ones(len(self.D1_spectrum))
+            
         
         Save_spec = np.zeros((4,len(D1_spectra)))
         
@@ -774,7 +890,6 @@ class Cube:
 
     def stack_sky(self,plot, spe_ma=np.array([], dtype=bool), expand=0):
         header = self.header
-        ID = self.ID
         ######
         # Finding the center of the Object
         center =  self.center_data[1:3].copy()
@@ -868,7 +983,7 @@ class Cube:
         if self.band=='YJ':
             print ('Masking based on YJ band')
             # Actually masking the weird features: Edges + that 1.27 annoying bit
-            weird = np.where((wave>1.25) &(wave<1.285))[0]
+            weird = np.where((wave>1.263) &(wave<1.285))[0]
             #weird = np.where((wave>1.28499) &(wave<1.285))[0]
             weird = np.append(weird, np.where((wave<1.020))[0])
             weird = np.append(weird, np.where((wave>1.35))[0])
@@ -926,7 +1041,6 @@ class Cube:
         clip_w = 1.5
         
         ssma = stacked_sky_mask.data[np.invert(stacked_sky_mask.mask)]
-        print (len(ssma))
         low, hgh = conf(ssma)   
         
         
@@ -943,12 +1057,15 @@ class Cube:
         
 
         
-        #if (storage['X-ray ID']=='HB89') & (Band=='Hsin'):
-        #    sky_clipped[np.where((wave< 1.72344 ) & (wave > 1.714496))[0]] = False
-        
-        
+        if (self.ID=='xuds_316') & (self.band=='YJ'):
+            sky_clipped[np.where((wave< 1.202 ) & (wave > 1.199))[0]] = False
             
+        if (self.ID=='cdfs_328') & (self.band=='YJ'):
+            sky_clipped[np.where((wave< 1.2658 ) & (wave > 1.2571))[0]] = False
         
+        if (self.ID=='cdfs_220') & (self.band=='YJ'):
+            sky_clipped[np.where((wave< 1.286 ) & (wave > 1.2571))[0]] = False
+            
         for ix in range(shapes[0]):
             for iy in range(shapes[1]):
                 mask_sky[:,ix,iy] = sky_clipped
@@ -1021,6 +1138,8 @@ class Cube:
             ax4.set_ylabel('New spec')
             
             ax1.set_ylim(-0.05,0.4)
+            
+            plt.tight_layout()
     
     def fitting_collapse_Halpha(self, plot, broad = 1):
         wave = self.obs_wave.copy()
@@ -1139,7 +1258,9 @@ class Cube:
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
          
-        if ID=='cdfs_751':
+        if (ID=='cdfs_751') | (ID=='cid_40') | (ID=='xuds_068') | (ID=='cdfs_51') | (ID=='cdfs_614')\
+            | (ID=='xuds_190'):
+                
             print('Delta BIC' , BICM-BICS, ' ')
             self.D1_fit_results = prop_sig
             self.D1_fit_chain = flat_samples_sig
@@ -1150,6 +1271,7 @@ class Cube:
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+
             
         if ID=='cid_346':
             print('Delta BIC' , BICM-BICS, ' ')
@@ -1190,6 +1312,9 @@ class Cube:
         
         with open(self.savepath+self.ID+'_'+self.band+'_best_fit.txt', "wb") as fp:
             pickle.dump( results,fp)     
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_best_chain.txt', "wb") as fp:
+            pickle.dump( self.D1_fit_chain,fp)     
         
 
     def astrometry_correction_HST(self, img_file):
@@ -1928,3 +2053,99 @@ def Sub_QSO(storage_H):
 
 
 '''
+
+def W80_OIII_calc_old( function, sol, plot):
+    popt = sol['popt']     
+    
+    import scipy.integrate as scpi
+    
+    
+    cent =  5008.*(1+popt[0])/1e4
+    
+    bound1 =  cent + 2000/3e5*cent
+    bound2 =  cent - 2000/3e5*cent
+    Ni = 500
+    
+    wvs = np.linspace(bound2, bound1, Ni)
+    N= 100
+    
+    if len(popt)==10:
+        OIIIr = 5008.*(1+popt[0])/1e4
+        
+        
+        fwhms = np.random.normal(sol['OIIIn_fwhm'][0], (sol['OIIIn_fwhm'][1]+sol['OIIIn_fwhm'][2]), N )/3e5/2.35*OIIIr
+        fwhmws = np.random.normal(sol['OIIIw_fwhm'][0], (sol['OIIIw_fwhm'][1]+sol['OIIIw_fwhm'][2]), N )/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + np.random.normal(sol['out_vel'][0], (sol['out_vel'][1]+sol['out_vel'][2]),N)/3e5*OIIIr
+        
+        peakn = np.random.normal(sol['OIIIn_peak'][0], (sol['OIIIn_peak'][1]+sol['OIIIn_peak'][2]),N)
+        peakw = np.random.normal(sol['OIIIw_peak'][0], (sol['OIIIw_peak'][1]+sol['OIIIw_peak'][2]),N)
+        
+        v10s = np.zeros(N)
+        v90s = np.zeros(N)
+        w80s = np.zeros(N)
+        
+        for i in range(N):
+            y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
+            
+            Int = np.zeros(Ni-1)
+    
+            for j in range(Ni-1):
+
+                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+            Int = Int/max(Int)   
+
+            wv10 = wvs[find_nearest(Int, 0.1)]
+            wv90 = wvs[find_nearest(Int, 0.9)]
+            wv50 = wvs[find_nearest(Int, 0.5)]
+
+            v10 = (wv10-cent)/cent*3e5
+            v90 = (wv90-cent)/cent*3e5
+            v50 = (wv50-cent)/cent*3e5
+            
+            w80 = v90-v10
+            
+            v10s[i] = v10
+            v90s[i] = v90
+            w80s[i] = w80
+    
+    if len(popt)==7:
+        OIIIr = 5008.*(1+popt[0])/1e4
+        
+        fwhms = np.random.normal(sol['OIIIn_fwhm'][0], (sol['OIIIn_fwhm'][1]+sol['OIIIn_fwhm'][2]), N )/3e5/2.35*OIIIr
+        peakn = np.random.normal(sol['OIIIn_peak'][0], (sol['OIIIn_peak'][1]+sol['OIIIn_peak'][2]),N)
+        
+        
+        v10s = np.zeros(N)
+        v90s = np.zeros(N)
+        w80s = np.zeros(N)
+        
+        for i in range(N):
+            y = gauss(wvs, peakn[i],OIIIr, fwhms[i])
+            
+            Int = np.zeros(Ni-1)
+    
+            for j in range(Ni-1):
+
+                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+            Int = Int/max(Int)   
+
+            wv10 = wvs[find_nearest(Int, 0.1)]
+            wv90 = wvs[find_nearest(Int, 0.9)]
+            wv50 = wvs[find_nearest(Int, 0.5)]
+
+            v10 = (wv10-cent)/cent*3e5
+            v90 = (wv90-cent)/cent*3e5
+            v50 = (wv50-cent)/cent*3e5
+            
+            w80 = v90-v10
+            
+            v10s[i] = v10
+            v90s[i] = v90
+            w80s[i] = w80
+            
+            
+    return [np.median(v10s), np.std(v10s)], [np.median(v90s), np.std(v90s)], [np.median(w80s), np.std(w80s)]
+            
