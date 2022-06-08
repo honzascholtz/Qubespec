@@ -1,4 +1,4 @@
-Basic tools to analyse KMOS cubes from KASHz
+Data analysis pipeline to analyze data from VLT/KMOS, VLT/SINFONI and soon JWST/NIRSPEC to map emission lines in AGN and incactive host galaxies, create flux and kinematic maps as well as modelling outflows in Halpha and [OIII]. 
 
 Code in IFU_tools_class is the main body of the code and example to run it is in cubes_prep.py
 
