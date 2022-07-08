@@ -31,7 +31,10 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N=5000
+N = 5000*2
+def init(template):   
+    return template
+
 def gauss(x, k, mu,sig):
 
     expo= -((x-mu)**2)/(2*sig*sig)
@@ -76,17 +79,17 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
     return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
-def log_prior_Halpha_BLR(theta):
+def log_prior_Halpha_BLR(theta, zguess):
     z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta
-    if 1.3 < z < 2.6 and 0 < cont<0.5 and 0<Hal_peak<0.5 and 0<BLR_peak<0.5 and 0< NII_peak<0.5 \
-        and 150 < Nar_fwhm<900 and 2000<BLR_fwhm<9000 and -200 < BLR_offset <200 and -1 <cont_grad<1 \
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<0.5 and 0<Hal_peak<0.5 and 0<BLR_peak<0.5 and 0< NII_peak<0.5 \
+        and 150 < Nar_fwhm<1500 and 2000<BLR_fwhm<9000 and -400 < BLR_offset <400 and -1 <cont_grad<1 \
             and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
             return 0.0
     
     return -np.inf
 
-def log_probability_Halpha_BLR(theta, x, y, yerr):
-    lp = log_prior_Halpha_BLR(theta)
+def log_probability_Halpha_BLR(theta, x, y, yerr, zguess):
+    lp = log_prior_Halpha_BLR(theta,zguess)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_Halpha_BLR(theta, x, y, yerr)
@@ -124,25 +127,88 @@ def log_likelihood_Halpha(theta, x, y, yerr):
     return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
-def log_prior_Halpha(theta):
+def log_prior_Halpha(theta, zguess):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
-    if 1.3 < z < 2.6 and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<1 \
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<2 \
         and 150 < Nar_fwhm<900 and -1 <cont_grad<1 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
             return 0.0
     
     return -np.inf
 
-def log_probability_Halpha(theta, x, y, yerr):
-    lp = log_prior_Halpha(theta)
+def log_probability_Halpha(theta, x, y, yerr, zguess):
+    lp = log_prior_Halpha(theta,zguess)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_Halpha(theta, x, y, yerr)
 
 
 # =============================================================================
+# Function to fit just Halpha outflow
+# =============================================================================
+def Halpha_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel):
+    Hal_wv = 6562.8*(1+z)/1e4     
+    NII_r = 6583.*(1+z)/1e4
+    NII_b = 6548.*(1+z)/1e4
+    
+    Hal_wv_vel = 6562.8*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_r_vel = 6583.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_b_vel = 6548.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    
+    
+    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
+    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
+    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
+    
+    out_vel_hal = outflow_fwhm/3e5*Hal_wv/2.35482
+    out_vel_niir = outflow_fwhm/3e5*NII_r/2.35482
+    out_vel_niib = outflow_fwhm/3e5*NII_b/2.35482
+    
+    SII_r = 6731.*(1+z)/1e4   
+    SII_b = 6716.*(1+z)/1e4   
+    
+    Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
+    NII_nar_r = gauss(x, NII_peak, NII_r, Nar_vel_niir)
+    NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_vel_niib)
+    
+    Hal_out = gauss(x, Hal_out_peak, Hal_wv_vel, out_vel_hal)
+    NII_out_r = gauss(x, NII_out_peak, NII_r_vel, out_vel_niir)
+    NII_out_b = gauss(x, NII_out_peak/3, NII_b_vel, out_vel_niib)
+    
+    outflow = Hal_out+ NII_out_r + NII_out_b
+    
+    SII_rg = gauss(x, SII_rpk, SII_r, Nar_vel_hal)
+    SII_bg = gauss(x, SII_bpk, SII_b, Nar_vel_hal)
+    
+    return cont+x*cont_grad+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg + outflow
+
+def log_likelihood_Halpha_outflow(theta, x, y, yerr):
+    
+    model = Halpha_outflow(x,*theta)
+    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+
+
+def log_prior_Halpha_outflow(theta, zguess):
+    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel = theta
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<2 \
+        and 150 < Nar_fwhm<900 and -1 <cont_grad<1 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5\
+        and  0<Hal_out_peak<2 and  0<NII_out_peak<2 and  150<outflow_fwhm<1500 and -2000<outflow_vel<2000\
+        and Hal_peak>Hal_out_peak:
+            return 0.0
+    
+    return -np.inf
+
+def log_probability_Halpha_outflow(theta, x, y, yerr, zguess):
+    lp = log_prior_Halpha_outflow(theta,zguess)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_Halpha_outflow(theta, x, y, yerr)
+
+
+# =============================================================================
 #  Primary function to fit Halpha both with or without BLR - data prep and fit 
 # =============================================================================
-def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
+def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1, progress=True):
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
@@ -162,9 +228,9 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha_BLR, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))
+            nwalkers, ndim, log_probability_Halpha_BLR, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
     
-        sampler.run_mcmc(pos, N, progress=True);
+        sampler.run_mcmc(pos, N, progress=progress);
     
         
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
@@ -181,13 +247,13 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
             res[labels[i]] = flat_samples[:,i]
     
     if BLR==0:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 400.,peak/6, peak/6 ])+ 1e-4 * np.random.randn(32, 8)
+        pos = np.array([z,np.mean(flux),0.01, peak/2, peak/4, 400.,peak/6, peak/6 ])+ 1e-4 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha, args=(wave[fit_loc], flux[fit_loc], error[fit_loc]))
+            nwalkers, ndim, log_probability_Halpha, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
     
-        sampler.run_mcmc(pos, N, progress=True);
+        sampler.run_mcmc(pos, N, progress=progress);
     
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
     
@@ -196,6 +262,25 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1):
         fitted_model = Halpha
         
         res = {'name': 'Halpha_wth_BLR'}
+        for i in range(len(labels)):
+            res[labels[i]] = flat_samples[:,i]
+            
+    if BLR==-1:
+        pos = np.array([z,np.mean(flux),0.01, peak/2, peak/4, 400.,peak/6, peak/6,peak/8, peak/8, 600.,-100. ])+ 1e-4 * np.random.randn(32, 12)
+        nwalkers, ndim = pos.shape
+    
+        sampler = emcee.EnsembleSampler(
+            nwalkers, ndim, log_probability_Halpha_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
+    
+        sampler.run_mcmc(pos, N*2, progress=progress);
+    
+        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
+    
+        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
+        
+        fitted_model = Halpha_outflow
+        
+        res = {'name': 'Halpha_wth_out'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
     
@@ -239,11 +324,11 @@ def log_likelihood_OIII_outflow(theta, x, y, yerr):
 def log_prior_OIII_outflow(theta,zguess):
     #zguess = np.loadtxt('zguess.txt')
     
-    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm = theta
+    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm, = theta
     
-    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<3 and 0<OIIIn_peak<2 and 0< OIIIw_peak<2 \
-        and 150 < OIII_fwhm<500 and 600 < OIII_out<2000 and -900<out_vel< 600 \
-            and -2< cont_grad<2 and 0<Hbeta_peak<2 and 100<Hbeta_fwhm<4000:
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<300 and 0<OIIIn_peak<200 and 0< OIIIw_peak<200 \
+        and 150 < OIII_fwhm<500 and 600 < OIII_out<3000 and -900<out_vel< 600 \
+            and -2< cont_grad<2 and 0<Hbeta_peak<200 and 100<Hbeta_fwhm<6000:
             return 0.0
     
     return -np.inf
@@ -253,6 +338,61 @@ def log_probability_OIII_outflow(theta, x, y, yerr, zguess):
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_OIII_outflow(theta, x, y, yerr)  
+
+
+
+# =============================================================================
+#    functions to fit [OIII] only with outflow with nar Hbeta
+# =============================================================================
+def OIII_outflow_narHb(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm, Hbetan_peak, Hbetan_fwhm):
+    OIIIr = 5008.*(1+z)/1e4   
+    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    Hbeta = 4861.*(1+z)/1e4 
+    
+    
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
+    
+    out_vel_wv = out_vel/3e5*OIIIr
+    
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
+    
+    Hbetab_fwhm = Hbetab_fwhm/3e5*Hbeta/2.35482
+    Hbetab_blr = gauss(x, Hbetab_peak, Hbeta, Hbetab_fwhm )
+    
+    Hbetan_fwhm = Hbetan_fwhm/3e5*Hbeta/2.35482
+    Hbeta_nar = gauss(x, Hbetan_peak, Hbeta, Hbetan_fwhm )
+    
+    return cont+x*cont_grad+ OIII_nar + OIII_out + Hbeta_blr + Hbeta_nar
+    
+
+
+def log_likelihood_OIII_outflow_narHb(theta, x, y, yerr):
+    
+    model = OIII_outflownarHb(x,*theta)
+    sigma2 = yerr*yerr
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+
+
+def log_prior_OIII_outflow_narHb(theta,zguess):
+    #zguess = np.loadtxt('zguess.txt')
+    
+    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm, Hbetan_peak, Hbetan_fwhm = theta
+    
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<300 and 0<OIIIn_peak<200 and 0< OIIIw_peak<200 \
+        and 150 < OIII_fwhm<600 and 600 < OIII_out<3000 and -900<out_vel< 600 \
+            and -2< cont_grad<2 and 0<Hbetab_peak<200 and 1500<Hbetab_fwhm<6000 \
+                and 0<Hbetan_peak<200 and 100<Hbetan_fwhm<1000:
+                    return 0.0
+    
+    return -np.inf
+
+def log_probability_OIII_outflow_narHb(theta, x, y, yerr, zguess):
+    lp = log_prior_OIII_outflow_narHb(theta,zguess)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_OIII_outflow_narHb(theta, x, y, yerr)  
     
     
 
@@ -288,8 +428,8 @@ def log_prior_OIII(theta,zguess):
     
     z, cont, cont_grad, OIIIn_peak, OIII_fwhm, Hbeta_peak, Hbeta_fwhm = theta
     
-    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<1 and 0<OIIIn_peak<2 \
-        and 250 < OIII_fwhm<700 and -1<cont_grad<1 and 0<Hbeta_peak<2 and 100<Hbeta_fwhm<4000:
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<100 and 0<OIIIn_peak<200 \
+        and 250 < OIII_fwhm<2500 and -1<cont_grad<1 and 0<Hbeta_peak<200 and 100<Hbeta_fwhm<6000:
             return 0.0
     
     return -np.inf
@@ -300,15 +440,251 @@ def log_probability_OIII(theta, x, y, yerr,zguess):
         return -np.inf
     return lp + log_likelihood_OIII(theta, x, y, yerr)  
     
-  
+# =============================================================================
+# FeII code 
+# =============================================================================
+from astropy.convolution import Gaussian1DKernel
+from astropy.convolution import convolve
+from scipy.interpolate import interp1d
+#Loading the template
+Veron_d = pyfits.getdata('/Users/jansen/My Drive/Astro/General_data/FeII_templates/Veron-cetty_2004.fits')
+Veron_hd = pyfits.getheader('/Users/jansen/My Drive/Astro/General_data/FeII_templates/Veron-cetty_2004.fits')
+Veron_wv = np.arange(Veron_hd['CRVAL1'], Veron_hd['CRVAL1']+ Veron_hd['NAXIS1'])
+
+
+Tsuzuki = np.loadtxt('/Users/jansen/My Drive/Astro/General_data/FeII_templates/FeII_Tsuzuki_opttemp.txt')
+Tsuzuki_d = Tsuzuki[:,1]
+Tsuzuki_wv = Tsuzuki[:,0]
+
+BG92 = np.loadtxt('/Users/jansen/My Drive/Astro/General_data/FeII_templates/bg92.con')
+BG92_d = BG92[:,1]
+BG92_wv = BG92[:,0]
+
+
+
+def FeII_Veron(wave,z, FWHM_feii):
+    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
+
+    convolved = convolve(Veron_d, gk)
+    convolved = convolved/max(convolved[(Veron_wv<5400) &(Veron_wv>4900)])
+
+    fce = interp1d(Veron_wv*(1+z)/1e4, convolved , kind='cubic')
+    
+    return fce(wave)
+
+def FeII_Tsuzuki(wave,z, FWHM_feii):
+    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
+
+    convolved = convolve(Tsuzuki_d, gk)
+    convolved = convolved/max(convolved[(Tsuzuki_wv<5400) &(Tsuzuki_wv>4900)])
+
+    fce = interp1d(Tsuzuki_wv*(1+z)/1e4, convolved , kind='cubic')
+    
+    return fce(wave)
+
+def FeII_BG92(wave,z, FWHM_feii):
+    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
+
+    convolved = convolve(BG92_d, gk)
+    convolved = convolved/max(convolved[(BG92_wv<5400) &(BG92_wv>4900)])
+
+    fce = interp1d(BG92_wv*(1+z)/1e4, convolved , kind='cubic')
+    
+    return fce(wave)
+'''
+x = np.linspace(1.1545550,1.27738, 400 )
+z = 1.4565
+plt.figure()
+
+plt.plot(x/(1+z)*1e4, 0.15*FeII_BG92(x, z,2983 ))
+
+
+plt.show()
+'''
+# =============================================================================
+#    functions to fit [OIII] only with outflow
+# =============================================================================
+def OIII_outflow_Fe(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm, FeII_peak, FeII_fwhm, template):
+    OIIIr = 5008.*(1+z)/1e4   
+    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    Hbeta = 4861.*(1+z)/1e4 
+    
+    
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
+    
+    out_vel_wv = out_vel/3e5*OIIIr
+    
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
+    
+    Hbeta_fwhm = Hbeta_fwhm/3e5*Hbeta/2.35482
+    Hbeta_nar = gauss(x, Hbeta_peak, Hbeta, Hbeta_fwhm )
+    
+    if template=='BG92':
+        FeII_fce = FeII_BG92
+    if template=='Tsuzuki':
+        FeII_fce = FeII_Tsuzuki
+    if template=='Veron':
+        FeII_fce = FeII_Veron
+    
+    FeII = FeII_peak*FeII_fce(x, z, FeII_fwhm)
+    
+    return cont+x*cont_grad+ OIII_nar + OIII_out + Hbeta_nar + FeII
+    
+
+
+def log_likelihood_OIII_outflow_Fe(theta, x, y, yerr, template):
+    
+    model = OIII_outflow_Fe(x,*theta, template)
+    sigma2 = yerr*yerr
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+
+
+def log_prior_OIII_outflow_Fe(theta,zguess):
+    #zguess = np.loadtxt('zguess.txt')
+    
+    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm, FeII_peak, FeII_fwhm = theta
+    
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<300 and 0<OIIIn_peak<200 and 0< OIIIw_peak<200 \
+        and 150 < OIII_fwhm<500 and 600 < OIII_out<3000 and -900<out_vel< 600 \
+            and -2< cont_grad<2 and 0<Hbeta_peak<200 and 100<Hbeta_fwhm<6000\
+                and 1000<FeII_fwhm<5000 and 0<FeII_peak<300:
+            return 0.0
+    
+    return -np.inf
+
+def log_probability_OIII_outflow_Fe(theta, x, y, yerr, zguess,template):
+    lp = log_prior_OIII_outflow_Fe(theta,zguess)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_OIII_outflow_Fe(theta, x, y, yerr, template)  
+    
+# =============================================================================
+#    functions to fit [OIII] only with outflow with nar Hbeta
+# =============================================================================
+def OIII_outflow_Fe_narHb(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm, Hbetan_peak, Hbetan_fwhm, FeII_peak, FeII_fwhm, template):
+    OIIIr = 5008.*(1+z)/1e4   
+    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    Hbeta = 4861.*(1+z)/1e4 
+    
+    
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
+    
+    out_vel_wv = out_vel/3e5*OIIIr
+    
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
+    
+    
+    Hbetab_fwhm = Hbetab_fwhm/3e5*Hbeta/2.35482
+    Hbeta_blr = gauss(x, Hbetab_peak, Hbeta, Hbetab_fwhm )
+    
+    Hbetan_fwhm = Hbetan_fwhm/3e5*Hbeta/2.35482
+    Hbeta_nar = gauss(x, Hbetan_peak, Hbeta, Hbetan_fwhm )
+    if template=='BG92':
+        FeII_fce = FeII_BG92
+    if template=='Tsuzuki':
+        FeII_fce = FeII_Tsuzuki
+    if template=='Veron':
+        FeII_fce = FeII_Veron
+    
+    FeII = FeII_peak*FeII_fce(x, z, FeII_fwhm)
+    
+    return cont+x*cont_grad+ OIII_nar + OIII_out + Hbeta_blr + Hbeta_nar+ FeII
+    
+
+
+def log_likelihood_OIII_outflow_Fe_narHb(theta, x, y, yerr, template):
+    
+    model = OIII_outflow_Fe_narHb(x,*theta, template)
+    sigma2 = yerr*yerr
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+
+
+def log_prior_OIII_outflow_Fe_narHb(theta,zguess):
+    #zguess = np.loadtxt('zguess.txt')
+    
+    z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm,Hbetan_peak, Hbetan_fwhm, FeII_peak, FeII_fwhm = theta
+    
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<300 and 0<OIIIn_peak<200 and 0< OIIIw_peak<200 \
+        and 150 < OIII_fwhm<500 and 600 < OIII_out<3000 and -900<out_vel< 600 \
+            and -0.02< cont_grad<1 and 0<Hbetan_peak<200 and 100<Hbetan_fwhm<1000\
+                and 0<Hbetab_peak<200 and 2000<Hbetab_fwhm<7000 and 1000<FeII_fwhm<5000 and 0<FeII_peak<300:
+            return 0.0
+    
+    return -np.inf
+
+def log_probability_OIII_outflow_Fe_narHb(theta, x, y, yerr, zguess,template):
+    lp = log_prior_OIII_outflow_Fe_narHb(theta,zguess)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_OIII_outflow_Fe_narHb(theta, x, y, yerr, template)  
+        
+
+# =============================================================================
+#  Function to fit [OIII] without outflow
+# =============================================================================
+def OIII_Fe(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak, Hbeta_fwhm, FeII_peak, FeII_fwhm, template):
+    OIIIr = 5008.*(1+z)/1e4   
+    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    
+    Hbeta = 4861.*(1+z)/1e4 
+    
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+    
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+    
+    Hbeta_fwhm = Hbeta_fwhm/3e5*Hbeta/2.35482
+    
+    Hbeta_nar = gauss(x,Hbeta_peak, Hbeta, Hbeta_fwhm)
+    
+    if template=='BG92':
+        FeII_fce = FeII_BG92
+    if template=='Tsuzuki':
+        FeII_fce = FeII_Tsuzuki
+    if template=='Veron':
+        FeII_fce = FeII_Veron
+    
+    FeII = FeII_peak*FeII_fce(x, z, FeII_fwhm)
+    
+    
+    return cont+x*cont_grad+ OIII_nar + Hbeta_nar + FeII
+    
+
+
+def log_likelihood_OIII_Fe(theta, x, y, yerr, template):
+    
+    model = OIII_Fe(x,*theta, template)
+    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
+    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+
+
+def log_prior_OIII_Fe(theta,zguess):
+    
+    z, cont, cont_grad, OIIIn_peak, OIII_fwhm, Hbeta_peak, Hbeta_fwhm, FeII_peak, FeII_fwhm = theta
+    
+    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<100 and 0<OIIIn_peak<200 \
+        and 250 < OIII_fwhm<2500 and -1<cont_grad<1 and 0<Hbeta_peak<200 and 100<Hbeta_fwhm<6000\
+            and 1000<FeII_fwhm<5000 and 0<FeII_peak<300:
+            return 0.0
+    
+    return -np.inf
+
+def log_probability_OIII_Fe(theta, x, y, yerr,zguess, template):
+    lp = log_prior_OIII_Fe(theta,zguess)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_OIII_Fe(theta, x, y, yerr, template)  
 # =============================================================================
 # Primary function to fit [OIII] with and without outflows. 
 # =============================================================================
     
-def fitting_OIII(wave, fluxs, error,z, outflow=0):
+def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, progress=True):
     import os
 
-    os.environ["OMP_NUM_THREADS"] = "1"
+    #os.environ["OMP_NUM_THREADS"] = "1"
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
@@ -330,60 +706,161 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0):
         peak_beta = (np.max(flux_zoomb))
     except:
         peak_beta = peak/3
+    import multiprocess as mp
     
-    if outflow==1:
-        pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600])+ 1e-2* np.random.randn(32,10)
-        nwalkers, ndim = pos.shape
-        import multiprocess as mp
-        
-        sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))#, kwargs=(zguess=z))# pool=pool)
-        
-        sampler.run_mcmc(pos, N, progress=True);
-        
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
     
+    if outflow==1: 
+        if template==0:
+            if Hbeta_dual == 0:
+                
+                pos = np.array([z,np.mean(flux),0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600])+ 1e-2* np.random.randn(32,10)
+                #pos = np.array([z,np.mean(flux),0.001, peak/4, peak/4, 300., 2000.,-100, peak_beta/2, 4000])+ 1e-2* np.random.randn(32,10)
+                nwalkers, ndim = pos.shape
+                
+                
+                sampler = emcee.EnsembleSampler(
+                        nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))#, kwargs=(zguess=z))# pool=pool)
+                
+                sampler.run_mcmc(pos, N, progress=progress);
+                
+                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
             
-        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
-        
-        fitted_model = OIII_outflow
-        
-        res = {'name': 'OIII_outflow'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-    
-    if outflow==0:
-        pos = np.array([z,np.mean(flux),0.001, peak/2,  400., peak_beta,600])+ 1e-4 * np.random.randn(32, 7)
-        nwalkers, ndim = pos.shape
-        
-        sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
-    
-        sampler.run_mcmc(pos, N, progress=True);
-        
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+                    
+                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
+                
+                fitted_model = OIII_outflow
+                
+                res = {'name': 'OIII_outflow'}
+                for i in range(len(labels)):
+                    res[labels[i]] = flat_samples[:,i]
+            else:
+                pos = np.array([z,np.mean(flux)/2,0.001, peak/2, peak/4, 300., 600.,-100, peak_beta/2, 4000,peak_beta/2, 600])+ 1e-2* np.random.randn(32,12)
+                #pos = np.array([z,np.mean(flux),0.001, peak/4, peak/4, 300., 2000.,-100, peak_beta/2, 4000])+ 1e-2* np.random.randn(32,10)
+                nwalkers, ndim = pos.shape
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_OIII_outflow_narHb, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, template))
+                    
+                sampler.run_mcmc(pos, N, progress=progress);
+                
+                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
             
-        labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
-        
-        
-        fitted_model = OIII
-        
-        res = {'name': 'OIII'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
+                    
+                labels= ('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbetan_peak', 'Hbetan_fwhm')
+                
+                fitted_model = OIII_outflow_narHb
+                
+                res = {'name': 'OIII_outflow_HBn'}
+                for i in range(len(labels)):
+                    res[labels[i]] = flat_samples[:,i]
+         
+        else:
+            if Hbeta_dual == 0:
+                
+                pos = np.array([z,np.mean(flux)/2,0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600,np.mean(flux), 2000])+ 1e-2* np.random.randn(32,12)
+                
+                #pos = np.array([z,np.mean(flux),0.001, peak/4, peak/4, 300., 2000.,-100, peak_beta/2, 4000])+ 1e-2* np.random.randn(32,10)
+                nwalkers, ndim = pos.shape
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_OIII_outflow_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, template))
+                    
+                sampler.run_mcmc(pos, N, progress=progress);
+                
+                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+            
+                    
+                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm', 'Fe_peak', 'Fe_fwhm')
+                
+                fitted_model = OIII_outflow_Fe
+                
+                res = {'name': 'OIII_outflow_Fe'}
+                for i in range(len(labels)):
+                    res[labels[i]] = flat_samples[:,i]
+                    
+            else:
+                pos = np.array([z,np.mean(flux)/2,0.001, peak/2, peak/4, 300., 600.,-100, peak_beta/2, 4000,peak_beta/2, 600, np.mean(flux), 2000])+ 1e-2* np.random.randn(32,14)
+                nwalkers, ndim = pos.shape
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_OIII_outflow_Fe_narHb, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, template))
+                    
+                sampler.run_mcmc(pos, N, progress=progress);
+                
+                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+            
+                    
+                labels= ('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbetan_peak', 'Hbetan_fwhm', 'Fe_peak', 'Fe_fwhm')
+                
+                fitted_model = OIII_outflow_narHb
+                
+                res = {'name': 'OIII_outflow_Fe_narHb'}
+                for i in range(len(labels)):
+                    res[labels[i]] = flat_samples[:,i]
+            
+        if outflow==0: 
+            if template==0:
+                if Hbeta_dual == 0:
+                    
+                    pos = np.array([z,np.mean(flux),0.001, peak/2,  500., peak_beta,700])+ 1e-4 * np.random.randn(32, 7)
+                    #pos = np.array([z,np.mean(flux),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
+                    nwalkers, ndim = pos.shape
+                    
+                    sampler = emcee.EnsembleSampler(
+                        nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
+                
+                    sampler.run_mcmc(pos, N, progress=progress);
+                    
+                    flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+                        
+                    labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+                    
+                    
+                    fitted_model = OIII
+                    
+                    res = {'name': 'OIII'}
+                    for i in range(len(labels)):
+                        res[labels[i]] = flat_samples[:,i]
+                        
+            
+                else:
+                    raise Exception('Sorry dual Hbeta not implemented with no outflow at the moment')
+             
+            else:
+                if Hbeta_dual == 0:
+                    pos = np.array([z,np.mean(flux)/2,0.001, peak/2,  500., peak_beta,4000, np.mean(flux), 2000])+ 1e-2 * np.random.randn(32, 9)
+                    #pos = np.array([z,np.mean(flux),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
+                    nwalkers, ndim = pos.shape
+                    
+                    sampler = emcee.EnsembleSampler(
+                        nwalkers, ndim, log_probability_OIII_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, template))
+                
+                    sampler.run_mcmc(pos, N, progress=progress);
+                    
+                    flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+                        
+                    labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm', 'Fe_peak', 'Fe_fwhm')
+                    
+                    
+                    fitted_model = OIII_Fe
+                    
+                    res = {'name': 'OIII'}
+                    for i in range(len(labels)):
+                        res[labels[i]] = flat_samples[:,i]
+                    
+                        
+                else:
+                    raise Exception('Sorry dual Hbeta not implemented with no outflow at the moment')
         
     return res, fitted_model
 
 
 
-def Fitting_OIII_unwrap(lst, wave, z):
+def Fitting_OIII_unwrap(lst):
     
-    i,j,flx_spax_m, error = lst
+    i,j,flx_spax_m, error, wave, z = lst
     print(i,j)
     
-    flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0)
-    
-    return i,j,prop_calc(flat_samples_sig)
+    flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0, progress=False)
+    cube_res  = [i,j,prop_calc(flat_samples_sig)]
+    return cube_res
     
     
 def prop_calc(results):  
@@ -403,6 +880,9 @@ def prop_calc(results):
         
     res_dict['popt'] = res_plt
     return res_dict
+
+
+
 
 '''
     

@@ -78,22 +78,28 @@ def twoD_Gaussian(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
+def plotting_OIII(wave, fluxs, ax, sol,fitted_model, template=0):
     popt = sol['popt']
+    keys = list(sol.keys())
     z = popt[0]
     wv_rest = wave/(1+z)*1e4
-    fit_loc = np.where((wv_rest>4800)&(wv_rest<5200))[0]
+    fit_loc = np.where((wv_rest>4700)&(wv_rest<5200))[0]
     
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
    
     flux = fluxs.data[np.invert(fluxs.mask)]
     wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         
-    fit_loc_sc = np.where((wv_rst_sc>4800)&(wv_rst_sc<5200))[0]   
+    fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]   
     
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
 
-    y_tot = fitted_model(wave[fit_loc], *popt)
+    if template==0:
+        y_tot = fitted_model(wave[fit_loc], *popt)
+    else:
+        y_tot = fitted_model(wave[fit_loc], *popt, template)
+        
+    
     
     if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
         Hbeta= 4861.
@@ -109,44 +115,62 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model):
 
     ax.set_ylim(-0.1*max(y_tot[flt]), max(y_tot[flt])*1.1)
     ax.tick_params(direction='in')
-    ax.set_xlim(4800,5050 )
+    ax.set_xlim(4700,5050 )
 
     
-    if len(popt)==10:
-        OIIIr = 5008.
-        OIIIb = 4960.
+    
+    OIIIr = 5008.*(1+z)/1e4
+    OIIIb = 4960.*(1+z)/1e4
+    
+    fwhm = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
+    
+    
+    ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) +\
+             gauss(wv_rest[fit_loc], sol['OIIIn_peak'][0]/3, OIIIb, fwhm) \
+                 ,color= 'green', linestyle ='dashed')
+    
+    Hbeta= 4861.*(1+z)/1e4
+    fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+    ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+                 color= 'orange', linestyle ='dashed')
         
-        fwhm = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
         
-        
-        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) +\
-                 gauss(wv_rest[fit_loc], sol['OIIIn_peak'][0]/3, OIIIb, fwhm) \
-                     ,color= 'green', linestyle ='dashed')
-         
-        OIIIr = 5008+ sol['out_vel'][0]/3e5*OIIIr
-        OIIIb = 4960 + sol['out_vel'][0]/3e5*OIIIb
+    if 'OIIIw_fwhm' in keys:
+        OIIIr = OIIIr+ sol['out_vel'][0]/3e5*OIIIr
+        OIIIb = OIIIb + sol['out_vel'][0]/3e5*OIIIb
         
         fwhm = sol['OIIIw_fwhm'][0]/3e5/2.35*OIIIr
         
-        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0],OIIIr, fwhm) +\
+        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIIIw_peak'][0],OIIIr, fwhm) +\
                  gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0]/3, OIIIb, fwhm) \
                      ,color= 'blue', linestyle ='dashed')
         
-        Hbeta= 4861.
-        fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
-    
-            
-        plt.plot(wv_rest[fit_loc] ,   gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+    if 'Hbetan_fwhm' in keys:
+        fwhm = sol['Hbetan_fwhm'][0]/3e5/2.35*Hbeta
+        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbetan_peak'][0],Hbeta, fwhm),\
                      color= 'orange', linestyle ='dashed')
-            
-
+        
+      
+    if 'Fe_peak' in keys:
+        ax.plot(wv_rest[fit_loc],  sol['cont'][0]+wave[fit_loc]*sol['cont_grad'][0], linestyle='dashed', color='limegreen')
+        
+        import Fitting_tools_mcmc as emfit
+        if template=='BG92':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_BG92(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+        
+        if template=='Tsuzuki':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_Tsuzuki(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+        
+        if template=='Veron':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+        
+    
 
 
 
 def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
     popt = sol['popt']
     z = popt[0]
-    print(len(popt))
     
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
@@ -206,7 +230,38 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
                 color='darkblue', linestyle='dashed')
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[7], SII_b, popt[5]/3e5*Hal_wv/2.35), \
                 color='darkblue', linestyle='dashed')
+           
+    if len(popt)==12:
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[3], Hal_wv, popt[5]/3e5*Hal_wv/2.35), \
+                color='orange', linestyle='dashed')
+        
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[4], NII_r, popt[5]/3e5*Hal_wv/2.35), \
+                color='darkgreen', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[4]/3, NII_b, popt[5]/3e5*Hal_wv/2.35), \
+                color='darkgreen', linestyle='dashed')
             
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[6], SII_r, popt[5]/3e5*Hal_wv/2.35), \
+                color='darkblue', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], popt[7], SII_b, popt[5]/3e5*Hal_wv/2.35), \
+                color='darkblue', linestyle='dashed')
+            
+        out_vel_hal = popt[10]/3e5*Hal_wv/2.35482
+        out_vel_niir = popt[10]/3e5*NII_r/2.35482
+        out_vel_niib = popt[10]/3e5*NII_b/2.35482
+        
+        Hal_wv_vel = 6562*(1+z)/1e4+ popt[11]/3e5*Hal_wv
+        NII_r_vel = 6583.*(1+z)/1e4 + popt[11]/3e5*Hal_wv 
+        NII_b_vel = 6548.*(1+z)/1e4 + popt[11]/3e5*Hal_wv 
+        
+        Hal_out = gauss(wave[fit_loc], popt[8], Hal_wv_vel, out_vel_hal)
+        NII_out_r = gauss(wave[fit_loc], popt[9], NII_r_vel, out_vel_niir)
+        NII_out_b = gauss(wave[fit_loc], popt[9]/3, NII_b_vel, out_vel_niib)
+        
+        ax.plot(wv_rest[fit_loc], Hal_out, color='magenta', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], NII_out_r, color='magenta', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], NII_out_b, color='magenta', linestyle='dashed')
+        
+        
         
 def overide_axes_labels(fig,ax,lims,showx=1,showy=1,labelx=1,labely=1,color='k',fewer_x=0,pruney=0,prunex=0,tick_color='k', tickin=0, labelsize=12, white=0):
     #over rides axis labels generated by wcsaxes in order to put relative coordinates in 
