@@ -31,7 +31,10 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N = 5000*2
+N = 10000
+PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
+
+
 def init(template):   
     return template
 
@@ -127,16 +130,16 @@ def log_likelihood_Halpha(theta, x, y, yerr):
     return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
-def log_prior_Halpha(theta, zguess):
+def log_prior_Halpha(theta, zguess, zcont):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
-    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<2 \
+    if (zguess-zcont) < z < (zguess+zcont) and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<2 \
         and 150 < Nar_fwhm<900 and -1 <cont_grad<1 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
             return 0.0
     
     return -np.inf
 
-def log_probability_Halpha(theta, x, y, yerr, zguess):
-    lp = log_prior_Halpha(theta,zguess)
+def log_probability_Halpha(theta, x, y, yerr, zguess, zcont=0.05):
+    lp = log_prior_Halpha(theta,zguess,zcont)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_Halpha(theta, x, y, yerr)
@@ -208,7 +211,7 @@ def log_probability_Halpha_outflow(theta, x, y, yerr, zguess):
 # =============================================================================
 #  Primary function to fit Halpha both with or without BLR - data prep and fit 
 # =============================================================================
-def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1, progress=True):
+def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True):
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
@@ -249,9 +252,9 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1, progress=True):
     if BLR==0:
         pos = np.array([z,np.mean(flux),0.01, peak/2, peak/4, 400.,peak/6, peak/6 ])+ 1e-4 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
-    
+        
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
+            nwalkers, ndim, log_probability_Halpha, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, zcont))
     
         sampler.run_mcmc(pos, N, progress=progress);
     
@@ -272,7 +275,7 @@ def fitting_Halpha(wave, fluxs, error,z, wnnet=1, BLR=1, progress=True):
         sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_probability_Halpha_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
     
-        sampler.run_mcmc(pos, N*2, progress=progress);
+        sampler.run_mcmc(pos, N, progress=progress);
     
         flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
     
@@ -447,16 +450,17 @@ from astropy.convolution import Gaussian1DKernel
 from astropy.convolution import convolve
 from scipy.interpolate import interp1d
 #Loading the template
-Veron_d = pyfits.getdata('/Users/jansen/My Drive/Astro/General_data/FeII_templates/Veron-cetty_2004.fits')
-Veron_hd = pyfits.getheader('/Users/jansen/My Drive/Astro/General_data/FeII_templates/Veron-cetty_2004.fits')
+
+Veron_d = pyfits.getdata(PATH_TO_FeII+ 'Veron-cetty_2004.fits')
+Veron_hd = pyfits.getheader(PATH_TO_FeII+'Veron-cetty_2004.fits')
 Veron_wv = np.arange(Veron_hd['CRVAL1'], Veron_hd['CRVAL1']+ Veron_hd['NAXIS1'])
 
 
-Tsuzuki = np.loadtxt('/Users/jansen/My Drive/Astro/General_data/FeII_templates/FeII_Tsuzuki_opttemp.txt')
+Tsuzuki = np.loadtxt(PATH_TO_FeII+'FeII_Tsuzuki_opttemp.txt')
 Tsuzuki_d = Tsuzuki[:,1]
 Tsuzuki_wv = Tsuzuki[:,0]
 
-BG92 = np.loadtxt('/Users/jansen/My Drive/Astro/General_data/FeII_templates/bg92.con')
+BG92 = np.loadtxt(PATH_TO_FeII+'bg92.con')
 BG92_d = BG92[:,1]
 BG92_wv = BG92[:,0]
 
@@ -795,59 +799,59 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 for i in range(len(labels)):
                     res[labels[i]] = flat_samples[:,i]
             
-        if outflow==0: 
-            if template==0:
-                if Hbeta_dual == 0:
-                    
-                    pos = np.array([z,np.mean(flux),0.001, peak/2,  500., peak_beta,700])+ 1e-4 * np.random.randn(32, 7)
-                    #pos = np.array([z,np.mean(flux),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
-                    nwalkers, ndim = pos.shape
-                    
-                    sampler = emcee.EnsembleSampler(
-                        nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
+    if outflow==0: 
+        if template==0:
+            if Hbeta_dual == 0:
                 
-                    sampler.run_mcmc(pos, N, progress=progress);
-                    
-                    flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-                        
-                    labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
-                    
-                    
-                    fitted_model = OIII
-                    
-                    res = {'name': 'OIII'}
-                    for i in range(len(labels)):
-                        res[labels[i]] = flat_samples[:,i]
-                        
+                pos = np.array([z,np.mean(flux),0.001, peak/2,  500., peak_beta,700])+ 1e-4 * np.random.randn(32, 7)
+                #pos = np.array([z,np.mean(flux),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
+                nwalkers, ndim = pos.shape
+                
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z))
             
-                else:
-                    raise Exception('Sorry dual Hbeta not implemented with no outflow at the moment')
-             
-            else:
-                if Hbeta_dual == 0:
-                    pos = np.array([z,np.mean(flux)/2,0.001, peak/2,  500., peak_beta,4000, np.mean(flux), 2000])+ 1e-2 * np.random.randn(32, 9)
-                    #pos = np.array([z,np.mean(flux),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
-                    nwalkers, ndim = pos.shape
-                    
-                    sampler = emcee.EnsembleSampler(
-                        nwalkers, ndim, log_probability_OIII_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, template))
+                sampler.run_mcmc(pos, N, progress=progress);
                 
-                    sampler.run_mcmc(pos, N, progress=progress);
+                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
                     
-                    flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-                        
-                    labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm', 'Fe_peak', 'Fe_fwhm')
+                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+                
+                
+                fitted_model = OIII
+                
+                res = {'name': 'OIII'}
+                for i in range(len(labels)):
+                    res[labels[i]] = flat_samples[:,i]
                     
+        
+            else:
+                raise Exception('Sorry dual Hbeta not implemented with no outflow at the moment')
+         
+        else:
+            if Hbeta_dual == 0:
+                pos = np.array([z,np.mean(flux)/2,0.001, peak/2,  500., peak_beta,4000, np.mean(flux), 2000])+ 1e-2 * np.random.randn(32, 9)
+                #pos = np.array([z,np.mean(flux),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
+                nwalkers, ndim = pos.shape
+                
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_OIII_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],z, template))
+            
+                sampler.run_mcmc(pos, N, progress=progress);
+                
+                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
                     
-                    fitted_model = OIII_Fe
+                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm', 'Fe_peak', 'Fe_fwhm')
+                
+                
+                fitted_model = OIII_Fe
+                
+                res = {'name': 'OIII'}
+                for i in range(len(labels)):
+                    res[labels[i]] = flat_samples[:,i]
+                
                     
-                    res = {'name': 'OIII'}
-                    for i in range(len(labels)):
-                        res[labels[i]] = flat_samples[:,i]
-                    
-                        
-                else:
-                    raise Exception('Sorry dual Hbeta not implemented with no outflow at the moment')
+            else:
+                raise Exception('Sorry dual Hbeta not implemented with no outflow at the moment')
         
     return res, fitted_model
 
@@ -859,6 +863,16 @@ def Fitting_OIII_unwrap(lst):
     print(i,j)
     
     flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0, progress=False)
+    cube_res  = [i,j,prop_calc(flat_samples_sig)]
+    return cube_res
+
+def Fitting_Halpha_unwrap(lst):
+    
+    i,j,flx_spax_m, error, wave, z = lst
+    print(i,j)
+    deltav = 500
+    deltaz = deltav/3e5*(1+z)
+    flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, BLR=0, progress=False)
     cube_res  = [i,j,prop_calc(flat_samples_sig)]
     return cube_res
     
