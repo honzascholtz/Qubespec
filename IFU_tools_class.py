@@ -184,6 +184,9 @@ def SNR_calc(wave,flux, std, sol, mode):
         elif len(sol)==11:
             fwhm = sol[6]/3e5*center*2
             model = gauss(wave, sol[3], center, fwhm/2.35)
+        elif len(sol)==12:
+            fwhm = sol[5]/3e5*center*2
+            model = gauss(wave, sol[3], center, fwhm/2.35)
     
     elif mode =='Hblr':
         center = Hal*(1+sol[0])/1e4
@@ -219,7 +222,11 @@ def SNR_calc(wave,flux, std, sol, mode):
         elif len(sol)==11:
             fwhm = sol[6]/3e5*center
             model_r = gauss(wave, sol[9], center, fwhm/2.35)
-            model_b = gauss(wave, sol[9], center, fwhm/2.35)
+            model_b = gauss(wave, sol[10], center, fwhm/2.35)
+        elif len(sol)==12:
+            fwhm = sol[5]/3e5*center
+            model_r = gauss(wave, sol[6], center, fwhm/2.35)
+            model_b = gauss(wave, sol[7], center, fwhm/2.35)
         model = model_r + model_b
         
         center = 6724*(1+sol[0])/1e4
@@ -1208,7 +1215,7 @@ class Cube:
             
             plt.tight_layout()
     
-    def fitting_collapse_Halpha(self, plot, broad = 1, progress=True):
+    def fitting_collapse_Halpha(self, plot, AGN = 1, progress=True):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
@@ -1220,78 +1227,120 @@ class Cube:
         flux = np.ma.array(data=fl, mask = msk)
         
         
-        flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0, progress=progress)
-
-        prop_sig = prop_calc(flat_samples_sig)
-        
-        
-        y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-        chi2S = sum(((flux.data-y_model_sig)/error)**2)
-        BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-        
-        flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z, BLR=1, progress=progress)
-        prop_blr = prop_calc(flat_samples_blr)
-        
-        chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
-        chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_blr, prop_blr, 'Halpha')
-        
-        
-        
-        
-        if BICM-BICS <-2:
-            print('Delta BIC' , BICM-BICS, ' ')
-            print('BICM', BICM)
-            self.D1_fit_results = prop_blr
-            self.D1_fit_chain = flat_samples_blr
-            self.D1_fit_model = fitted_model_blr
+        if AGN==1:
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0, progress=progress)
+    
+            prop_sig = prop_calc(flat_samples_sig)
             
-            self.z = prop_blr['popt'][0]
             
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
-            self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
-            self.dBIC = BICM-BICS
-            labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
-        else:
-            print('Delta BIC' , BICM-BICS, ' ')
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
+            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+            chi2S = sum(((flux.data-y_model_sig)/error)**2)
+            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
-            self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+            flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z, BLR=1, progress=progress)
+            prop_blr = prop_calc(flat_samples_blr)
             
-            self.dBIC = BICM-BICS
-            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+            chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
+            chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_blr, prop_blr, 'Halpha')
             
-        
-        if (self.ID=='cid_111') | (self.ID=='xuds_254') | (self.ID=='xuds_379') | (self.ID=='xuds_235') | (self.ID=='sxds_620')\
-            | (self.ID=='cdfs_751')| (self.ID=='sxds_787') | (self.ID=='sxds_1093') | (self.ID=='xuds_186'):
+            
+            if BICM-BICS <-2:
+                print('Delta BIC' , BICM-BICS, ' ')
+                print('BICM', BICM)
+                self.D1_fit_results = prop_blr
+                self.D1_fit_chain = flat_samples_blr
+                self.D1_fit_model = fitted_model_blr
                 
-            print('Delta BIC' , BICM-BICS, ' ')
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
-            self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
-            self.dBIC = BICM-BICS
+                self.z = prop_blr['popt'][0]
+                
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.dBIC = BICM-BICS
+                labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
+            else:
+                print('Delta BIC' , BICM-BICS, ' ')
+                self.D1_fit_results = prop_sig
+                self.D1_fit_chain = flat_samples_sig
+                self.D1_fit_model = fitted_model_sig
+                self.z = prop_sig['popt'][0]
+                
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                
+                self.dBIC = BICM-BICS
+                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+                
             
-            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+            if (self.ID=='cid_111') | (self.ID=='xuds_254') | (self.ID=='xuds_379') | (self.ID=='xuds_235') | (self.ID=='sxds_620')\
+                | (self.ID=='cdfs_751')| (self.ID=='sxds_787') | (self.ID=='sxds_1093') | (self.ID=='xuds_186'):
+                    
+                print('Delta BIC' , BICM-BICS, ' ')
+                self.D1_fit_results = prop_sig
+                self.D1_fit_chain = flat_samples_sig
+                self.D1_fit_model = fitted_model_sig
+                self.z = prop_sig['popt'][0]
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.dBIC = BICM-BICS
+                
+                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+            
+            if (self.ID=='xuds_168') :
+                 print('Delta BIC' , BICM-BICS, ' ')
+                 print('BICM', BICM)
+                 self.D1_fit_results = prop_blr
+                 self.D1_fit_chain = flat_samples_blr
+                 self.D1_fit_model = fitted_model_blr
+                 self.z = prop_blr['popt'][0]
+                 
+                 self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
+                 self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                 self.dBIC = BICM-BICS
+                 labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
         
-        if (self.ID=='xuds_168') :
-             print('Delta BIC' , BICM-BICS, ' ')
-             print('BICM', BICM)
-             self.D1_fit_results = prop_blr
-             self.D1_fit_chain = flat_samples_blr
-             self.D1_fit_model = fitted_model_blr
-             self.z = prop_blr['popt'][0]
-             
-             self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
-             self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
-             self.dBIC = BICM-BICS
-             labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
+        if AGN==0:
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0, progress=progress)
+    
+            prop_sig = prop_calc(flat_samples_sig)
             
+            
+            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+            chi2S = sum(((flux.data-y_model_sig)/error)**2)
+            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+            
+            flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z, BLR=-1, progress=progress)
+            prop_blr = prop_calc(flat_samples_blr)
+            
+            chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
+            chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_blr, prop_blr, 'Halpha')
+            
+            
+            if BICM-BICS <-2:
+                print('Delta BIC' , BICM-BICS, ' ')
+                print('BICM', BICM)
+                self.D1_fit_results = prop_blr
+                self.D1_fit_chain = flat_samples_blr
+                self.D1_fit_model = fitted_model_blr
+                
+                self.z = prop_blr['popt'][0]
+                
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.dBIC = BICM-BICS
+                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
+                
+            else:
+                print('Delta BIC' , BICM-BICS, ' ')
+                self.D1_fit_results = prop_sig
+                self.D1_fit_chain = flat_samples_sig
+                self.D1_fit_model = fitted_model_sig
+                self.z = prop_sig['popt'][0]
+                
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                
+                self.dBIC = BICM-BICS
+                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
             
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
@@ -1756,7 +1805,28 @@ class Cube:
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
+    
+    def Spaxel_fitting_Halpha_MCMC_mp(self):
+        import pickle
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
         
+        obs_wave = self.obs_wave.copy()
+        z = self.z
+        
+        #for i in range(len(Unwrapped_cube)):   
+            #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
+        with Pool(mp.cpu_count() - 1) as pool:
+            cube_res = pool.map(emfit.Fitting_Halpha_unwrap, Unwrapped_cube )    
+        
+        
+         
+        self.spaxel_fit_raw = cube_res
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
 
     
     def Map_creation_OIII(self):
@@ -1891,7 +1961,152 @@ class Cube:
         
         
         hdulist.writeto(self.savepath+self.ID+'_OIII_fits_maps.fits', overwrite=True)
+
+    def Map_creation_Halpha(self, fwhmrange = [100,500]):
+        z0 = self.z
+    
+        wvo3 = 6563*(1+z0)/1e4
+        # =============================================================================
+        #         Importing all the data necessary to post process
+        # =============================================================================
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "rb") as fp:
+            results= pickle.load(fp)
             
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        # =============================================================================
+        #         Setting up the maps
+        # =============================================================================
+        map_vel = np.zeros(self.dim[:2])
+        map_vel[:,:] = np.nan
+        
+        map_fwhm = np.zeros(self.dim[:2])
+        map_fwhm[:,:] = np.nan
+        
+        map_flux = np.zeros(self.dim[:2])
+        map_flux[:,:] = np.nan
+        
+        map_snr = np.zeros(self.dim[:2])
+        map_snr[:,:] = np.nan
+        
+        map_nii = np.zeros(self.dim[:2])
+        map_nii[:,:] = np.nan
+        # =============================================================================
+        #        Filling these maps  
+        # =============================================================================
+        gf,ax= plt.subplots(1)
+        import Plotting_tools_v2 as emplot
+        
+        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_Halpha_fit_detection_only.pdf')
+        
+        
+        for row in range(len(results)):
+            
+            i,j, res_spx = results[row]
+            i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+            
+            z = res_spx['popt'][0]
+            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx['popt'], 'Hn')
+            map_snr[i,j]= SNR
+            if SNR>3:
+                
+                map_vel[i,j] = ((6563*(1+z)/1e4)-wvo3)/wvo3*3e5
+                map_fwhm[i,j] = res_spx['popt'][5]
+                map_flux[i,j] = flux_calc(res_spx, 'Han')
+                map_nii[i,j] = flux_calc(res_spx, 'NII')
+                
+                
+            emplot.plotting_Halpha(self.obs_wave, flx_spax_m, ax, res_spx, emfit.Halpha)
+            ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
+            Spax.savefig()  
+            ax.clear()
+        plt.close(gf)
+        Spax.close() 
+        
+        self.Flux_map = map_flux
+        self.Vel_map = map_vel
+        self.FWHM_map = map_fwhm
+        self.SNR_map = map_snr
+        
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+    
+        x = int(self.center_data[1]); y= int(self.center_data[2])
+        f = plt.figure( figsize=(10,10))
+        
+        IFU_header = self.header
+        
+        deg_per_pix = IFU_header['CDELT2']
+        arc_per_pix = deg_per_pix*3600
+        
+        
+        Offsets_low = -self.center_data[1:3]
+        Offsets_hig = self.dim[0:2] - self.center_data[1:3]
+        
+        lim = np.array([ Offsets_low[0], Offsets_hig[0],
+                         Offsets_low[1], Offsets_hig[1] ])
+    
+        lim_sc = lim*arc_per_pix
+        
+        ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
+        ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
+        ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
+        ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
+        
+        flx = ax1.imshow(map_flux,vmax=map_flux[y,x], origin='lower', extent= lim_sc)
+        ax1.set_title('Halpha Flux map')
+        divider = make_axes_locatable(ax1)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(flx, cax=cax, orientation='vertical')
+        
+        #lims = 
+        #emplot.overide_axes_labels(f, axes[0,0], lims)
+        
+        
+        vel = ax2.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-100, vmax=100, extent= lim_sc)
+        ax2.set_title('Velocity offset map')
+        divider = make_axes_locatable(ax2)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(vel, cax=cax, orientation='vertical')
+        
+        
+        fw = ax3.imshow(map_fwhm,vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+        ax3.set_title('FWHM map')
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        snr = ax4.imshow(map_snr,vmin=3, vmax=20, origin='lower', extent= lim_sc)
+        ax4.set_title('SNR map')
+        divider = make_axes_locatable(ax4)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(snr, cax=cax, orientation='vertical')
+       
+        f,ax = plt.subplots(1)
+        ax.set_title('[NII] mapS')
+        fw= ax.imshow(map_nii,vmax=map_nii[y,x] ,origin='lower', extent= lim_sc)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        hdr = self.header.copy()
+        hdr['X_cent'] = x
+        hdr['Y_cent'] = y 
+        
+        Line_info = np.zeros((5,self.dim[0],self.dim[1]))
+        Line_info[0,:,:] = map_flux
+        Line_info[1,:,:] = map_vel
+        Line_info[2,:,:] = map_fwhm
+        Line_info[3,:,:] = map_snr
+        Line_info[4,:,:] = map_nii
+        
+        prhdr = hdr
+        hdu = fits.PrimaryHDU(Line_info, header=prhdr)
+        hdulist = fits.HDUList([hdu])
+        
+        
+        hdulist.writeto(self.savepath+self.ID+'_Halpha_fits_maps.fits', overwrite=True)
+                
         
 '''
 
