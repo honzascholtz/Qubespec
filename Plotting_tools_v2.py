@@ -23,7 +23,7 @@ from astropy.coordinates import SkyCoord
 from astropy.nddata import Cutout2D
 
 PATH='/Users/jansen/Google Drive/Astro/'
-
+from astropy.modeling.powerlaws import PowerLaw1D
 
 import Graph_setup as gst 
 fsz = gst.graph_format()
@@ -78,7 +78,7 @@ def twoD_Gaussian(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def plotting_OIII(wave, fluxs, ax, sol,fitted_model, template=0):
+def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), template=0):
     popt = sol['popt']
     keys = list(sol.keys())
     z = popt[0]
@@ -93,7 +93,10 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, template=0):
     fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]   
     
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
-
+    if len(error) !=1:
+        ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+        
+        
     if template==0:
         y_tot = fitted_model(wave[fit_loc], *popt)
     else:
@@ -102,10 +105,10 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, template=0):
     
     
     if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
-        Hbeta= 4861.
+        Hbeta= 4861*(1+z)/1e4
         fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
         
-        y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm)
+        y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],4861, fwhm)
         
         sol['Hbeta_peak'][0] = 0
         
@@ -133,6 +136,8 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, template=0):
     fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
                  color= 'orange', linestyle ='dashed')
+    
+    ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
         
         
     if 'OIIIw_fwhm' in keys:
@@ -152,7 +157,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, template=0):
         
       
     if 'Fe_peak' in keys:
-        ax.plot(wv_rest[fit_loc],  sol['cont'][0]+wave[fit_loc]*sol['cont_grad'][0], linestyle='dashed', color='limegreen')
+        ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
         
         import Fitting_tools_mcmc as emfit
         if template=='BG92':

@@ -25,7 +25,7 @@ from astropy import stats
 
 import multiprocessing as mp
 from multiprocessing import Pool
-
+from astropy.modeling.powerlaws import PowerLaw1D
 nan= float('nan')
 
 pi= np.pi
@@ -54,7 +54,7 @@ Hbe = 4861.
 
 SII_r = 6731
 SII_b = 6716
-
+import time
 # =============================================================================
 # Useful function 
 # =============================================================================
@@ -152,28 +152,28 @@ def prop_calc(results):
     return res_dict
         
 
-def SNR_calc(wave,flux, std, sol, mode):
+def SNR_calc(wave,flux, std, dictsol, mode):
+    sol = dictsol['popt']
     wave = wave[np.invert(flux.mask)]
     flux = flux.data[np.invert(flux.mask)]
     
     wv_or = wave.copy()
-    
+    keys = list(dictsol.keys())
     if mode =='OIII':
         center = OIIIr*(1+sol[0])/1e4
-        if (len(sol)==7) | (len(sol)==9):
-            fwhm = sol[4]/3e5*center
-            
-            model = flux- (wave*sol[2]+sol[1]) #gauss(wave, sol[3], center, fwhm/2.35) # emfit.OIII(wave,  *sol)
-        elif (len(sol)==10) | (len(sol)==12):
+        if 'OIIIw_fwhm' in keys:
             fwhms = sol[5]/3e5*center
-            fwhm = sol[6]/3e5*center
+            fwhm = dictsol['OIIIw_fwhm'][0]/3e5*center
             
             center = OIIIr*(1+sol[0])/1e4
             centerw = OIIIr*(1+sol[0])/1e4 + sol[7]/3e5*center
             
-            print(centerw, center, sol[7])
+            contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
+            model = flux-contfce 
+        else:   
+            fwhm = sol[4]/3e5*center
             
-            model = emfit.OIII_outflow(wave,  *sol)- (wave*sol[2]+sol[1]) #gauss(wave, sol[3], center, fwhms/2.35) + gauss(wave, sol[4], centerw, fwhm/2.35)  #emfit.OIII_outflow(wave,  *sol)- wave*sol[2]+sol[1]
+            model = flux- PowerLaw1D.evaluate(wave,sol[1],center, alpha=sol[2])
             
             
     elif mode =='Hn':
@@ -237,6 +237,7 @@ def SNR_calc(wave,flux, std, sol, mode):
         
         n = len(use)
         SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+        
         if SNR < 0:
             SNR=0
         
@@ -250,6 +251,7 @@ def SNR_calc(wave,flux, std, sol, mode):
     
     n = len(use)
     SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+    
     if SNR < 0:
         SNR=0
     
@@ -309,11 +311,11 @@ def unwrap_chain(res):
     
 
 def flux_calc(res, mode):
-    
+    keys = list(res.keys())
     if mode=='OIIIt':
         
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
-        if (res['popt']==10) | (res['popt']==12):
+        if 'OIIIw_peak' in keys:
             o3 = 5008*(1+res['z'][0])/1e4
             
             o3n = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
@@ -328,21 +330,16 @@ def flux_calc(res, mode):
 
     elif mode=='OIIIn':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
-        if (res['popt']==10) | (res['popt']==12):
-            o3 = 5008*(1+res['z'][0])/1e4
-            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
         
+        o3 = 5008*(1+res['z'][0])/1e4
+        model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
         
-        elif (len(res['popt'])==7) | (len(res['popt'])==9):
-            o3 = 5008*(1+res['z'][0])/1e4
-            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
-    
     elif mode=='OIIIw':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
-        if (res['popt']==10) | (res['popt']==12):
+        if 'OIIIw_peak' in keys:
             o3 = 5008*(1+res['z'][0])/1e4
             model = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
-        elif (len(res['popt'])==7) | (len(res['popt'])==9):
+        else:
             model = np.zeros_like(wave)
     
     elif mode=='Han':
@@ -354,7 +351,7 @@ def flux_calc(res, mode):
     elif mode=='Hblr':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         hn = 6565*(1+res['z'][0])/1e4
-        if len(res['popt'])==11:
+        if 'BLR_peak' in keys:
             model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
         else:
             model = np.zeros_like(wave)
@@ -546,14 +543,22 @@ class Cube:
         
         elif flag=='Sinfoni':
             header = filemarker[0].header # FITS header in HDU 1
-            flux_temp  = filemarker[0].data/1e-13*1e3
+            flux_temp  = filemarker[0].data/1e-13
                              
             filemarker.close()  # FITS HDU file marker closed
         
         elif flag=='NIRSPEC':
             with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/1e16
-                self.error_cube = hdulist['ERR'].data/1e16
+                flux_temp = hdulist['SCI'].data/1e12
+                self.error_cube = hdulist['ERR'].data/1e12
+                w = wcs.WCS(hdulist[1].header)
+                header = hdulist[1].header
+                hdulist.info()
+        
+        elif flag=='MIRI':
+            with fits.open(Full_path, memmap=False) as hdulist:
+                flux_temp = hdulist['SCI'].data/1e4
+                self.error_cube = hdulist['ERR'].data/1e4
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
                 hdulist.info()
@@ -693,7 +698,10 @@ class Cube:
 
 
     def collapse_white(self, plot):
-        flux = np.ma.array(self.flux.data, mask=self.sky_line_mask_em) 
+        try:
+            flux = np.ma.array(self.flux.data, mask=self.sky_line_mask_em) 
+        except:
+            flux = self.flux
         
         median = np.ma.median(flux, axis=(0))  
         
@@ -847,6 +855,7 @@ class Cube:
         header  = self.header
         #arc = np.round(1./(header['CD2_2']*3600))
         arc = np.round(1./(header['CDELT2']*3600))
+        print('Pixel scale:', arc)
         print ('radius ', arc*rad)
         
         
@@ -887,7 +896,7 @@ class Cube:
             x = np.linspace(0, shapes[1]-1, shapes[1])
             y = np.linspace(0, shapes[0]-1, shapes[0])
             x, y = np.meshgrid(x, y)
-    
+            plt.plot(20,20,'ro', markersize=10)
             data_fit = twoD_Gaussian((x,y), *self.center_data)
     
             plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 8, colors='w')
@@ -924,7 +933,7 @@ class Cube:
        
         
         self.D1_spectrum = D1_spectra
-        self.D1_spectrum_er = stats.sigma_clipped_stats(D1_spectra,sigma=2)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+        self.D1_spectrum_er = stats.sigma_clipped_stats(D1_spectra,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
         
         if self.ID =='cdfs_220':
             self.D1_spectrum_er = 0.05*np.ones(len(self.D1_spectrum))
@@ -948,12 +957,14 @@ class Cube:
         
 
 
-    def mask_JWST(self, plot, spe_ma=np.array([], dtype=bool)):
+    def mask_JWST(self, plot, spe_ma=[], dtype=bool):
         
         sky_clipped =  self.flux.mask.copy()
         sky_clipped = sky_clipped[:,7,7]
+        sky_clipped[spe_ma] = True
         self.sky_clipped_1D = sky_clipped 
-        
+        self.sky_clipped = self.flux.mask
+        self.Sky_stack_mask = self.flux.mask.copy()
         
         
         
@@ -1253,8 +1264,8 @@ class Cube:
                 
                 self.z = prop_blr['popt'][0]
                 
-                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
-                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hblr')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'SII')
                 self.dBIC = BICM-BICS
                 labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
             else:
@@ -1264,8 +1275,8 @@ class Cube:
                 self.D1_fit_model = fitted_model_sig
                 self.z = prop_sig['popt'][0]
                 
-                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
-                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'SII')
                 
                 self.dBIC = BICM-BICS
                 labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
@@ -1279,8 +1290,8 @@ class Cube:
                 self.D1_fit_chain = flat_samples_sig
                 self.D1_fit_model = fitted_model_sig
                 self.z = prop_sig['popt'][0]
-                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
-                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'SII')
                 self.dBIC = BICM-BICS
                 
                 labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
@@ -1293,8 +1304,8 @@ class Cube:
                  self.D1_fit_model = fitted_model_blr
                  self.z = prop_blr['popt'][0]
                  
-                 self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hblr')
-                 self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                 self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hblr')
+                 self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'SII')
                  self.dBIC = BICM-BICS
                  labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
         
@@ -1324,8 +1335,8 @@ class Cube:
                 
                 self.z = prop_blr['popt'][0]
                 
-                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
-                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'SII')
                 self.dBIC = BICM-BICS
                 labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
                 
@@ -1336,8 +1347,8 @@ class Cube:
                 self.D1_fit_model = fitted_model_sig
                 self.z = prop_sig['popt'][0]
                 
-                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hn')
-                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'SII')
+                self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hn')
+                self.SNR_sii =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'SII')
                 
                 self.dBIC = BICM-BICS
                 labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
@@ -1358,9 +1369,9 @@ class Cube:
         f, ax1 = plt.subplots(1)
         emplot.plotting_Halpha(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
         
-        g, (ax1,ax2) = plt.subplots(2)
-        emplot.plotting_Halpha(wave, flux, ax1, prop_sig , fitted_model_sig)
-        emplot.plotting_Halpha(wave, flux, ax2, prop_blr , fitted_model_blr)
+        g, (ax1a,ax2a) = plt.subplots(2)
+        emplot.plotting_Halpha(wave, flux, ax1a, prop_sig , fitted_model_sig)
+        emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
         
         self.fit_plot = [f,ax1]
         
@@ -1393,8 +1404,8 @@ class Cube:
             self.D1_fit_chain = flat_samples_out
             self.D1_fit_model = fitted_model_out
             self.z = prop_out['popt'][0]
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
-            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hb')
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
@@ -1405,22 +1416,22 @@ class Cube:
             self.D1_fit_chain = flat_samples_sig
             self.D1_fit_model = fitted_model_sig
             self.z = prop_sig['popt'][0]
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
-            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hb')
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
          
         if (ID=='cdfs_751') | (ID=='cid_40') | (ID=='xuds_068') | (ID=='cdfs_51') | (ID=='cdfs_614')\
-            | (ID=='xuds_190') | (ID=='cdfs_979') | (ID=='cdfs_301')| (ID=='cid_453') | (ID=='cid_61'):
+            | (ID=='xuds_190') | (ID=='cdfs_979') | (ID=='cdfs_301')| (ID=='cid_453') | (ID=='cid_61') | (ID=='cdfs_254'):
                 
             print('Delta BIC' , BICM-BICS, ' ')
             self.D1_fit_results = prop_sig
             self.D1_fit_chain = flat_samples_sig
             self.D1_fit_model = fitted_model_sig
             self.z = prop_sig['popt'][0]
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
-            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hb')
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
@@ -1432,8 +1443,8 @@ class Cube:
             self.D1_fit_chain = flat_samples_out
             self.D1_fit_model = fitted_model_out
             self.z = prop_out['popt'][0]
-            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'OIII')
-            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results['popt'], 'Hb')
+            self.SNR =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error[0], self.D1_fit_results, 'Hb')
             self.dBIC = BICM-BICS
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
@@ -1453,9 +1464,9 @@ class Cube:
         f, ax1 = plt.subplots(1)
         emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
         
-        g, (ax1,ax2) = plt.subplots(2)
-        emplot.plotting_OIII(wave, flux, ax1, prop_sig , fitted_model_sig)
-        emplot.plotting_OIII(wave, flux, ax2, prop_out ,fitted_model_out)
+        g, (ax1a,ax2a) = plt.subplots(2)
+        emplot.plotting_OIII(wave, flux, ax1a, prop_sig , fitted_model_sig)
+        emplot.plotting_OIII(wave, flux, ax2a, prop_out ,fitted_model_out)
         
         self.fit_plot = [f,ax1]
         
@@ -1667,7 +1678,7 @@ class Cube:
                 print(key, results[key])
                 
      
-    def unwrap_cube(self, rad=0.4, sp_binning='Nearest', instrument='KMOS', add=''):
+    def unwrap_cube(self, rad=0.4, sp_binning='Nearest', instrument='KMOS', add='', mask_manual=None):
         flux = self.flux.copy()
         Mask= self.sky_clipped_1D
         shapes = self.dim
@@ -1706,7 +1717,8 @@ class Cube:
         
         except:
             arc = (self.header['CDELT2']*3600)
-            
+         
+        
         if arc> 0.17:            
             upper_lim = 2            
             step = 1
@@ -1714,17 +1726,25 @@ class Cube:
         elif arc< 0.17:            
             upper_lim = 3 
             step = 2
-            
+        upper_lim = 2            
+        step = 1   
         x = range(shapes[0]-upper_lim)
         y = range(shapes[1]-upper_lim) 
         
+        
+        print(rad/arc)
         h, w = self.dim[:2]
         center= self.center_data[1:3]
         
         mask = create_circular_mask(h, w, center= center, radius= rad/arc)
         mask = np.invert(mask)
         
+        if mask_manual:
+            mask=mask_manual
+        
         Spax_mask = np.logical_or(np.invert(Spax_mask),mask)
+        if instrument=='NIRSPEC':
+            Spax_mask = mask.copy()
         
         plt.figure()
         
@@ -1738,6 +1758,7 @@ class Cube:
                 j=j+step
                 if Spax_mask[i,j]==False:
                     #print i,j
+                    
                     Spax_mask_pick = ThD_mask.copy()
                     Spax_mask_pick[:,:,:] = True
                     Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
@@ -1760,7 +1781,7 @@ class Cube:
                           
                         plt.plot(wv_obs, fluxplt, drawstyle='steps-mid')
 
-        
+        print(len(Unwrapped_cube))
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "wb") as fp:
             pickle.dump(Unwrapped_cube, fp)      
         
@@ -1806,7 +1827,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
     
-    def Spaxel_fitting_Halpha_MCMC_mp(self):
+    def Spaxel_fitting_OIII_2G_MCMC_mp(self):
         import pickle
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
@@ -1815,9 +1836,34 @@ class Cube:
         
         obs_wave = self.obs_wave.copy()
         z = self.z
-        
+        print(len(Unwrapped_cube))
         #for i in range(len(Unwrapped_cube)):   
             #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
+        with Pool(mp.cpu_count() - 1) as pool:
+            cube_res = pool.map(emfit.Fitting_OIII_2G_unwrap, Unwrapped_cube )    
+        
+        
+         
+        self.spaxel_fit_raw = cube_res
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
+    
+    def Spaxel_fitting_Halpha_MCMC_mp(self):
+        import pickle
+        start_time = time.time()
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        obs_wave = self.obs_wave.copy()
+        z = self.z
+        
+        #results = []
+        #for i in range(len(Unwrapped_cube)):   
+        #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
+        #cube_res = results
         with Pool(mp.cpu_count() - 1) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_unwrap, Unwrapped_cube )    
         
@@ -1827,6 +1873,9 @@ class Cube:
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
 
     
     def Map_creation_OIII(self):
@@ -1871,7 +1920,7 @@ class Cube:
             i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
             
             z = res_spx['popt'][0]
-            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx['popt'], 'OIII')
+            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx, 'OIII')
             map_snr[i,j]= SNR
             if SNR>3:
                 
@@ -1881,6 +1930,138 @@ class Cube:
                 
                 
                 emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, emfit.OIII)
+                ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
+                Spax.savefig()  
+                ax.clear()
+          
+        Spax.close() 
+        
+        self.Flux_map = map_flux
+        self.Vel_map = map_vel
+        self.FWHM_map = map_fwhm
+        self.SNR_map = map_snr
+        
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        x = int(self.center_data[1]); y= int(self.center_data[2])
+        f = plt.figure( figsize=(10,10))
+        
+        IFU_header = self.header
+        
+        deg_per_pix = IFU_header['CDELT2']
+        arc_per_pix = deg_per_pix*3600
+        
+        
+        Offsets_low = -self.center_data[1:3]
+        Offsets_hig = self.dim[0:2] - self.center_data[1:3]
+        
+        lim = np.array([ Offsets_low[0], Offsets_hig[0],
+                         Offsets_low[1], Offsets_hig[1] ])
+    
+        lim_sc = lim*arc_per_pix
+        
+        ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
+        ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
+        ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
+        ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
+        
+        flx = ax1.imshow(map_flux,vmax=map_flux[y,x], origin='lower', extent= lim_sc)
+        ax1.set_title('Flux map')
+        divider = make_axes_locatable(ax1)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(flx, cax=cax, orientation='vertical')
+        
+        #lims = 
+        #emplot.overide_axes_labels(f, axes[0,0], lims)
+        
+        
+        vel = ax2.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200, extent= lim_sc)
+        ax2.set_title('Velocity offset map')
+        divider = make_axes_locatable(ax2)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(vel, cax=cax, orientation='vertical')
+        
+        
+        fw = ax3.imshow(map_fwhm,vmin=100, origin='lower', extent= lim_sc)
+        ax3.set_title('FWHM map')
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        snr = ax4.imshow(map_snr,vmin=3, vmax=20, origin='lower', extent= lim_sc)
+        ax4.set_title('SNR map')
+        divider = make_axes_locatable(ax4)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(snr, cax=cax, orientation='vertical')
+        
+        hdr = self.header.copy()
+        hdr['X_cent'] = x
+        hdr['Y_cent'] = y 
+        
+        Line_info = np.zeros((4,self.dim[0],self.dim[1]))
+        Line_info[0,:,:] = map_flux
+        Line_info[1,:,:] = map_vel
+        Line_info[2,:,:] = map_fwhm
+        Line_info[3,:,:] = map_snr
+        
+        prhdr = hdr
+        hdu = fits.PrimaryHDU(Line_info, header=prhdr)
+        hdulist = fits.HDUList([hdu])
+        
+        
+        hdulist.writeto(self.savepath+self.ID+'_OIII_fits_maps.fits', overwrite=True)
+        
+    def Map_creation_OIII_2G(self):
+        z0 = self.z
+    
+        wvo3 = 5008*(1+z0)/1e4
+        # =============================================================================
+        #         Importing all the data necessary to post process
+        # =============================================================================
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G.txt', "rb") as fp:
+            results= pickle.load(fp)
+            
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        # =============================================================================
+        #         Setting up the maps
+        # =============================================================================
+        map_vel = np.zeros(self.dim[:2])
+        map_vel[:,:] = np.nan
+        
+        map_fwhm = np.zeros(self.dim[:2])
+        map_fwhm[:,:] = np.nan
+        
+        map_flux = np.zeros(self.dim[:2])
+        map_flux[:,:] = np.nan
+        
+        map_snr = np.zeros(self.dim[:2])
+        map_snr[:,:] = np.nan
+        # =============================================================================
+        #        Filling these maps  
+        # =============================================================================
+        f,ax= plt.subplots(1)
+        import Plotting_tools_v2 as emplot
+        
+        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_OIII_fit_detection_only.pdf')
+        
+        
+        for row in range(len(results)):
+            i,j, res_spx = results[row]
+            i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+            
+            z = res_spx['popt'][0]
+            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx, 'OIII')
+            map_snr[i,j]= SNR
+            if SNR>3:
+                
+                map_vel[i,j] = ((5008*(1+z)/1e4)-wvo3)/wvo3*3e5
+                map_fwhm[i,j] = res_spx['OIIIn_fwhm'][0] #W80_OIII_calc(emfit.OIII_outflow, sol, chains, plot)#res_spx['OIIIn_fwhm'][0]
+                map_flux[i,j] = flux_calc(res_spx, 'OIIIt')
+                
+                
+                emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, emfit.OIII_outflow)
                 ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
                 Spax.savefig()  
                 ax.clear()
@@ -2007,7 +2188,7 @@ class Cube:
             i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
             
             z = res_spx['popt'][0]
-            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx['popt'], 'Hn')
+            SNR = SNR_calc(self.obs_wave, flx_spax_m, error[0], res_spx, 'Hn')
             map_snr[i,j]= SNR
             if SNR>3:
                 
