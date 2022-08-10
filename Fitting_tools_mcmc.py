@@ -809,7 +809,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                     
                 labels= ('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbetan_peak', 'Hbetan_fwhm', 'Fe_peak', 'Fe_fwhm')
                 
-                fitted_model = OIII_outflow_narHb
+                fitted_model = OIII_outflow_Fe_narHb
                 
                 res = {'name': 'OIII_outflow_Fe_narHb'}
                 for i in range(len(labels)):
