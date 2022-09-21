@@ -16,6 +16,9 @@ def graph_format(Labelsize=12):
     mpl.rcParams['xtick.minor.width'] = 1.5
     mpl.rcParams['ytick.minor.width'] = 1.5
     
+    mpl.rcParams['ytick.direction'] = 'in'
+    mpl.rcParams['xtick.direction'] = 'in'
+    
 
     mpl.rcParams['xtick.labelsize']= Labelsize
     mpl.rcParams['ytick.labelsize']=Labelsize

@@ -134,7 +134,7 @@ def log_likelihood_Halpha(theta, x, y, yerr):
 def log_prior_Halpha(theta, zguess, zcont):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
     if (zguess-zcont) < z < (zguess+zcont) and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<2 \
-        and 150 < Nar_fwhm<900 and -0.01<cont_grad<0.01 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
+        and 250 < Nar_fwhm<900 and -0.01<cont_grad<0.01 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
             return 0.0
     
     return -np.inf
@@ -213,19 +213,21 @@ def log_probability_Halpha_outflow(theta, x, y, yerr, zguess):
 #  Primary function to fit Halpha both with or without BLR - data prep and fit 
 # =============================================================================
 def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True):
-    
+    fluxs[np.isnan(fluxs)] = 0
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
     
-    fit_loc = np.where((wave>(6562.8-200)*(1+z)/1e4)&(wave<(6562.8+200)*(1+z)/1e4))[0]
+    fit_loc = np.where((wave>(6562.8-170)*(1+z)/1e4)&(wave<(6562.8+170)*(1+z)/1e4))[0]
        
     sel=  np.where(((wave<(6562.8+20)*(1+z)/1e4))& (wave>(6562.8-20)*(1+z)/1e4))[0]
     flux_zoom = flux[sel]
     wave_zoom = wave[sel]
     
     peak_loc = np.ma.argmax(flux_zoom)
+    znew = wave_zoom[peak_loc]/0.6562-1
+    if abs(znew-z)<zcont:
+        z= znew
     peak = np.ma.max(flux_zoom)
-    
     
     if BLR==1:
         pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, 400., 4000.,30,peak/6, peak/6])+ 1e-2 * np.random.randn(32, 11)
@@ -251,6 +253,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True):
             res[labels[i]] = flat_samples[:,i]
     
     if BLR==0:
+        print(z,np.median(flux[fit_loc]), peak)
         pos = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, 400.,peak/6, peak/6 ])+ 1e-4 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
         
@@ -723,6 +726,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
             if Hbeta_dual == 0:
                 #preps = np.array([2.951235974, 0.013, 0.0, 0.03, 0.04, 797., 1972., -600., 0.01, 3000.])
                 pos = np.array([z,0.000001,0.001, peak/2, peak/4, 120., 600.,-200, peak_beta, 500])+ 1e-2* np.random.randn(nwalkers,10)
+                pos = np.array([z,0.000001,0.001, peak/2, peak/6, 120., 400.,-200, peak_beta, 200])+ 1e-2* np.random.randn(nwalkers,10)
                 #pos = preps+ 1e-6* np.random.randn(nwalkers,10)
                 '''
                 pos[:,0] = np.random.uniform(z-deltaz,z+deltaz,nwalkers)
@@ -776,7 +780,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         else:
             if Hbeta_dual == 0:
                 
-                pos = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 600.,-100, peak_beta, 600,np.median(flux[fit_loc]), 2000])+ 1e-2* np.random.randn(32,12)
+                pos = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 400., 700.,-300, peak_beta, 600,np.median(flux[fit_loc]), 5000])+ 1e-2* np.random.randn(32,12)
                 
                 #pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/4, peak/4, 300., 2000.,-100, peak_beta/2, 4000])+ 1e-2* np.random.randn(32,10)
                 nwalkers, ndim = pos.shape
@@ -1000,7 +1004,7 @@ def fitting_OIII_curvefit(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dua
         if template==0:
             if Hbeta_dual == 0:
                 
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  500., peak_beta,700])+ 1e-4 * np.random.randn(32, 7)
+                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  500., peak_beta,100])+ 1e-4 * np.random.randn(32, 7)
                 pos[:,6] = np.random.uniform(300,5000,32)
                 
                 #pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
@@ -1057,7 +1061,6 @@ def fitting_OIII_curvefit(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dua
 def Fitting_OIII_unwrap(lst):
     
     i,j,flx_spax_m, error, wave, z = lst
-    print(i,j)
     
     flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0, progress=False)
     cube_res  = [i,j,prop_calc(flat_samples_sig)]
@@ -1074,15 +1077,13 @@ def Fitting_OIII_2G_unwrap(lst):
 
 import time
 
-def Fitting_Halpha_unwrap(lst):
-    start_time = time.time()
+def Fitting_Halpha_unwrap(lst): 
     i,j,flx_spax_m, error, wave, z = lst
-    print(i,j)
-    deltav = 500
+    deltav = 1000
     deltaz = deltav/3e5*(1+z)
     flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, BLR=0, progress=False)
     cube_res  = [i,j,prop_calc(flat_samples_sig)]
-    print("--- %s seconds ---" % (time.time() - start_time))
+    
     return cube_res
     
     

@@ -173,7 +173,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
 
 
 
-def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
+def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1])):
     popt = sol['popt']
     z = popt[0]
     
@@ -187,7 +187,9 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model):
     fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7500))[0]   
     
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
-
+    if len(error) !=1:
+        ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+     
     y_tot = fitted_model(wave[fit_loc], *popt)
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
