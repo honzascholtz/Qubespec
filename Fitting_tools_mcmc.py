@@ -34,9 +34,7 @@ arrow = u'$\u2193$'
 N = 10000
 PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 
-
-def init(template):   
-    return template
+    
 
 def gauss(x, k, mu,sig):
 
@@ -84,7 +82,7 @@ def log_likelihood_Halpha_BLR(theta, x, y, yerr):
 
 def log_prior_Halpha_BLR(theta, zguess):
     z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta
-    if (zguess-0.05) < z < (zguess+0.05) and 0 < cont<0.5 and 0<Hal_peak<5 and 0<BLR_peak<5 and 0< NII_peak<5 \
+    if (zguess-0.05) < z < (zguess+0.05) and -3 < np.log10(cont)<1 and -3<np.log10(Hal_peak)<1 and -3<np.log10(BLR_peak)<1 and -3< np.log10(NII_peak)<1 \
         and 150 < Nar_fwhm<1000 and 2000<BLR_fwhm<9000 and -400 < BLR_offset <400 and -0.01<cont_grad<0.01 \
             and 0<SII_bpk<5 and 0<SII_rpk<0.5:
             return 0.0
@@ -97,7 +95,7 @@ def log_probability_Halpha_BLR(theta, x, y, yerr, zguess):
         return -np.inf
     return lp + log_likelihood_Halpha_BLR(theta, x, y, yerr)
     
-
+from scipy.stats import norm, uniform
 # =============================================================================
 # Function to fit just Halpha
 # =============================================================================
@@ -133,12 +131,32 @@ def log_likelihood_Halpha(theta, x, y, yerr):
 
 def log_prior_Halpha(theta, zguess, zcont):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
-    if (zguess-zcont) < z < (zguess+zcont) and 0 < cont<1 and 0<Hal_peak<2 and 0< NII_peak<2 \
-        and 250 < Nar_fwhm<900 and -0.01<cont_grad<0.01 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
+    if (zguess-zcont) < z < (zguess+zcont) and -3 < np.log10(cont)<1 and -3<np.log10(Hal_peak)<1 and -3< np.log10(NII_peak)<1 \
+        and 250 < Nar_fwhm<900 and -0.01<cont_grad<0.01 and -4<np.log10(SII_bpk)<1 and -4<np.log10(SII_rpk)<1:
             return 0.0
     
     return -np.inf
 
+'''
+def log_prior_Halpha(theta, zguess, zcont):
+    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
+    
+    
+    priors = np.zeros_like(theta)
+    
+    priors[0] = uniform.pdf(z,zguess,zcont)
+    priors[1] = uniform.pdf(cont, 0.5,0.5)
+    priors[2] = uniform.pdf(Hal_peak, 1,1 )
+    priors[3] = uniform.pdf(NII_peak, 1,1 )
+    priors[4] = uniform.pdf(Nar_fwhm, 575,325 )
+    priors[5] = uniform.pdf(cont_grad, 0, 0.01)
+    priors[6] = uniform.pdf(SII_bpk, 0.25, 0.25)
+    priors[7] = uniform.pdf(SII_rpk, 0.25, 0.25)
+    
+    logprior = np.sum(np.log(priors))
+    
+    return logprior
+'''
 def log_probability_Halpha(theta, x, y, yerr, zguess, zcont=0.05):
     lp = log_prior_Halpha(theta,zguess,zcont)
     if not np.isfinite(lp):
@@ -253,7 +271,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True):
             res[labels[i]] = flat_samples[:,i]
     
     if BLR==0:
-        print(z,np.median(flux[fit_loc]), peak)
+        
         pos = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, 400.,peak/6, peak/6 ])+ 1e-4 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
         

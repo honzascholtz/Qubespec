@@ -14,8 +14,6 @@ from astropy.io import fits
 from astropy.wcs import wcs
 from astropy.nddata import Cutout2D
 
-import Fitting_tools_mcmc as emfit
-import Plotting_tools_v2 as emplot
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 import emcee
@@ -28,6 +26,12 @@ from astropy import stats
 import multiprocessing as mp
 from multiprocessing import Pool
 from astropy.modeling.powerlaws import PowerLaw1D
+
+
+import Fitting_tools_mcmc as emfit
+import Plotting_tools_v2 as emplot
+
+
 nan= float('nan')
 
 pi= np.pi
@@ -60,6 +64,7 @@ import time
 # =============================================================================
 # Useful function 
 # =============================================================================
+
 def gauss(x,k,mu,sig):
     expo= -((x-mu)**2)/(2*sig*sig)
     
@@ -68,11 +73,18 @@ def gauss(x,k,mu,sig):
     return y
 
 def find_nearest(array, value):
+    """ Find the location of an array closest to a value 
+	
+	"""
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
 
 def create_circular_mask(h, w, center=None, radius=None):
+    """ Creates a circular mask input - size of the array (height, width), optional center of the circular
+    aperture and the radius in pixels
+	
+	"""
 
     if center is None: # use the middle of the image
         center = [int(w/2), int(h/2)]
@@ -87,7 +99,9 @@ def create_circular_mask(h, w, center=None, radius=None):
     return mask
 
 def error_calc(array):
-    
+    """ calculates, 50th, 16th and 84 percintile of an array
+	
+	"""
     p50,p16,p84 = np.percentile(array, (50,16,84))
     p16 = p50-p16
     p84 = p84-p50
@@ -95,6 +109,10 @@ def error_calc(array):
     return p50, p16,p84
 
 def conf(aray):
+    """ old version of finding 16th and 84th percintile
+	
+	"""
+    
     sorted_array= np.array(sorted(aray))
     leng= (float(len(aray))/100)*16
     leng= int(leng)
@@ -106,6 +124,9 @@ def conf(aray):
     return low, hgh
 
 def twoD_Gaussian(dm, amplitude, xo, yo, sigma_x, sigma_y, theta, offset): 
+    """ 2D Gaussian array used to find center of emission 
+	
+	"""
     x, y = dm
     xo = float(xo)
     yo = float(yo)    
@@ -118,13 +139,18 @@ def twoD_Gaussian(dm, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 
 
 def Av_calc(Falpha, Fbeta):
+    """ Calculating Av based on Halpha and Hbeta emission 
+	
+	"""
     
     Av = 1.964*4.12*np.log10(Falpha/Fbeta/2.86)
     
     return Av
 
 def Flux_cor(Flux, Av, lam= 0.6563):
-    
+    """ Correcting a line flux based on Av
+	
+	"""
     
     Ebv = Av/4.12
     Ahal = 3.325*Ebv
@@ -134,7 +160,9 @@ def Flux_cor(Flux, Av, lam= 0.6563):
     return F
 
 def smooth(image,sm):
-    
+    """ Gaussian 2D smoothning for maps
+	
+	"""
     from astropy.convolution import Gaussian2DKernel
     from scipy.signal import convolve as scipy_convolve
     from astropy.convolution import convolve
@@ -147,7 +175,11 @@ def smooth(image,sm):
     
     return con_im  
 
-def prop_calc(results):  
+def prop_calc(results): 
+    """ Take the dictionary with the results chains and calculates the values 
+    and 1 sigma confidence interval
+	
+	"""
     labels = list(results.keys())[1:]
     res_plt = []
     res_dict = {'name': results['name']}
@@ -167,6 +199,15 @@ def prop_calc(results):
         
 
 def SNR_calc(wave,flux, error, dictsol, mode):
+    """ Calculates the SNR of a line
+    wave - observed wavelength
+    flux - flux of the spectrum
+    error - error on the spectrum
+    dictsol - spectral fitting results in dictionary form 
+    mode - which emission line do you want to caluclate the SNR for: OIII, Hn, Hblr, NII,
+           Hb, SII
+	
+	"""
     sol = dictsol['popt']
     wave = wave[np.invert(flux.mask)]
     flux = flux.data[np.invert(flux.mask)]
@@ -272,6 +313,9 @@ def SNR_calc(wave,flux, error, dictsol, mode):
     return SNR  
 
 def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
+    """ calculates BIC
+	
+	"""
     popt = results['popt']
     z= popt[0]
     
