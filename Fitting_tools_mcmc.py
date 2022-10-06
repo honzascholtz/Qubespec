@@ -231,7 +231,7 @@ def log_probability_Halpha_outflow(theta, x, y, yerr, zguess):
 # =============================================================================
 #  Primary function to fit Halpha both with or without BLR - data prep and fit 
 # =============================================================================
-def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True):
+def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors=1):
     fluxs[np.isnan(fluxs)] = 0
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
