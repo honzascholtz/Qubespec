@@ -722,9 +722,9 @@ class Cube:
         self.phys_size = np.array([Xph, Yph])
         self.band = Band
         
-        hdu = fits.PrimaryHDU(self.error_cube, header=header)
-        hdulist = fits.HDUList([hdu])
-        hdulist.writeto('/Users/jansen/Cube_temp.fits', overwrite=True)
+        #hdu = fits.PrimaryHDU(self.error_cube, header=header)
+        #hdulist = fits.HDUList([hdu])
+        #hdulist.writeto('/Users/jansen/Cube_temp.fits', overwrite=True)
     
     def add_res(self, line_cat):
         
@@ -1518,22 +1518,37 @@ class Cube:
             emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
         
         
-    def fitting_collapse_OIII(self,  plot, outflow='both'):
+    def fitting_collapse_OIII(self,  plot, outflow='both', priors= {'cont':[0,-3,1],\
+                                                                    'cont_grad':[0,-0.01,0.01], \
+                                                                    'OIIIn_peak':[0,-3,1],\
+                                                                    'OIIIw_peak':[0,-3,1],\
+                                                                    'OIII_fwhm':[300,100,900],\
+                                                                    'OIII_out':[900,600,2500],\
+                                                                    'out_vel':[-200,-900,600],\
+                                                                    'Hbeta_peak':[0,-3,1],\
+                                                                    'Hbeta_fwhm':[200,120,7000],\
+                                                                    'Hbetan_peak':[0,-3,1],\
+                                                                    'Hbetan_fwhm':[300,120,700],\
+                                                                    'Fe_peak':[0,-3,2],\
+                                                                    'Fe_fwhm':[3000,2000,6000]}):
+        
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
         z = self.z
         ID = self.ID
         
+        priors['z'] = [self.z, self.z-0.05, self.z+0.05]
+        
         if outflow=='both':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
             chi2S = sum(((flux.data-y_model_sig)/error)**2)
             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors)
             prop_out = prop_calc(flat_samples_out)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
@@ -1599,7 +1614,7 @@ class Cube:
             
         elif outflow=='single':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
@@ -1618,6 +1633,22 @@ class Cube:
             self.dBIC = 3
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+        
+        elif outflow=='outflow':
+            
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors)
+            prop_out = prop_calc(flat_samples_out)
+            
+            
+            self.D1_fit_results = prop_out
+            self.D1_fit_chain = flat_samples_out
+            self.D1_fit_model = fitted_model_out
+            self.z = prop_out['popt'][0]
+            self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+            self.dBIC = 3
+            
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
         
     
         
@@ -2018,7 +2049,9 @@ class Cube:
                         error[error==0] = np.median(error)
                         error = error/np.sqrt(np.where(Spax_mask_pick==False)[0])
                         '''
-                        error = stats.sigma_clipped_stats(flx_spax_m[(err_range[0]<self.obs_wave) &(self.obs_wave<err_range[1])],sigma=3)[2]*np.ones(len(flx_spax_m))
+                        error = stats.sigma_clipped_stats(flx_spax_m[(err_range[0]<self.obs_wave) \
+                                                                     &(self.obs_wave<err_range[1])],sigma=3)[2] \
+                                                                *np.ones(len(flx_spax_m))
                     else:
                         flx_spax_t = np.ma.array(data=flux.data,mask=Spax_mask_pick)
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))                
