@@ -1494,6 +1494,31 @@ class Cube:
                 
             self.dBIC = 3
             labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+        
+        if AGN=='BLR_only':
+            
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=1, progress=progress)
+    
+            prop_sig = prop_calc(flat_samples_sig)
+            
+            
+            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+            chi2S = sum(((flux.data-y_model_sig)/error)**2)
+            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+            
+            
+            chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
+        
+            self.D1_fit_results = prop_sig
+            self.D1_fit_chain = flat_samples_sig
+            self.D1_fit_model = fitted_model_sig
+            self.z = prop_sig['popt'][0]
+                
+            self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
+                
+            self.dBIC = 3
+            labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
             
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
@@ -1506,11 +1531,14 @@ class Cube:
         print('SNR SII ', self.SNR_sii)
         
         
-    
+        f, (ax1, ax2) = plt.subplots(2, 1,  gridspec_kw={'height_ratios': [3, 1]}, sharex='col')
+        plt.subplots_adjust(hspace=0)
+        ax1.yaxis.tick_left()
+        ax2.yaxis.tick_left()
         
-        f, ax1 = plt.subplots(1)
-        emplot.plotting_Halpha(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error= error)
-        self.fit_plot = [f,ax1]
+        emplot.plotting_Halpha(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2)
+        
+        self.fit_plot = [f,ax1,ax2]
         
         if (AGN=='BLR') | (AGN=='Outflow'):
             g, (ax1a,ax2a) = plt.subplots(2)
@@ -1518,7 +1546,7 @@ class Cube:
             emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
         
         
-    def fitting_collapse_OIII(self,  plot, outflow='both', priors= {'cont':[0,-3,1],\
+    def fitting_collapse_OIII(self,  plot, outflow='both', Hbeta_dual=0, priors= {'cont':[0,-3,1],\
                                                                     'cont_grad':[0,-0.01,0.01], \
                                                                     'OIIIn_peak':[0,-3,1],\
                                                                     'OIIIw_peak':[0,-3,1],\
@@ -1541,14 +1569,14 @@ class Cube:
         priors['z'] = [self.z, self.z-0.05, self.z+0.05]
         
         if outflow=='both':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
             chi2S = sum(((flux.data-y_model_sig)/error)**2)
             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_out = prop_calc(flat_samples_out)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
@@ -1614,7 +1642,7 @@ class Cube:
             
         elif outflow=='single':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
@@ -1636,7 +1664,7 @@ class Cube:
         
         elif outflow=='outflow':
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_out = prop_calc(flat_samples_out)
             
             
@@ -1649,7 +1677,7 @@ class Cube:
             self.dBIC = 3
             
             labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
-        
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm', 'Hbetan_peak', 'Hbetan_fwhm')
     
         
         fig = corner.corner(
@@ -1662,11 +1690,14 @@ class Cube:
         print(self.SNR)
         print(self.SNR_hb)
         
+        f, (ax1, ax2) = plt.subplots(2, 1,  gridspec_kw={'height_ratios': [3, 1]}, sharex='col')
+        plt.subplots_adjust(hspace=0)
+        ax1.yaxis.tick_left()
+        ax2.yaxis.tick_left()
         
-        f, ax1 = plt.subplots(1)
-        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error)
+        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2)
             
-        self.fit_plot = [f,ax1]  
+        self.fit_plot = [f,ax1,ax2]  
             
     
     def fitting_collapse_single_G(self,  plot, outflow=0):

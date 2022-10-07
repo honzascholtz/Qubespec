@@ -78,7 +78,7 @@ def twoD_Gaussian(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), template=0):
+def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), template=0, residual='none',axres=None):
     popt = sol['popt']
     keys = list(sol.keys())
     z = popt[0]
@@ -99,9 +99,10 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         
     if template==0:
         y_tot = fitted_model(wave[fit_loc], *popt)
+        y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt)
     else:
         y_tot = fitted_model(wave[fit_loc], *popt, template)
-        
+        y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt, template)
     
     
     if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
@@ -128,10 +129,10 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     fwhm = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
     
     
-    ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) +\
-             gauss(wv_rest[fit_loc], sol['OIIIn_peak'][0]/3, OIIIb, fwhm) \
+    ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIIIn_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) \
                  ,color= 'green', linestyle ='dashed')
     
+        
     Hbeta= 4861.*(1+z)/1e4
     fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
@@ -146,9 +147,9 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         
         fwhm = sol['OIIIw_fwhm'][0]/3e5/2.35*OIIIr
         
-        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIIIw_peak'][0],OIIIr, fwhm) +\
-                 gauss(wv_rest[fit_loc], sol['OIIIw_peak'][0]/3, OIIIb, fwhm) \
-                     ,color= 'blue', linestyle ='dashed')
+        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIIIw_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIIIw_peak'][0],OIIIr, fwhm),\
+                     color= 'blue', linestyle ='dashed')
+            
         
     if 'Hbetan_fwhm' in keys:
         fwhm = sol['Hbetan_fwhm'][0]/3e5/2.35*Hbeta
@@ -169,11 +170,21 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         if template=='Veron':
             ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
         
-    
+    if residual !='none':
+        resid_OIII = flux[fit_loc_sc]-y_tot_rs
+        sigma_OIII = np.std(resid_OIII)
+        RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
+        
+        axres.plot(wv_rst_sc[fit_loc_sc],resid_OIII, drawstyle='steps-mid')
+        axres.set_ylim(-2*RMS_OIII, 2*RMS_OIII) ## the /3 scales to the ratio
+        if residual=='rms':
+            axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
+        elif residual=='error':
+            axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
+            
 
 
-
-def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1])):
+def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
     popt = sol['popt']
     z = popt[0]
     
@@ -191,6 +202,7 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1])):
         ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
      
     y_tot = fitted_model(wave[fit_loc], *popt)
+    y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt)
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 
@@ -267,7 +279,18 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1])):
         ax.plot(wv_rest[fit_loc], Hal_out, color='magenta', linestyle='dashed')
         ax.plot(wv_rest[fit_loc], NII_out_r, color='magenta', linestyle='dashed')
         ax.plot(wv_rest[fit_loc], NII_out_b, color='magenta', linestyle='dashed')
+    
+    if residual !='none':
+        resid_OIII = flux[fit_loc_sc]-y_tot_rs
+        sigma_OIII = np.std(resid_OIII)
+        RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
         
+        axres.plot(wv_rst_sc[fit_loc_sc],resid_OIII, drawstyle='steps-mid')
+        axres.set_ylim(-2*RMS_OIII, 2*RMS_OIII) ## the /3 scales to the ratio
+        if residual=='rms':
+            axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
+        elif residual=='error':
+            axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
         
         
 def overide_axes_labels(fig,ax,lims,showx=1,showy=1,labelx=1,labely=1,color='k',fewer_x=0,pruney=0,prunex=0,tick_color='k', tickin=0, labelsize=12, white=0):

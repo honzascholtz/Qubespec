@@ -88,7 +88,33 @@ def log_prior_Halpha_BLR(theta, zguess):
             return 0.0
     
     return -np.inf
-
+'''
+def log_prior_Halpha_BLR(theta, zguess):
+    z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta
+    
+    zcont=0.05
+    priors = np.zeros_like(theta)
+    
+    priors[0] = uniform.logpdf(z,zguess-zcont,zguess+zcont)
+    priors[1] = uniform.logpdf(np.log10(cont), -4,3)
+    priors[2] = uniform.logpdf(np.log10(Hal_peak),  -4, 3 )
+    priors[3] = uniform.logpdf(np.log10(NII_peak),  -4, 3 )
+    priors[4] = uniform.logpdf(Nar_fwhm, 100,1000 )
+    priors[5] = norm.logpdf(cont_grad, 0, 0.1)
+    priors[6] = uniform.logpdf(np.log10(SII_bpk), -4, 3)
+    priors[7] = uniform.logpdf(np.log10(SII_rpk), -4, 3)
+    
+    priors[8] = uniform.logpdf(np.log10(BLR_peak),  -4, 3 )
+    priors[9] = uniform.logpdf(BLR_fwhm, 2000,9000 )
+    priors[10] = norm.logpdf(BLR_offset, 0, 200)
+    
+    logprior = np.sum(priors)
+    
+    if logprior==np.nan:
+        return -np.inf
+    else:
+        return logprior
+'''
 def log_probability_Halpha_BLR(theta, x, y, yerr, zguess):
     lp = log_prior_Halpha_BLR(theta,zguess)
     if not np.isfinite(lp):
@@ -145,18 +171,21 @@ def log_prior_Halpha(theta, zguess, zcont):
     
     priors = np.zeros_like(theta)
     
-    priors[0] = uniform.pdf(z,zguess,zcont)
-    priors[1] = uniform.pdf(cont, 0.5,0.5)
-    priors[2] = uniform.pdf(Hal_peak, 1,1 )
-    priors[3] = uniform.pdf(NII_peak, 1,1 )
-    priors[4] = uniform.pdf(Nar_fwhm, 575,325 )
-    priors[5] = uniform.pdf(cont_grad, 0, 0.01)
-    priors[6] = uniform.pdf(SII_bpk, 0.25, 0.25)
-    priors[7] = uniform.pdf(SII_rpk, 0.25, 0.25)
+    priors[0] = uniform.logpdf(z,zguess-zcont,zguess+zcont)
+    priors[1] = uniform.logpdf(np.log10(cont), -4,3)
+    priors[2] = uniform.logpdf(np.log10(Hal_peak),  -4, 3 )
+    priors[3] = uniform.logpdf(np.log10(NII_peak),  -4, 3 )
+    priors[4] = uniform.logpdf(Nar_fwhm, 100,1000 )
+    priors[5] = norm.logpdf(cont_grad, 0, 0.1)
+    priors[6] = uniform.logpdf(np.log10(SII_bpk), -4, 3)
+    priors[7] = uniform.logpdf(np.log10(SII_rpk), -4, 3)
     
-    logprior = np.sum(np.log(priors))
+    logprior = np.sum(priors)
     
-    return logprior
+    if logprior==np.nan:
+        return -np.inf
+    else:
+        return logprior
 '''
 def log_probability_Halpha(theta, x, y, yerr, zguess, zcont=0.05):
     lp = log_prior_Halpha(theta,zguess,zcont)
@@ -914,9 +943,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
             else:
                 pos = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 900.,-100, peak_beta/2, 4000,peak_beta/2, 600])+ 1e-2* np.random.randn(32,12)
                 #pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/4, peak/4, 300., 2000.,-100, peak_beta/2, 4000])+ 1e-2* np.random.randn(32,10)
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbetan_fwhm'][0],peak_beta, priors['Hbetan_fwhm'][0]])\
+                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],peak_beta, priors['Hbetan_fwhm'][0]])\
                     + 1e-2* np.random.randn(nwalkers,12)
-               
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
                     nwalkers, ndim, log_probability_OIII_outflow_narHb, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
