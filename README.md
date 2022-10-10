@@ -7,13 +7,18 @@ Graph_setup sets up matplotlib to make plots that Dave and Chris like.
 WHEN UPDATING THE FITTING_TOOLS_MCMC.PY PLEASE EDIT 35 TO POINT THE CODE TO THE CORRECT LOCATION OF THE FeII TEMPLATES.
 
 CHANGELOG:
+
+10/10/22 -  i) Implementation of Hbeta velocity offset compared to [OIII] emission line.
+            ii) Implementation of changing boundaries and initial conditions using a dictionary called priors.
+            iii) Making a backup of KASHz fitting_tools used to fit KASHz sources. 
+
 21/9/22 - More advanced support of the NIRSPEC IFU - both in Flambda and Fnu. Incorporating a JWST masking of bad pixels based on the error cube.
 
 8/7/22 - Addition of Halpha outflow model. Addition of FeII template fitting in the [OIII] lines. Addition of Hbeta nar and BLR at the same time.
 
-29/3/22 - redhsift is now fitted +-0.05 - done for safety reasons. Improved plotting of Hbeta and emission line/velocity maps
+29/3/22 - Redshift is now fitted +-0.05 - done for safety reasons. Improved plotting of Hbeta and emission line/velocity maps
 
-21/3/22 - Fixed bug in SNR_calc for non outflow [OIII] fit. 
+21/3/22 - Fixed bug in SNR_calc for non outflow [OIII] fit.
 
 20/3/22 - Added fitting of narrow Hbeta, [SII] including SNR calc and Flux calculation. Fixed some type-2 Halpha plotting problems.
 
