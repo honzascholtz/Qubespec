@@ -628,19 +628,8 @@ def FeII_BG92(wave,z, FWHM_feii):
     
     fce = interp1d(BG92_wv*(1+z)/1e4, convolved , kind='cubic')
     return fce(wave)
-'''   
-import time
-x = np.linspace(1.1545550,1.27738, 400 )
-z = 1.4565
-plt.figure()
-start_time = time.time()
-for i in np.linspace(1000,5000,1000):
-    FeII_BG92(x, z,i )
-print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-plt.plot(x/(1+z)*1e4, 0.15*FeII_BG92(x, z,2983 ))
-plt.show()
-'''
+
 # =============================================================================
 #    functions to fit [OIII] only with outflow
 # =============================================================================
