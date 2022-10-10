@@ -10,7 +10,8 @@ CHANGELOG:
 
 10/10/22 -  i) Implementation of Hbeta velocity offset compared to [OIII] emission line.
             ii) Implementation of changing boundaries and initial conditions using a dictionary called priors.
-            iii) Making a backup of KASHz fitting_tools used to fit KASHz sources. 
+            iii) Making a backup of KASHz fitting_tools used to fit KASHz sources.
+            iv) Improvement to the speed of FeII template fitting. However, please pre-convolve the templates with FeII_comp.py
 
 21/9/22 - More advanced support of the NIRSPEC IFU - both in Flambda and Fnu. Incorporating a JWST masking of bad pixels based on the error cube.
 
