@@ -36,6 +36,14 @@ PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 
 version = 'Main'    
 
+def find_nearest(array, value):
+    """ Find the location of an array closest to a value 
+	
+	"""
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
 def gauss(x, k, mu,sig):
 
     expo= -((x-mu)**2)/(2*sig*sig)
@@ -598,8 +606,38 @@ BG92 = np.loadtxt(PATH_TO_FeII+'bg92.con')
 BG92_d = BG92[:,1]
 BG92_wv = BG92[:,0]
 
+with open(PATH_TO_FeII+'Preconvolved_FeII.txt', "rb") as fp:
+    Templates= pickle.load(fp)
 
 
+def FeII_Veron(wave,z, FWHM_feii):
+    
+    index = find_nearest(Templates['FWHMs'],FWHM_feii)
+    convolved = Templates['Veron_dat'][:,index]
+    
+    fce = interp1d(Veron_wv*(1+z)/1e4, convolved , kind='cubic')
+    
+    return fce(wave)
+
+def FeII_Tsuzuki(wave,z, FWHM_feii):
+    
+    index = find_nearest(Templates['FWHMs'],FWHM_feii)
+    convolved = Templates['Tsuzuki_dat'][:,index]
+    
+    fce = interp1d(Tsuzuki_wv*(1+z)/1e4, convolved , kind='cubic')
+    
+    return fce(wave)
+
+def FeII_BG92(wave,z, FWHM_feii):
+    
+    index = find_nearest(Templates['FWHMs'],FWHM_feii)
+    convolved = Templates['BG92_dat'][:,index]
+    
+    fce = interp1d(BG92_wv*(1+z)/1e4, convolved , kind='cubic')
+    
+    return fce(wave)
+
+'''
 def FeII_Veron(wave,z, FWHM_feii):
     gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
 
@@ -629,6 +667,7 @@ def FeII_BG92(wave,z, FWHM_feii):
     fce = interp1d(BG92_wv*(1+z)/1e4, convolved , kind='cubic')
     return fce(wave)
 
+'''
 
 # =============================================================================
 #    functions to fit [OIII] only with outflow
