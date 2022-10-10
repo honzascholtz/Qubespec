@@ -134,6 +134,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     
         
     Hbeta= 4861.*(1+z)/1e4
+    Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
     fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
                  color= 'orange', linestyle ='dashed')
@@ -152,9 +153,12 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
             
         
     if 'Hbetan_fwhm' in keys:
+        Hbeta= 4861.*(1+z)/1e4
+        Hbeta= Hbeta + sol['Hbetan_vel'][0]/3e5*Hbeta
+        
         fwhm = sol['Hbetan_fwhm'][0]/3e5/2.35*Hbeta
         ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbetan_peak'][0],Hbeta, fwhm),\
-                     color= 'orange', linestyle ='dashed')
+                     color= 'orange', linestyle ='dotted')
         
       
     if 'Fe_peak' in keys:

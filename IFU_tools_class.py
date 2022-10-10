@@ -27,9 +27,15 @@ import multiprocessing as mp
 from multiprocessing import Pool
 from astropy.modeling.powerlaws import PowerLaw1D
 
-
-import Fitting_tools_mcmc as emfit
 import Plotting_tools_v2 as emplot
+import Fitting_tools_mcmc as emfit
+
+def switch(read_module):
+    emfit = __import__(read_module)
+    return emfit
+    
+def test():
+    print(emfit.version)
 
 
 nan= float('nan')
@@ -261,12 +267,12 @@ def SNR_calc(wave,flux, error, dictsol, mode):
     
     elif mode =='Hb':
         center = Hbe*(1+sol[0])/1e4
-        if (len(sol)==7) | (len(sol)==9):
-            fwhm = sol[6]/3e5*center
-            model = gauss(wave, sol[5], center, fwhm/2.35)
-        elif (len(sol)==10) | (len(sol)==12):
-            fwhm = sol[9]/3e5*center
-            model = gauss(wave, sol[8], center, fwhm/2.35)
+        if 'Hbetan_fwhm' in keys:
+            fwhm = dictsol['Hbetan_fwhm'][0]/3e5*center
+            model = gauss(wave, dictsol['Hbetan_peak'][0], center, fwhm/2.35)
+        else:
+            fwhm = dictsol['Hbeta_fwhm'][0]/3e5*center
+            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm/2.35)
     
     elif mode =='SII':
         center = SII_r*(1+sol[0])/1e4
@@ -1343,7 +1349,20 @@ class Cube:
             
             plt.tight_layout()
     
-    def fitting_collapse_Halpha(self, plot, AGN = 'BLR', progress=True,er_scale=1):
+    def fitting_collapse_Halpha(self, plot, AGN = 'BLR', progress=True,er_scale=1, priors= {'cont':[0,-3,1],\
+                                                                                       'cont_grad':[0,-0.01,0.01], \
+                                                                                       'Hal_peak':[0,-3,1],\
+                                                                                       'BLR_peak':[0,-3,1],\
+                                                                                       'NII_peak':[0,-3,1],\
+                                                                                       'Nar_fwhm':[300,100,900],\
+                                                                                       'BLR_fwhm':[4000,2000,9000],\
+                                                                                       'BLR_offset':[-200,-900,600],\
+                                                                                        'SII_rpk':[0,-3,1],\
+                                                                                        'SII_bpk':[0,-3,1],\
+                                                                                        'Hal_out_peak':[0,-3,1],\
+                                                                                        'NII_out_peak':[0,-3,1],\
+                                                                                        'outflow_fwhm':[600,300,1500],\
+                                                                                        'outflow_vel':[-50, -300,300]}):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()/er_scale
@@ -1555,8 +1574,10 @@ class Cube:
                                                                     'out_vel':[-200,-900,600],\
                                                                     'Hbeta_peak':[0,-3,1],\
                                                                     'Hbeta_fwhm':[200,120,7000],\
+                                                                    'Hbeta_vel':[10,-200,200],\
                                                                     'Hbetan_peak':[0,-3,1],\
                                                                     'Hbetan_fwhm':[300,120,700],\
+                                                                    'Hbetan_vel':[10,-100,100],\
                                                                     'Fe_peak':[0,-3,2],\
                                                                     'Fe_fwhm':[3000,2000,6000]}):
         
@@ -1593,8 +1614,7 @@ class Cube:
                 self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = BICM-BICS
                 
-                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
-            
+                
             else:
                 print('Delta BIC' , BICM-BICS, ' ')
                 self.D1_fit_results = prop_sig
@@ -1619,8 +1639,7 @@ class Cube:
                 self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = BICM-BICS
                 
-                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
-    
+                
                 
             if ID=='cid_346':
                 print('Delta BIC' , BICM-BICS, ' ')
@@ -1631,9 +1650,6 @@ class Cube:
                 self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = BICM-BICS
-                
-                labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
-                
             
             g, (ax1a,ax2a) = plt.subplots(2)
             emplot.plotting_OIII(wave, flux, ax1a, prop_sig , fitted_model_sig)
@@ -1660,8 +1676,6 @@ class Cube:
             self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.dBIC = 3
             
-            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
-        
         elif outflow=='outflow':
             
             flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors, Hbeta_dual=Hbeta_dual)
@@ -1675,14 +1689,12 @@ class Cube:
             self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
             self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.dBIC = 3
-            
-            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm')
-            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm', 'out_vel', 'Hbeta_peak', 'Hbeta_fwhm', 'Hbetan_peak', 'Hbetan_fwhm')
-    
         
+        labels= list(self.D1_fit_results.keys())
+        print(labels)
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
-            labels=labels,
+            labels=labels[1:],
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
