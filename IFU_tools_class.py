@@ -293,8 +293,12 @@ def SNR_calc(wave,flux, error, dictsol, mode):
         center = SII_r*(1+sol[0])/1e4
         
         fwhm = dictsol['Nar_fwhm'][0]/3e5*center
-        model_r = gauss(wave, dictsol['SII_rpk'][0], center, fwhm/2.35) 
-        model_b = gauss(wave, dictsol['SII_bpk'][0], center, fwhm/2.35) 
+        try:
+            model_r = gauss(wave, dictsol['SII_rpk'][0], center, fwhm/2.35) 
+            model_b = gauss(wave, dictsol['SII_bpk'][0], center, fwhm/2.35) 
+        except:
+            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm/2.35) 
+            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm/2.35) 
         
         model = model_r + model_b
         
@@ -454,18 +458,25 @@ def flux_calc(res, mode, norm=1e-13):
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
         hbeta = 4861*(1+res['z'][0])/1e4
         model = gauss(wave, res['Hbetan_peak'][0], hbeta, res['Hbetan_fwhm'][0]/2.355/3e5*hbeta  )
-        
+    
+    elif mode=='OI':
+        wave = np.linspace(6250,6350,300)*(1+res['z'][0])/1e4
+        OI = 6302*(1+res['z'][0])/1e4
+        model = gauss(wave, res['OI_peak'][0], OI, res['Nar_fwhm'][0]/2.355/3e5*OI  )    
+    
     elif mode=='SIIr':
         SII_r = 6731.*(1+res['z'][0])/1e4   
         
         
         wave = np.linspace(6600,6800,200)*(1+res['z'][0])/1e4
-        
-        model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
+        try:  
+            model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
+        except:
+            model_r = gauss(wave, res['SII_rpk'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
         
         import scipy.integrate as scpi
             
-        Flux_r = scpi.simps(model_r, wave)*1e-13
+        Flux_r = scpi.simps(model_r, wave)*norm
        
         return Flux_r
     
@@ -473,8 +484,10 @@ def flux_calc(res, mode, norm=1e-13):
         SII_b = 6716.*(1+res['z'][0])/1e4   
         
         wave = np.linspace(6600,6800,200)*(1+res['z'][0])/1e4
-        
-        model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
+        try:
+            model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
+        except:
+            model_b = gauss(wave, res['SII_bpk'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
         
         import scipy.integrate as scpi
             
@@ -605,6 +618,9 @@ def W80_OIII_calc( function, sol, chains, plot):
            
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
 
+
+
+
 def W80_Halpha_calc( function, sol, chains, plot):
     popt = sol['popt']     
     
@@ -696,6 +712,8 @@ def W80_Halpha_calc( function, sol, chains, plot):
             
            
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
+    
+
 # ============================================================================
 #  Main class
 # =============================================================================
@@ -727,7 +745,6 @@ class Cube:
                 self.error_cube = hdulist['ERR'].data/norm
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
-                hdulist.info()
         
         elif flag=='NIRSPEC_IFU_fl':
             with fits.open(Full_path, memmap=False) as hdulist:
@@ -735,7 +752,6 @@ class Cube:
                 self.error_cube = hdulist['ERR'].data/norm*1000
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
-                hdulist.info()
         
         elif flag=='MIRI':
             with fits.open(Full_path, memmap=False) as hdulist:
@@ -743,7 +759,6 @@ class Cube:
                 self.error_cube = hdulist['ERR'].data/1e4
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
-                hdulist.info()
                 
         else:
             print ('Instrument Flag is not understood!')
@@ -2833,6 +2848,7 @@ class Cube:
         
         map_nii = np.zeros(self.dim[:2])
         map_nii[:,:] = np.nan
+        
         # =============================================================================
         #        Filling these maps  
         # =============================================================================
@@ -2976,8 +2992,9 @@ class Cube:
         hdulist.writeto(self.savepath+self.ID+'_Halpha_fits_maps.fits', overwrite=True)
         
         return f 
+        
     
-    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0):
+    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300):
         z0 = self.z
     
         wv_hal = 6563*(1+z0)/1e4
@@ -2995,26 +3012,32 @@ class Cube:
         #         Setting up the maps
         # =============================================================================
         
-        map_hal = np.zeros((self.dim[0], self.dim[1],2))
+        map_hal = np.zeros((4,self.dim[0], self.dim[1]))
         map_hal[:,:,:] = np.nan
         
-        map_nii = np.zeros((self.dim[0], self.dim[1],2))
+        map_nii = np.zeros((4,self.dim[0], self.dim[1]))
         map_nii[:,:,:] = np.nan
         
-        map_hb = np.zeros((self.dim[0], self.dim[1],2))
+        map_hb = np.zeros((4,self.dim[0], self.dim[1]))
         map_hb[:,:,:] = np.nan
         
-        map_oiii = np.zeros((self.dim[0], self.dim[1],2))
+        map_oiii = np.zeros((4,self.dim[0], self.dim[1]))
         map_oiii[:,:,:] = np.nan
         
-        map_sii = np.zeros((self.dim[0], self.dim[1],3))
-        map_sii[:,:,:] = np.nan
+        map_siir = np.zeros((4,self.dim[0], self.dim[1]))
+        map_siir[:,:,:] = np.nan
         
-        map_hal_ki = np.zeros((self.dim[0], self.dim[1],2))
+        map_siib = np.zeros((4,self.dim[0], self.dim[1]))
+        map_siib[:,:,:] = np.nan
+        
+        map_hal_ki = np.zeros((3,self.dim[0], self.dim[1]))
         map_hal_ki[:,:,:] = np.nan
         
-        map_oiii_ki = np.zeros((self.dim[0], self.dim[1],3))
+        map_oiii_ki = np.zeros((3,self.dim[0], self.dim[1]))
         map_oiii_ki[:,:,:] = np.nan
+        
+        map_oi = np.zeros((4,self.dim[0], self.dim[1]))
+        map_oi[:,:,:] = np.nan
         
         # =============================================================================
         #        Filling these maps  
@@ -3037,17 +3060,26 @@ class Cube:
 # =============================================================================
 #             Halpha
 # =============================================================================
-            SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hn')
-            map_hal[i,j,0]= SNR
             
-            flux, p16,p84 = flux_calc_mcmc(res_spx, chains, 'Han', self.flux_norm)
-            SNR_test = np.array([flux/p16, flux/p84])
+            flux_hal, p16_hal,p84_hal = flux_calc_mcmc(res_spx, chains, 'Han', self.flux_norm)
+            SNR_hal = flux_hal/p16_hal
+            map_hal[0,i,j]= SNR_hal.copy()
             
-            if SNR>SNR_cut:
+            if SNR_hal>SNR_cut:
                 
-                map_hal_ki[i,j,0] = ((6563*(1+z)/1e4)-wv_hal)/wv_hal*3e5
-                map_hal_ki[i,j,1] = res_spx['Nar_fwhm'][0]
-                map_hal[i,j,1] = flux_calc(res_spx, 'Han',self.flux_norm)
+                map_hal_ki[0,i,j] = ((6563*(1+z)/1e4)-wv_hal)/wv_hal*3e5
+                map_hal_ki[1,i,j] = res_spx['Nar_fwhm'][0]
+                map_hal[1,i,j] = flux_hal.copy()
+                map_hal[2,i,j] = p16_hal.copy()
+                map_hal[3,i,j] = p84_hal.copy()
+            
+            else:
+                
+                
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(6562*(1+self.z)/1e4)/dl
+                map_hal[3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
+                
             
 # =============================================================================
 #             Plotting 
@@ -3061,47 +3093,130 @@ class Cube:
             #if (res_spx['SIIr_peak'][0]>res_spx['Hal_peak'][0]) & (res_spx['SIIb_peak'][0]>res_spx['Hal_peak'][0]):
             #    baxes.set_ylim(-error[0], 5*error[0])
             
-            SNRs = np.array([SNR])
+            SNRs = np.array([SNR_hal])
             
 # =============================================================================
 #             NII
 # =============================================================================
-            SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'NII')
-            SNRs = np.append(SNRs, SNR)
-            map_nii[i,j,0]= SNR
-            if SNR>SNR_cut:
-                map_nii[i,j,1] = flux_calc(res_spx, 'NII', self.flux_norm)
+            #SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'NII')
+            flux_NII, p16_NII,p84_NII = flux_calc_mcmc(res_spx, chains, 'NII', self.flux_norm)
+            SNR_NII = flux_NII/p16_NII
+            SNRs = np.append(SNRs, SNR_NII)
             
+            map_nii[0,i,j]= SNR_NII.copy()
+            if SNR_NII>SNR_cut:
+                map_nii[1,i,j] = flux_NII.copy()
+                map_nii[2,i,j] = p16_NII.copy()
+                map_nii[3,i,j] = p84_NII.copy()
+            
+            else:
+                
+                
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(6562*(1+self.z)/1e4)/dl
+                map_nii[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
 # =============================================================================
 #             OIII
 # =============================================================================
-            SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII') 
-            SNRs = np.append(SNRs, SNR)
-            map_oiii[i,j,0]= SNR
-            if SNR>SNR_cut:
-                map_oiii[i,j,1] = flux_calc(res_spx, 'OIIIt', self.flux_norm)
-                map_oiii_ki[i,j,1] = res_spx['OIIIn_fwhm'][0]
+            flux_oiii, p16_oiii,p84_oiii = flux_calc_mcmc(res_spx, chains, 'OIIIt', self.flux_norm)
+            SNR_oiii= flux_oiii/p16_oiii
+            SNRs = np.append(SNRs, SNR_oiii)
+            map_oiii[0,i,j]= SNR_oiii.copy()
+            if SNR_oiii>SNR_cut:
+                map_oiii[1,i,j] = flux_oiii.copy()
+                map_oiii[2,i,j] = p16_oiii.copy()
+                map_oiii[3,i,j] = p84_oiii.copy()
+                
+                
+                map_oiii_ki[1,i,j] = res_spx['OIIIn_fwhm'][0]
                 
                 measured_peak = (5008*(1+z)/1e4)+ res_spx['OIII_vel'][0]/3e5*wv_oiii
-                map_oiii_ki[i,j,0] = (measured_peak-wv_oiii)/wv_oiii*3e5
+                map_oiii_ki[0,i,j] = (measured_peak-wv_oiii)/wv_oiii*3e5
+                map_oiii_ki[2,i,j] = res_spx['OIII_vel'][0]
+            else:
                 
+                
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(5008*(1+self.z)/1e4)/dl
+                map_oiii[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
+             
 # =============================================================================
 #             Hbeta
 # =============================================================================
-            SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hb') 
-            SNRs = np.append(SNRs, SNR)
-            map_hb[i,j,0]= SNR
-            if SNR>SNR_cut:
-                map_hb[i,j,1] = flux_calc(res_spx, 'Hbeta', self.flux_norm)
+            flux_hb, p16_hb,p84_hb = flux_calc_mcmc(res_spx, chains, 'Hbeta', self.flux_norm)
+            SNR_hb=  flux_hb/p16_hb
+            SNRs = np.append(SNRs, SNR_hb)
+            map_hb[0,i,j]= SNR_hb.copy()
+            if SNR_hb>SNR_cut:
+                map_hb[1,i,j] = flux_hb.copy()
+                map_hb[2,i,j] = p16_hb.copy()
+                map_hb[3,i,j] = p84_hb.copy()
             
-            baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = ' +str(np.round(SNRs,1))+str(np.round(SNR_test,1)) )
+            else:
+            
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(4860*(1+self.z)/1e4)/dl
+                map_hb[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
+
+# =============================================================================
+#             OI
+# =============================================================================
+            flux_oi, p16_oi,p84_oi = flux_calc_mcmc(res_spx, chains, 'OI', self.flux_norm)
+            SNR_oi=  flux_oi/p16_oi
+            SNRs = np.append(SNRs, SNR_oi)
+            map_oi[0,i,j]= SNR_oi.copy()
+            if SNR_oi>SNR_cut:
+                map_oi[1,i,j] = flux_oi.copy()
+                map_oi[2,i,j] = p16_oi.copy()
+                map_oi[3,i,j] = p84_oi.copy()
+            
+            else:
+                
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(6300*(1+self.z)/1e4)/dl
+                map_oi[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
+                  
+# =============================================================================
+#           SII
+# =============================================================================
+            fluxr, p16r,p84r = flux_calc_mcmc(res_spx, chains, 'SIIr', self.flux_norm)
+            fluxb, p16b,p84b = flux_calc_mcmc(res_spx, chains, 'SIIb', self.flux_norm)
+
+            SNR_SII = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'SII')
+            
+            if SNR_SII>SNR_cut:
+                map_siir[0,i,j] = SNR_SII.copy()
+                map_siib[0,i,j] = SNR_SII.copy()
+                
+                map_siir[1,i,j] = fluxr.copy()
+                map_siir[2,i,j] = p16r.copy()
+                map_siir[3,i,j] = p84r.copy()
+                
+                map_siib[1,i,j] = fluxb.copy()
+                map_siib[2,i,j] = p16b.copy()
+                map_siib[3,i,j] = p84b.copy()
+            
+            else:
+                
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(6731*(1+self.z)/1e4)/dl
+                map_siir[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
+                map_siib[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
+                
+
+
+
+            baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = ' +str(np.round(SNRs,1)) )
             baxes.set_xlabel('Restframe wavelength (ang)')
             baxes.set_ylabel(r'$10^{-16}$ ergs/s/cm2/mic')
             Spax.savefig()  
             plt.close(f)
         
         Spax.close() 
-        
+# =============================================================================
+#         Calculating Avs
+# =============================================================================
+        Av = Av_calc(map_hal[1,:,:],map_hb[1,:,:])
 # =============================================================================
 #         Plotting maps
 # =============================================================================
@@ -3134,7 +3249,7 @@ class Cube:
         ax1 = axes[0,0]
         # =============================================================================
         # Halpha SNR
-        snr = ax1.imshow(map_hal[:,:,0],vmin=3, vmax=20, origin='lower', extent= lim_sc)
+        snr = ax1.imshow(map_hal[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
         ax1.set_title('Hal SNR map')
         divider = make_axes_locatable(ax1)
         cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -3145,7 +3260,7 @@ class Cube:
         # =============================================================================
         # Halpha flux
         ax1 = axes[0,1]
-        flx = ax1.imshow(smooth(map_hal[:,:,1],smt),vmax=flx_max, origin='lower', extent= lim_sc)
+        flx = ax1.imshow(map_hal[1,:,:],vmax=flx_max, origin='lower', extent= lim_sc)
         ax1.set_title('Halpha Flux map')
         divider = make_axes_locatable(ax1)
         cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -3157,7 +3272,7 @@ class Cube:
         # =============================================================================
         # Halpha  velocity
         ax2 = axes[0,2]
-        vel = ax2.imshow(smooth(map_hal_ki[:,:,0],smt), cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
+        vel = ax2.imshow(map_hal_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
         ax2.set_title('Hal Velocity offset map')
         divider = make_axes_locatable(ax2)
         cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -3170,8 +3285,8 @@ class Cube:
         # =============================================================================
         # Halpha fwhm
         ax3 = axes[1,2]
-        fw = ax3.imshow(smooth(map_hal_ki[:,:,1],smt),vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-        ax3.set_title('FWHM map')
+        fw = ax3.imshow(map_hal_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+        ax3.set_title('Hal FWHM map')
         divider = make_axes_locatable(ax3)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3183,7 +3298,7 @@ class Cube:
         # =============================================================================
         # [NII] SNR
         axes[1,0].set_title('[NII] SNR')
-        fw= axes[1,0].imshow(map_nii[:,:,0],vmin=3, vmax=20,origin='lower', extent= lim_sc)
+        fw= axes[1,0].imshow(map_nii[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
         divider = make_axes_locatable(axes[1,0])
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3193,7 +3308,7 @@ class Cube:
         # =============================================================================
         # [NII] flux
         axes[1,1].set_title('[NII] map')
-        fw= axes[1,1].imshow(map_nii[:,:,1] ,origin='lower', extent= lim_sc)
+        fw= axes[1,1].imshow(map_nii[1,:,:] ,origin='lower', extent= lim_sc)
         divider = make_axes_locatable(axes[1,1])
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3203,7 +3318,7 @@ class Cube:
         # =============================================================================
         # Hbeta] SNR
         axes[2,0].set_title('Hbeta SNR')
-        fw= axes[2,0].imshow(map_hb[:,:,0],vmin=3, vmax=20,origin='lower', extent= lim_sc)
+        fw= axes[2,0].imshow(map_hb[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
         divider = make_axes_locatable(axes[2,0])
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3213,7 +3328,7 @@ class Cube:
         # =============================================================================
         # Hbeta flux
         axes[2,1].set_title('Hbeta map')
-        fw= axes[2,1].imshow(map_hb[:,:,1] ,origin='lower', extent= lim_sc)
+        fw= axes[2,1].imshow(map_hb[1,:,:] ,origin='lower', extent= lim_sc)
         divider = make_axes_locatable(axes[2,1])
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3223,7 +3338,7 @@ class Cube:
         # =============================================================================
         # [OIII] SNR
         axes[3,0].set_title('[OIII] SNR')
-        fw= axes[3,0].imshow(map_oiii[:,:,0],vmin=3, vmax=20,origin='lower', extent= lim_sc)
+        fw= axes[3,0].imshow(map_oiii[0,:,:],vmin=3, vmax=20,origin='lower', extent= lim_sc)
         divider = make_axes_locatable(axes[3,0])
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3233,7 +3348,7 @@ class Cube:
         # =============================================================================
         # [OIII] flux
         axes[3,1].set_title('[OIII] map')
-        fw= axes[3,1].imshow(map_oiii[:,:,1] ,origin='lower', extent= lim_sc)
+        fw= axes[3,1].imshow(map_oiii[1,:,:] ,origin='lower', extent= lim_sc)
         divider = make_axes_locatable(axes[3,1])
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3243,19 +3358,53 @@ class Cube:
         # =============================================================================
         # [OIII] vel
         ax3= axes[2,2]
-        axes[2,2].set_title('[OIII] vel')
-        fw = ax3.imshow(smooth(map_oiii_ki[:,:,0],smt),vmin=velrange[0],vmax=velrange[1],cmap='coolwarm', origin='lower', extent= lim_sc)
-        ax3.set_title('vel map')
+        ax3.set_title('[OIII] vel')
+        fw = ax3.imshow(map_oiii_ki[0,:,:],vmin=velrange[0],vmax=velrange[1],cmap='coolwarm', origin='lower', extent= lim_sc)
         divider = make_axes_locatable(ax3)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
         
         # =============================================================================
         # [OIII] fwhm
-        ax3= axes[3,2]
-        axes[3,2].set_title('[OIII] fwhm')
-        fw = ax3.imshow(smooth(map_oiii_ki[:,:,1],smt),vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-        ax3.set_title('FWHM map')
+        ax3 = axes[3,2]
+        ax3.set_title('[OIII] fwhm')
+        fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        # =============================================================================
+        # OI SNR
+        ax3 = axes[4,0]
+        ax3.set_title('OI SNR')
+        fw = ax3.imshow(map_oi[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        # =============================================================================
+        # OI flux
+        ax3 = axes[4,1]
+        ax3.set_title('OI Flux')
+        fw = ax3.imshow(map_oi[1,:,:], origin='lower', extent= lim_sc)
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        # =============================================================================
+        # SII SNR
+        ax3 = axes[5,0]
+        ax3.set_title('[SII] SNR')
+        fw = ax3.imshow(map_siir[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        # =============================================================================
+        # SII Ratio
+        ax3 = axes[5,1]
+        ax3.set_title('[SII]r/[SII]b')
+        fw = ax3.imshow(map_siir[1,:,:]/map_siib[1,:,:] ,vmin=0.3, vmax=1.5, origin='lower', extent= lim_sc)
         divider = make_axes_locatable(ax3)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
@@ -3263,6 +3412,7 @@ class Cube:
         
         plt.tight_layout()
         
+        self.map_hal = map_hal
         
         hdr = self.header.copy()
         hdr['X_cent'] = x
@@ -3273,11 +3423,16 @@ class Cube:
         nii_hdu = fits.ImageHDU(map_nii, name='NII')
         hbe_hdu = fits.ImageHDU(map_hb, name='Hbeta')
         oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
+        oi_hdu = fits.ImageHDU(map_oi, name='OI')
+        
+        siir_hdu = fits.ImageHDU(map_siir, name='SIIr')
+        siib_hdu = fits.ImageHDU(map_siib, name='SIIb')
         
         hal_kin_hdu = fits.ImageHDU(map_hal_ki, name='Hal_kin')
         oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
+        Av_hdu = fits.ImageHDU(Av, name='Av')
         
-        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oiii_kin_hdu  ])
+        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oiii_kin_hdu,oi_hdu,siir_hdu, siib_hdu, Av_hdu ])
         
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps.fits', overwrite=True)
         

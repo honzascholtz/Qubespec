@@ -525,3 +525,215 @@ def OIII_map_plotting(ID, path):
     
     
 
+def Plot_results_Halpha_OIII(file, center=[20,20], fwhmrange = [100,500], velrange=[-100,100], flux_max=0, o3offset=0):
+    with pyfits.open(file, memmap=False) as hdulist:
+        map_hal = hdulist['Halpha'].data
+        map_nii = hdulist['NII'].data
+        map_hb = hdulist['Hbeta'].data
+        map_oiii = hdulist['OIII'].data
+        map_oi = hdulist['OI'].data
+        map_siir = hdulist['SIIr'].data
+        map_siib = hdulist['SIIb'].data
+        map_hal_ki = hdulist['Hal_kin'].data
+        map_oiii_ki= hdulist['OIII_kin'].data
+        Av = hdulist['Av'].data
+        
+        IFU_header = hdulist['PRIMARY'].header
+    
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    x = int(center[0]); y= int(center[0])
+        
+    deg_per_pix = IFU_header['CDELT2']
+    arc_per_pix = deg_per_pix*3600
+        
+    Offsets_low =- np.array(center)
+    Offsets_hig = np.shape(map_hal)[1:] - np.array(center)
+        
+    lim = np.array([ Offsets_low[0], Offsets_hig[0],
+                    Offsets_low[1], Offsets_hig[1] ])
+    
+    lim_sc = lim*arc_per_pix
+        
+    if flux_max==0:
+        flx_max = map_hal[1,y,x]
+    else:
+        flx_max = flux_max
+        
+# =============================================================================
+#         Plotting Stuff
+# =============================================================================
+    f,axes = plt.subplots(6,3, figsize=(10,20))
+    ax1 = axes[0,0]
+    # =============================================================================
+    # Halpha SNR
+    snr = ax1.imshow(map_hal[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
+    ax1.set_title('Hal SNR map')
+    divider = make_axes_locatable(ax1)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(snr, cax=cax, orientation='vertical')
+    ax1.set_xlabel('RA offset (arcsecond)')
+    ax1.set_ylabel('Dec offset (arcsecond)')
+        
+    # =============================================================================
+    # Halpha flux
+    ax1 = axes[0,1]
+    flx = ax1.imshow(map_hal[1,:,:],vmax=flx_max, origin='lower', extent= lim_sc)
+    ax1.set_title('Halpha Flux map')
+    divider = make_axes_locatable(ax1)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(flx, cax=cax, orientation='vertical')
+    cax.set_ylabel('Flux (arbitrary units)')
+    ax1.set_xlabel('RA offset (arcsecond)')
+    ax1.set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # Halpha  velocity
+    ax2 = axes[0,2]
+    vel = ax2.imshow(map_hal_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
+    ax2.set_title('Hal Velocity offset map')
+    divider = make_axes_locatable(ax2)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(vel, cax=cax, orientation='vertical')
+    
+    cax.set_ylabel('Velocity (km/s)')
+    ax2.set_xlabel('RA offset (arcsecond)')
+    ax2.set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # Halpha fwhm
+    ax3 = axes[1,2]
+    fw = ax3.imshow(map_hal_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    ax3.set_title('Hal FWHM map')
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    cax.set_ylabel('FWHM (km/s)')
+    ax2.set_xlabel('RA offset (arcsecond)')
+    ax2.set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # [NII] SNR
+    axes[1,0].set_title('[NII] SNR')
+    fw= axes[1,0].imshow(map_nii[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(axes[1,0])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    axes[1,0].set_xlabel('RA offset (arcsecond)')
+    axes[1,0].set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # [NII] flux
+    axes[1,1].set_title('[NII] map')
+    fw= axes[1,1].imshow(map_nii[1,:,:] ,origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(axes[1,1])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    axes[1,1].set_xlabel('RA offset (arcsecond)')
+    axes[1,1].set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # Hbeta] SNR
+    axes[2,0].set_title('Hbeta SNR')
+    fw= axes[2,0].imshow(map_hb[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(axes[2,0])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    axes[2,0].set_xlabel('RA offset (arcsecond)')
+    axes[2,0].set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # Hbeta flux
+    axes[2,1].set_title('Hbeta map')
+    fw= axes[2,1].imshow(map_hb[1,:,:] ,origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(axes[2,1])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    axes[2,1].set_xlabel('RA offset (arcsecond)')
+    axes[2,1].set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # [OIII] SNR
+    axes[3,0].set_title('[OIII] SNR')
+    fw= axes[3,0].imshow(map_oiii[0,:,:],vmin=3, vmax=20,origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(axes[3,0])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    axes[3,0].set_xlabel('RA offset (arcsecond)')
+    axes[3,0].set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # [OIII] flux
+    axes[3,1].set_title('[OIII] map')
+    fw= axes[3,1].imshow(map_oiii[1,:,:] ,origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(axes[3,1])
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    axes[3,1].set_xlabel('RA offset (arcsecond)')
+    axes[3,1].set_ylabel('Dec offset (arcsecond)')
+    
+    # =============================================================================
+    # [OIII] vel
+    ax3= axes[2,2]
+    ax3.set_title('[OIII] vel')
+    fw = ax3.imshow(map_oiii_ki[0,:,:],vmin=velrange[0]+o3offset,vmax=velrange[1]+o3offset,cmap='coolwarm', origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    # =============================================================================
+    # [OIII] fwhm
+    ax3 = axes[3,2]
+    ax3.set_title('[OIII] fwhm')
+    fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    # =============================================================================
+    # [OIII] fwhm
+    ax3 = axes[4,2]
+    ax3.set_title('[OIII] vel offset')
+    fw = ax3.imshow(map_oiii_ki[2,:,:],vmin=0,vmax=150, origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    # =============================================================================
+    # OI SNR
+    ax3 = axes[4,0]
+    ax3.set_title('OI SNR')
+    fw = ax3.imshow(map_oi[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    # =============================================================================
+    # OI flux
+    ax3 = axes[4,1]
+    ax3.set_title('OI Flux')
+    fw = ax3.imshow(map_oi[1,:,:], origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    # =============================================================================
+    # SII SNR
+    ax3 = axes[5,0]
+    ax3.set_title('[SII] SNR')
+    fw = ax3.imshow(map_siir[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    # =============================================================================
+    # SII Ratio
+    ax3 = axes[5,1]
+    ax3.set_title('[SII]r/[SII]b')
+    fw = ax3.imshow(map_siir[1,:,:]/map_siib[1,:,:] ,vmin=0.3, vmax=1.5, origin='lower', extent= lim_sc)
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    
+    plt.tight_layout()

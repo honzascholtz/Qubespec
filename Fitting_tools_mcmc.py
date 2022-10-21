@@ -1269,7 +1269,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= 
                                                                 'SII_rpk':[0,-3,1],\
                                                                 'SII_bpk':[0,-3,1],\
                                                                 'OI_peak':[0,-3,1]}):
-    priors['z'] = [z, z-0.01, z+0.01]
+    priors['z'] = [z, z-zcont, z+zcont]
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
