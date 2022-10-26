@@ -1115,7 +1115,51 @@ class Cube:
             data_fit = twoD_Gaussian((x,y), *self.center_data)
     
             plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 8, colors='w')
+    
             
+    
+    def flat_field_spec(self, center, rad=0.6):
+        # Creating a mask for all spaxels.
+        shapes = self.dim
+        mask_catch = self.flux.mask.copy()
+        mask_catch[:,:,:] = True
+        header  = self.header
+        #arc = np.round(1./(header['CD2_2']*3600))
+        arc = np.round(1./(header['CDELT2']*3600))
+        
+        
+        # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
+        for ix in range(shapes[0]):
+            for iy in range(shapes[1]):
+                dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
+                if dist< arc*rad:
+                    mask_catch[:,ix,iy] = False
+        
+        mask_spax = mask_catch.copy()
+        # Loading mask of the sky lines an bad features in the spectrum 
+        mask_sky_1D = self.sky_clipped_1D.copy()
+        total_mask = np.logical_or( mask_spax, self.sky_clipped)
+        
+        flux = np.ma.array(data=self.flux.data, mask= total_mask) 
+        
+        Sky = np.ma.median(flux, axis=(1,2))
+        Sky = np.ma.array(data = Sky.data, mask=mask_sky_1D)
+        
+        for ix in range(shapes[0]):
+            for iy in range(shapes[1]):
+                self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky
+        plot=1
+        if plot==1:
+            plt.figure()
+            plt.title('Sky spectrum')
+            
+            plt.plot(self.obs_wave, np.ma.array(data= Sky , mask=self.sky_clipped_1D), drawstyle='steps-mid')
+            
+        
+            plt.ylabel('Flux')
+            plt.xlabel('Observed wavelength')
+    
+    
     def D1_spectra_collapse(self, plot, addsave='', err_range=[0]):
         '''
         This function collapses the Cube to form a 1D spectrum of the galaxy
@@ -2456,7 +2500,7 @@ class Cube:
         with open('/Users/jansen/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)     
         
-        with Pool(mp.cpu_count() - 1) as pool:
+        with Pool(mp.cpu_count() - 2) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
         
         self.spaxel_fit_raw = cube_res

@@ -872,9 +872,13 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
     if abs(znew-z)<zcont:
         z= znew
     peak = np.ma.max(flux_zoom)
+    nwalkers=32
     
     if BLR==1:
-        pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['BLR_offset'][0],peak/6, peak/6])+ 1e-2 * np.random.randn(32, 11)
+        pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['BLR_offset'][0],peak/6, peak/6])
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
@@ -898,7 +902,10 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
     
     if BLR==0:
         
-        pos = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4,priors['Nar_fwhm'][0],peak/6, peak/6 ])+ 1e-2 * np.random.randn(32, 8)
+        pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4,priors['Nar_fwhm'][0],peak/6, peak/6 ])
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        
         nwalkers, ndim = pos.shape
         
         sampler = emcee.EnsembleSampler(
@@ -917,7 +924,10 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
             res[labels[i]] = flat_samples[:,i]
             
     if BLR==-1:
-        pos = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, priors['outflow_fwhm'][0],priors['outflow_vel'][0] ])+ 1e-2 * np.random.randn(32, 12)
+        pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, priors['outflow_fwhm'][0],priors['outflow_vel'][0] ])
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
@@ -990,10 +1000,11 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
     if outflow==1: 
         if template==0:
             if Hbeta_dual == 0:
-                #pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, priors[''], 600.,-200, peak_beta, 500])+ 1e-2* np.random.randn(nwalkers,10)
-                #pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, 300., 700.,-200, peak_beta, 2000])+ 1e-2* np.random.randn(nwalkers,10)
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]])\
-                    + 1e-2* np.random.randn(nwalkers,11)
+                
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]])
+                
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
@@ -1012,9 +1023,12 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 for i in range(len(labels)):
                     res[labels[i]] = flat_samples[:,i]
             else:
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0],\
-                                peak_beta, priors['Hbeta_fwhm'][0], priors['Hbeta_vel'][0],peak_beta, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])\
-                    + 1e-2* np.random.randn(nwalkers,14)
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0],\
+                                peak_beta, priors['Hbeta_fwhm'][0], priors['Hbeta_vel'][0],peak_beta, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])
+                
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
+                
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
                     nwalkers, ndim, log_probability_OIII_outflow_narHb, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
@@ -1034,10 +1048,10 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
          
         else:
             if Hbeta_dual == 0:
-                #pos = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 400., 700.,-300, peak_beta, 600,np.median(flux[fit_loc]), 2000])+ 1e-2* np.random.randn(32,12)
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
-                                np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])\
-                    + 1e-2* np.random.randn(nwalkers,13)
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
+                                np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
@@ -1057,9 +1071,11 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                     res[labels[i]] = flat_samples[:,i]
                     
             else:
-                pos = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 600.,-100, \
+                pos_l = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 600.,-100, \
                                 peak_beta/2, 4000,priors['Hbeta_vel'][0],peak_beta/2, 600,priors['Hbetan_vel'][0],\
-                                np.median(flux[fit_loc]), 2000])+ 1e-2* np.random.randn(32,16)
+                                np.median(flux[fit_loc]), 2000])
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
@@ -1081,11 +1097,10 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
     if outflow==0: 
         if template==0:
             if Hbeta_dual == 0:
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]]) \
-                    + 1e-2 * np.random.randn(32, 8)
-                #pos[:,6] = np.random.uniform(300,5000,32)
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]]) 
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
-                #pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/4,  2300., peak_beta/2,3700])+ 1e-4 * np.random.randn(32, 7)
                 nwalkers, ndim = pos.shape
                 
                 sampler = emcee.EnsembleSampler(
@@ -1107,9 +1122,11 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         
             else:
                 
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta/4, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
-                                peak_beta/4, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]]) \
-                                 + 1e-2 * np.random.randn(32, 11)
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta/4, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
+                                peak_beta/4, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])
+                
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
                 nwalkers, ndim = pos.shape
                 
@@ -1129,8 +1146,9 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         else:
             if Hbeta_dual == 0:
                 
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) \
-                    + 1e-2 * np.random.randn(32, 10)
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) 
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
                 nwalkers, ndim = pos.shape
                 
@@ -1152,9 +1170,12 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 
                     
             else:
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta/2, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
+                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta/2, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
                                 peak_beta/2, priors['Hbetan_fwhm'][0],priors['Hbetan_vel'][0], \
-                                np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) + 1e-2 * np.random.randn(32, 13)
+                                np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) 
+                    
+                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
                 nwalkers, ndim = pos.shape
                 
@@ -1302,10 +1323,13 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= 
 #   Setting up fitting  
 # =============================================================================
     nwalkers=32
-    pos = np.array([z,np.median(flux[fit_loc]), -1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.2, peak_hal*0.2, peak_OIII*0.8,  priors['OIIIn_fwhm'][0], peak_hal*0.2, priors['OIII_vel'][0], peak_hal*0.3])\
-        + 1e-2* np.random.randn(nwalkers,13)
+    pos_l = np.array([z,np.median(flux[fit_loc]), -1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.2, peak_hal*0.2, peak_OIII*0.8,  priors['OIIIn_fwhm'][0], peak_hal*0.2, priors['OIII_vel'][0], peak_hal*0.3])
+    
+    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+    pos[:,0] = np.random.normal(z,0.001, nwalkers)
    
     nwalkers, ndim = pos.shape
+    
     sampler = emcee.EnsembleSampler(
             nwalkers, ndim, log_probability_Halpha_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
     
@@ -1336,14 +1360,15 @@ def Fitting_OIII_unwrap(lst):
     cube_res  = [i,j,prop_calc(flat_samples_sig)]
     return cube_res
 
-def Fitting_Halpha_OIII_unwrap(lst):
-    
-    i,j,flx_spax_m, error, wave, z = lst
-    
+def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     with open('/Users/jansen/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
+    i,j,flx_spax_m, error, wave, z = lst
+    print(i)
+    deltav = 1500
+    deltaz = deltav/3e5*(1+z)
     
-    flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z, progress=False, priors=priors)
+    flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors)
     cube_res  = [i,j,prop_calc(flat_samples_sig), flat_samples_sig]
     return cube_res
 
@@ -1362,9 +1387,10 @@ def Fitting_Halpha_unwrap(lst):
     
     with open('/Users/jansen/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
-        
+    print(priors)  
     i,j,flx_spax_m, error, wave, z = lst
-    deltav = 1000
+    print(i)
+    deltav = 1500
     deltaz = deltav/3e5*(1+z)
     flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, BLR=0, progress=False, priors=priors)
     cube_res  = [i,j,prop_calc(flat_samples_sig)]
