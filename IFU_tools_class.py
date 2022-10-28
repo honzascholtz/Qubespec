@@ -1792,6 +1792,8 @@ class Cube:
         print('SNR OIII ', self.SNR_OIII)
         print('SNR Hbeta ', self.SNR_hb)
         
+        fig.savefig('/Users/jansen/Corner.pdf')
+        
         f = plt.figure(figsize=(10,4))
         baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
         
@@ -2352,7 +2354,7 @@ class Cube:
                     
 
         print(len(Unwrapped_cube))
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "wb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "wb") as fp:
             pickle.dump(Unwrapped_cube, fp)      
         
     
@@ -2432,7 +2434,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
     
-    def Spaxel_fitting_Halpha_MCMC_mp(self, priors={'cont':[0,-3,1],\
+    def Spaxel_fitting_Halpha_MCMC_mp(self, add='',priors={'cont':[0,-3,1],\
                                                      'cont_grad':[0,-0.01,0.01], \
                                                      'Hal_peak':[0,-3,1],\
                                                      'BLR_peak':[0,-3,1],\
@@ -2448,7 +2450,7 @@ class Cube:
                                                      'outflow_vel':[-50, -300,300]}):
         import pickle
         start_time = time.time()
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
             
         print('import of the unwrap cube - done')
@@ -2468,12 +2470,12 @@ class Cube:
          
         self.spaxel_fit_raw = cube_res
         
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
         
-    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self, priors= {'cont':[0,-3,1],\
+    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='', priors= {'cont':[0,-3,1],\
                                                           'cont_grad':[0,-10.,10], \
                                                           'OIIIn_peak':[0,-3,1],\
                                                            'OIIIn_fwhm':[300,100,900],\
@@ -2487,7 +2489,7 @@ class Cube:
                                                            'OI_peak':[0,-3,1]}):
         import pickle
         start_time = time.time()
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
             
         print('import of the unwrap cube - done')
@@ -2505,7 +2507,7 @@ class Cube:
         
         self.spaxel_fit_raw = cube_res
         
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
@@ -2862,17 +2864,17 @@ class Cube:
         
         hdulist.writeto(self.savepath+self.ID+'_OIII_fits_maps_2G.fits', overwrite=True)
 
-    def Map_creation_Halpha(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0):
+    def Map_creation_Halpha(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, add=''):
         z0 = self.z
     
         wvo3 = 6563*(1+z0)/1e4
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
             results= pickle.load(fp)
             
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
             
         # =============================================================================
@@ -3038,7 +3040,7 @@ class Cube:
         return f 
         
     
-    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300):
+    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add=''):
         z0 = self.z
     
         wv_hal = 6563*(1+z0)/1e4
@@ -3046,10 +3048,10 @@ class Cube:
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
             results= pickle.load(fp)
             
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
             
         # =============================================================================
@@ -3109,6 +3111,7 @@ class Cube:
             SNR_hal = flux_hal/p16_hal
             map_hal[0,i,j]= SNR_hal.copy()
             
+            SNR_hold = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hn')
             if SNR_hal>SNR_cut:
                 
                 map_hal_ki[0,i,j] = ((6563*(1+z)/1e4)-wv_hal)/wv_hal*3e5
@@ -3166,6 +3169,8 @@ class Cube:
             SNR_oiii= flux_oiii/p16_oiii
             SNRs = np.append(SNRs, SNR_oiii)
             map_oiii[0,i,j]= SNR_oiii.copy()
+            SNR_oold = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
+
             if SNR_oiii>SNR_cut:
                 map_oiii[1,i,j] = flux_oiii.copy()
                 map_oiii[2,i,j] = p16_oiii.copy()
@@ -3250,7 +3255,7 @@ class Cube:
 
 
 
-            baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = ' +str(np.round(SNRs,1)) )
+            baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = ' +str(np.round(SNRs,1))+ str(np.round([SNR_hold, SNR_oold],1)))
             baxes.set_xlabel('Restframe wavelength (ang)')
             baxes.set_ylabel(r'$10^{-16}$ ergs/s/cm2/mic')
             Spax.savefig()  
