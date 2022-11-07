@@ -525,7 +525,7 @@ def OIII_map_plotting(ID, path):
     
     
 
-def Plot_results_Halpha_OIII(file, center=[20,20], fwhmrange = [100,500], velrange=[-100,100], flux_max=0, o3offset=0):
+def Plot_results_Halpha_OIII(file, center=[27,27], fwhmrange = [100,500], velrange=[-100,100], flux_max=0, o3offset=0, extent=np.array([0])):
     with pyfits.open(file, memmap=False) as hdulist:
         map_hal = hdulist['Halpha'].data
         map_nii = hdulist['NII'].data
@@ -562,7 +562,7 @@ def Plot_results_Halpha_OIII(file, center=[20,20], fwhmrange = [100,500], velran
 # =============================================================================
 #         Plotting Stuff
 # =============================================================================
-    f,axes = plt.subplots(6,3, figsize=(10,20))
+    f,axes = plt.subplots(6,3, figsize=(10,20), sharex=True, sharey=True)
     ax1 = axes[0,0]
     # =============================================================================
     # Halpha SNR
@@ -734,6 +734,10 @@ def Plot_results_Halpha_OIII(file, center=[20,20], fwhmrange = [100,500], velran
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
+    
+    if len(extent) >1:
+        axes[0,0].set_xlim(extent[0], extent[1])
+        axes[0,0].set_ylim(extent[2], extent[3])
     
     
     plt.tight_layout()

@@ -423,6 +423,12 @@ def flux_calc(res, mode, norm=1e-13):
         
         model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
     
+    elif mode=='Hao':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        hn = 6565*(1+res['z'][0])/1e4
+        
+        model = gauss(wave, res['Hal_out_peak'][0], hn, res['outflow_fwhm'][0]/2.355/3e5*hn  )
+    
     elif mode=='Hblr':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         hn = 6565*(1+res['z'][0])/1e4
@@ -436,10 +442,10 @@ def flux_calc(res, mode, norm=1e-13):
         nii = 6583*(1+res['z'][0])/1e4
         model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
     
-    elif mode=='NII':
+    elif mode=='NIIo':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         nii = 6583*(1+res['z'][0])/1e4
-        model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+        model = gauss(wave, res['NII_out_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
         
     elif mode=='Hbeta':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
@@ -646,7 +652,7 @@ def W80_Halpha_calc( function, sol, chains, plot):
         fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
         fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*Halpha
         
-        Halpha_out = cent + np.random.choice(chains['outflow_vel'], N)/3e5*Halpha
+        Halpha_out = Halpha+ np.random.choice(chains['outflow_vel'], N)/3e5*Halpha
         
         peakn = np.random.choice(chains['Hal_peak'], N)
         peakw = np.random.choice(chains['Hal_out_peak'], N)
@@ -680,7 +686,7 @@ def W80_Halpha_calc( function, sol, chains, plot):
     else:
         Halpha = 6562.*(1+popt[0])/1e4
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*OIIIr
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
         peakn = np.random.choice(chains['Hal_peak'], N)
         
         
@@ -725,7 +731,7 @@ class Cube:
     
         filemarker = fits.open(Full_path)
         
-        print (Full_path)
+        #print (Full_path)
         if flag=='KMOS':
             
             header = filemarker[1].header # FITS header in HDU 1
