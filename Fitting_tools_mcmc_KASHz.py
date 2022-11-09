@@ -1019,7 +1019,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         else:
             if Hbeta_dual == 0:
                 #pos = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 400., 700.,-300, peak_beta, 600,np.median(flux[fit_loc]), 2000])+ 1e-2* np.random.randn(32,12)
-                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta/2, priors['Hbetan_fwhm'][0],np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])\
+                pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta/2, priors['Hbeta_fwhm'][0],np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])\
                     + 1e-2* np.random.randn(nwalkers,12)
 
                 nwalkers, ndim = pos.shape
