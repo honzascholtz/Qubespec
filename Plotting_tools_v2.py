@@ -105,14 +105,17 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt, template)
     
     
-    if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
-        Hbeta= 4861*(1+z)/1e4
-        fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
-        
-        y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],4861, fwhm)
-        
-        sol['Hbeta_peak'][0] = 0
-        
+    try:
+        if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
+            Hbeta= 4861*(1+z)/1e4
+            fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+            
+            y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],4861, fwhm)
+            
+            sol['Hbeta_peak'][0] = 0
+    except:
+        QSOflags=1
+     
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
     
     flt = np.where((wv_rest[fit_loc]>4900)&(wv_rest[fit_loc]<5100))[0]
@@ -120,7 +123,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     ax.set_ylim(-0.1*max(y_tot[flt]), max(y_tot[flt])*1.1)
     ax.tick_params(direction='in')
     ax.set_xlim(4700,5050 )
-
+    
     
     
     OIIIr = 5008.*(1+z)/1e4
@@ -132,15 +135,16 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIIIn_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) \
                  ,color= 'green', linestyle ='dashed')
     
-        
-    Hbeta= 4861.*(1+z)/1e4
-    Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
-    fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
-    ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
-                 color= 'orange', linestyle ='dashed')
     
-    ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
+    if 'Hbeta_fwhm' in keys: 
+        Hbeta= 4861.*(1+z)/1e4
+        Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
+        fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+                     color= 'orange', linestyle ='dashed')
         
+        ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
+            
         
     if 'OIIIw_fwhm' in keys:
         OIIIr = OIIIr+ sol['out_vel'][0]/3e5*OIIIr
@@ -173,19 +177,44 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         
         if template=='Veron':
             ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+    
+    
+    if 'Hb_nar_peak' in keys:
+        Hbeta= 4861.*(1+z)/1e4
         
+        Hbeta_NLR = gauss(wave[fit_loc], sol['Hb_nar_peak'][0],Hbeta, sol['OIIIn_fwhm'][0]/3e5/2.35*Hbeta)
+        Hbeta_NLR2= gauss(wave[fit_loc], sol['Hb_out_peak'][0],Hbeta+ sol['out_vel'][0]/3e5*Hbeta, sol['OIIIw_fwhm'][0]/3e5/2.35*Hbeta)
+        
+        
+        ax.plot(wv_rest[fit_loc] , Hbeta_NLR , color= 'orange', linestyle ='dotted')
+        ax.plot(wv_rest[fit_loc] , Hbeta_NLR2, color= 'orange', linestyle ='dotted')
+        ax.plot(wv_rest[fit_loc] , Hbeta_NLR+Hbeta_NLR2, color= 'orange', linestyle ='dotted')
+    
+    if 'Hb_BLR_vel' in keys:
+        Hbeta= 4861.*(1+z)/1e4
+        Hbeta = Hbeta+ sol['Hb_BLR_vel'][0]/3e5*Hbeta
+        
+        Hbeta_BLR = gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm1'][0]/3e5/2.35*Hbeta)
+        Hbeta_BLR2= gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm2'][0]/3e5/2.35*Hbeta)
+        
+        
+        ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
+        #ax.plot(wv_rest[fit_loc] , Hbeta_BLR2, color= 'orange', linestyle ='dashed')
+        ax.plot(wv_rest[fit_loc] , Hbeta_BLR+Hbeta_BLR2, color= 'orange', linestyle ='dashed')
+       
     if residual !='none':
         resid_OIII = flux[fit_loc_sc]-y_tot_rs
         sigma_OIII = np.std(resid_OIII)
         RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
         
         axres.plot(wv_rst_sc[fit_loc_sc],resid_OIII, drawstyle='steps-mid')
-        axres.set_ylim(-2*RMS_OIII, 2*RMS_OIII) ## the /3 scales to the ratio
+        axres.set_ylim(-3*RMS_OIII, 3*RMS_OIII) ## the /3 scales to the ratio
+        axres.hlines(0, 4600,5600, color='black', linestyle='dashed')
         if residual=='rms':
             axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
         elif residual=='error':
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
-            
+         
 
 
 def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):

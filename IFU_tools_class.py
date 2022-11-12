@@ -1811,7 +1811,7 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, outflow='both', Hbeta_dual=0, priors= {'cont':[0,-3,1],\
+    def fitting_collapse_OIII(self,  plot, outflow='both',template=0, Hbeta_dual=0, priors= {'cont':[0,-3,1],\
                                                                     'cont_grad':[0,-0.01,0.01], \
                                                                     'OIIIn_peak':[0,-3,1],\
                                                                     'OIIIw_peak':[0,-3,1],\
@@ -1936,6 +1936,18 @@ class Cube:
             self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.dBIC = 3
         
+        elif outflow=='QSO':
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO',template=template, priors=priors)
+            prop_out = prop_calc(flat_samples_out)
+            
+            self.D1_fit_results = prop_out
+            self.D1_fit_chain = flat_samples_out
+            self.D1_fit_model = fitted_model_out
+            self.z = prop_out['popt'][0]
+            self.SNR =  10
+            self.SNR_hb = 10
+            self.dBIC = 3
+        
         labels= list(self.D1_fit_results.keys())
         print(labels)
         fig = corner.corner(
@@ -1945,6 +1957,8 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
         
+        if outflow=='QSO':
+            fig.savefig('/Users/jansen/QSO_corner_test.pdf')
         print(self.SNR)
         print(self.SNR_hb)
         
@@ -1953,8 +1967,10 @@ class Cube:
         ax1.yaxis.tick_left()
         ax2.yaxis.tick_left()
         
-        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2)
-            
+        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2, template=template)
+        if outflow=='QSO':
+            fig.savefig('/Users/jansen/QSO_corner_test.pdf')
+            f.savefig('/Users/jansen/QSO_OIII_test.pdf')
         self.fit_plot = [f,ax1,ax2]  
             
     

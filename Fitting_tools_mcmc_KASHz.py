@@ -313,9 +313,13 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
     if abs(znew-z)<zcont:
         z= znew
     peak = np.ma.max(flux_zoom)
-
+    
+    cont_level = np.median(flux[fit_loc])
+    if cont_level<0.001:
+        cont_level = 0.002
+        
     if BLR==1:
-        pos = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['BLR_offset'][0],peak/6, peak/6])+ 1e-2 * np.random.randn(32, 11)
+        pos = np.array([z,cont_level,0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['BLR_offset'][0],peak/6, peak/6])+ 1e-2 * np.random.randn(32, 11)
         nwalkers, ndim = pos.shape
 
         sampler = emcee.EnsembleSampler(
@@ -339,7 +343,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
 
     if BLR==0:
 
-        pos = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4,priors['Nar_fwhm'][0],peak/6, peak/6 ])+ 1e-2 * np.random.randn(32, 8)
+        pos = np.array([z,cont_level,0.01, peak/2, peak/4,priors['Nar_fwhm'][0],peak/6, peak/6 ])+ 1e-2 * np.random.randn(32, 8)
         nwalkers, ndim = pos.shape
 
         sampler = emcee.EnsembleSampler(
@@ -358,7 +362,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
             res[labels[i]] = flat_samples[:,i]
 
     if BLR==-1:
-        pos = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, priors['outflow_fwhm'][0],priors['outflow_vel'][0] ])+ 1e-2 * np.random.randn(32, 12)
+        pos = np.array([z,cont_level,0.01, peak/2, peak/4, priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, priors['outflow_fwhm'][0],priors['outflow_vel'][0] ])+ 1e-2 * np.random.randn(32, 12)
         nwalkers, ndim = pos.shape
 
         sampler = emcee.EnsembleSampler(
