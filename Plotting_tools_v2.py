@@ -191,16 +191,29 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         ax.plot(wv_rest[fit_loc] , Hbeta_NLR+Hbeta_NLR2, color= 'orange', linestyle ='dotted')
     
     if 'Hb_BLR_vel' in keys:
-        Hbeta= 4861.*(1+z)/1e4
-        Hbeta = Hbeta+ sol['Hb_BLR_vel'][0]/3e5*Hbeta
-        
-        Hbeta_BLR = gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm1'][0]/3e5/2.35*Hbeta)
-        Hbeta_BLR2= gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm2'][0]/3e5/2.35*Hbeta)
-        
-        
-        ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
-        #ax.plot(wv_rest[fit_loc] , Hbeta_BLR2, color= 'orange', linestyle ='dashed')
-        ax.plot(wv_rest[fit_loc] , Hbeta_BLR+Hbeta_BLR2, color= 'orange', linestyle ='dashed')
+        if 'Hb_BLR_alp1' in keys:
+            from QSO_models import BKPLG
+            from astropy.modeling.powerlaws import BrokenPowerLaw1D
+            from astropy.convolution import Gaussian1DKernel
+            from astropy.convolution import convolve
+
+            Hbeta= 4861.*(1+z)/1e4
+            Hb_BLR_vel_wv = sol['Hb_BLR_vel'][0]/3e5*Hbeta
+            
+            Hbeta_BLR_wv = Hbeta+Hb_BLR_vel_wv 
+            Hbeta_BLR = BKPLG(wave[fit_loc], sol['Hb_BLR_peak'][0], Hbeta_BLR_wv, sol['Hb_BLR_sig'][0], sol['Hb_BLR_alp1'][0], sol['Hb_BLR_alp2'][0])
+            ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
+        else:
+            Hbeta= 4861.*(1+z)/1e4
+            Hbeta = Hbeta+ sol['Hb_BLR_vel'][0]/3e5*Hbeta
+            
+            Hbeta_BLR = gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm1'][0]/3e5/2.35*Hbeta)
+            Hbeta_BLR2= gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm2'][0]/3e5/2.35*Hbeta)
+            
+            
+            ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
+            #ax.plot(wv_rest[fit_loc] , Hbeta_BLR2, color= 'orange', linestyle ='dashed')
+            ax.plot(wv_rest[fit_loc] , Hbeta_BLR+Hbeta_BLR2, color= 'orange', linestyle ='dashed')
        
     if residual !='none':
         resid_OIII = flux[fit_loc_sc]-y_tot_rs

@@ -57,185 +57,9 @@ from Halpha_models import *
 from OIII_models import *
 from OIII_Fe_models import *
 from Halpha_OIII_models import *
+from QSO_models import *
 
 
-# =============================================================================
-# High lum QSO model
-# =============================================================================
-def OIII_QSO(x, z, cont,cont_grad,\
-             OIIIn_peak, OIIIw_peak, OIII_fwhm,\
-             OIII_out, out_vel,\
-             Hb_BLR1_peak, Hb_BLR2_peak, Hb_BLR_fwhm1, Hb_BLR_fwhm2, Hb_BLR_vel,\
-             Hb_nar_peak, Hb_out_peak):
-    
-    ############################################
-    # OIII
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = 4959.*(1+z)/1e4
-    Hbeta = 4861.*(1+z)/1e4 
-    
-    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
-    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
-    
-    Nar_fwhm_hb = OIII_fwhm/3e5*Hbeta/2.35482
-    Out_fwhm_hb = OIII_out/3e5*Hbeta/2.35482
-    
-    out_vel_wv = out_vel/3e5*OIIIr
-    
-    
-    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
-    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
-    
-    ############################################
-    # Hbeta BLR
-    Hb_BLR_vel_wv = Hb_BLR_vel/3e5*Hbeta
-    Hb_BLR1_fwhm_wv = Hb_BLR_fwhm1/3e5*Hbeta/2.35482
-    Hb_BLR2_fwhm_wv = Hb_BLR_fwhm2/3e5*Hbeta/2.35482
-    
-    
-    Hbeta_BLR_wv = Hbeta+Hb_BLR_vel_wv
-    Hbeta_BLR = gauss(x, Hb_BLR1_peak, Hbeta_BLR_wv, Hb_BLR1_fwhm_wv) +\
-                gauss(x, Hb_BLR2_peak, Hbeta_BLR_wv, Hb_BLR2_fwhm_wv)
-    
-    ############################################
-    # Hbeta NLR
-    out_vel_wv_hb = out_vel/3e5*Hbeta
-    
-    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm)  + \
-                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm) 
-     
-    ############################################
-    # Continuum
-    contm = PowerLaw1D.evaluate(x, cont, OIIIr, alpha=cont_grad)
-    
-    return contm+ OIII_nar + OIII_out + Hbeta_BLR + Hbeta_NLR
-
-
-def log_likelihood_OIII_QSO(theta, x, y, yerr):
-    
-    model = OIII_QSO(x,*theta)
-    sigma2 = yerr*yerr
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-
-
-def log_prior_OIII_QSO(theta,priors):   
-    z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
-        Hb_BLR1_peak, Hb_BLR2_peak, Hb_BLR_fwhm1, Hb_BLR_fwhm2, Hb_BLR_vel,\
-            Hb_nar_peak, Hb_out_peak, = theta
-    
-    if Hb_out_peak>Hb_nar_peak:
-        return -np.inf
-    
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['OIIIw_peak'][1] < np.log10(OIIIw_peak) < priors['OIIIw_peak'][2] and priors['OIII_out'][1] < OIII_out <priors['OIII_out'][2]  and priors['out_vel'][1]<out_vel< priors['out_vel'][2] \
-                and priors['Hb_BLR1_peak'][1] < np.log10(Hb_BLR1_peak)< priors['Hb_BLR1_peak'][2] and priors['Hb_BLR2_peak'][1] < np.log10(Hb_BLR2_peak)< priors['Hb_BLR2_peak'][2]  \
-                    and priors['Hb_BLR1_fwhm'][1] < Hb_BLR_fwhm1< priors['Hb_BLR1_fwhm'][2] and priors['Hb_BLR2_fwhm'][1] < Hb_BLR_fwhm2< priors['Hb_BLR2_fwhm'][2]\
-                        and priors['Hb_BLR_vel'][1]<Hb_BLR_vel<priors['Hb_BLR_vel'][2] \
-                            and  priors['Hb_nar_peak'][1] < np.log10(Hb_nar_peak)<priors['Hb_nar_peak'][2] and  priors['Hb_out_peak'][1] < np.log10(Hb_out_peak)<priors['Hb_out_peak'][2]:
-                                return 0.0 
-
-    return -np.inf
-
-
-def log_probability_OIII_QSO(theta, x, y, yerr, priors):
-    lp = log_prior_OIII_QSO(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_OIII_QSO(theta, x, y, yerr)  
-
-
-# =============================================================================
-# High lum QSO Fe model
-# =============================================================================
-def OIII_Fe_QSO(x, z, cont,cont_grad,\
-             OIIIn_peak, OIIIw_peak, OIII_fwhm,\
-             OIII_out, out_vel,\
-             Hb_BLR1_peak, Hb_BLR2_peak, Hb_BLR_fwhm1, Hb_BLR_fwhm2, Hb_BLR_vel,\
-             Hb_nar_peak, Hb_out_peak, FeII_peak, FeII_fwhm, template):
-    
-    ############################################
-    # OIII
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = 4959.*(1+z)/1e4
-    Hbeta = 4861.*(1+z)/1e4 
-    
-    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
-    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
-    
-    Nar_fwhm_hb = OIII_fwhm/3e5*Hbeta/2.35482
-    Out_fwhm_hb = OIII_out/3e5*Hbeta/2.35482
-    
-    out_vel_wv = out_vel/3e5*OIIIr
-    
-    
-    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
-    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
-    
-    ############################################
-    # Hbeta BLR
-    Hb_BLR_vel_wv = Hb_BLR_vel/3e5*Hbeta
-    Hb_BLR1_fwhm_wv = Hb_BLR_fwhm1/3e5*Hbeta/2.35482
-    Hb_BLR2_fwhm_wv = Hb_BLR_fwhm2/3e5*Hbeta/2.35482
-    
-    
-    Hbeta_BLR_wv = Hbeta+Hb_BLR_vel_wv
-    Hbeta_BLR = gauss(x, Hb_BLR1_peak, Hbeta_BLR_wv, Hb_BLR1_fwhm_wv) +\
-                gauss(x, Hb_BLR2_peak, Hbeta_BLR_wv, Hb_BLR2_fwhm_wv)
-    
-    ############################################
-    # Hbeta NLR
-    out_vel_wv_hb = out_vel/3e5*Hbeta
-    
-    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm)  + \
-                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm) 
-    
-    ###################################
-    # FeII 
-    if template=='BG92':
-        FeII_fce = FeII_BG92
-    if template=='Tsuzuki':
-        FeII_fce = FeII_Tsuzuki
-    if template=='Veron':
-        FeII_fce = FeII_Veron
-    FeII = FeII_peak*FeII_fce(x, z, FeII_fwhm)
-    ############################################
-    # Continuum
-    contm = PowerLaw1D.evaluate(x, cont, OIIIr, alpha=cont_grad)
-    
-    return contm+ OIII_nar + OIII_out + Hbeta_BLR + Hbeta_NLR+ FeII
-
-def log_likelihood_OIII_Fe_QSO(theta, x, y, yerr, template):
-    
-    model = OIII_Fe_QSO(x,*theta, template)
-    sigma2 = yerr*yerr
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-
-def log_prior_OIII_Fe_QSO(theta,priors):   
-    z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
-        Hb_BLR1_peak, Hb_BLR2_peak, Hb_BLR_fwhm1, Hb_BLR_fwhm2, Hb_BLR_vel,\
-            Hb_nar_peak, Hb_out_peak,FeII_peak, FeII_fwhm, = theta
-    
-    if Hb_out_peak>Hb_nar_peak:
-        return -np.inf
-    
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['OIIIw_peak'][1] < np.log10(OIIIw_peak) < priors['OIIIw_peak'][2] and priors['OIII_out'][1] < OIII_out <priors['OIII_out'][2]  and priors['out_vel'][1]<out_vel< priors['out_vel'][2] \
-                and priors['Hb_BLR1_peak'][1] < np.log10(Hb_BLR1_peak)< priors['Hb_BLR1_peak'][2] and priors['Hb_BLR2_peak'][1] < np.log10(Hb_BLR2_peak)< priors['Hb_BLR2_peak'][2]  \
-                    and priors['Hb_BLR1_fwhm'][1] < Hb_BLR_fwhm1< priors['Hb_BLR1_fwhm'][2] and priors['Hb_BLR2_fwhm'][1] < Hb_BLR_fwhm2< priors['Hb_BLR2_fwhm'][2]\
-                        and priors['Hb_BLR_vel'][1]<Hb_BLR_vel<priors['Hb_BLR_vel'][2] \
-                            and  priors['Hb_nar_peak'][1] < np.log10(Hb_nar_peak)<priors['Hb_nar_peak'][2] and  priors['Hb_out_peak'][1] < np.log10(Hb_out_peak)<priors['Hb_out_peak'][2]\
-                                and priors['Fe_fwhm'][1]<FeII_fwhm<priors['Fe_fwhm'][2] and priors['Fe_peak'][1] < np.log10(FeII_peak)<priors['Fe_peak'][2]:
-                                    return 0.0 
-
-    return -np.inf
-
-def log_probability_OIII_Fe_QSO(theta, x, y, yerr, priors, template):
-    lp = log_prior_OIII_Fe_QSO(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_OIII_Fe_QSO(theta, x, y, yerr, template)  
 
 
 # =============================================================================
@@ -655,25 +479,38 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
             res = {'name': 'OIII_QSO_fe'}
             for i in range(len(labels)):
                 res[labels[i]] = flat_samples[:,i]
+                
+    if outflow=='QSO_bkp':
+        if template==0:
+            pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6,\
+                    priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0],\
+                    peak_beta, priors['Hb_BLR_vel'][0], priors['Hb_BLR_alp1'][0], priors['Hb_BLR_alp2'][0],priors['Hb_BLR_sig'][0], \
+                    peak_beta/4, peak_beta/4])
+               
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(z,0.001, nwalkers)
+           
+            nwalkers, ndim = pos.shape
+            sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_OIII_QSO_BKPL, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+            
+            sampler.run_mcmc(pos, N, progress=progress);
+            
+            flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+        
+                
+            labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm',\
+                    'out_vel', 'Hb_BLR_peak', 'Hb_BLR_vel', 'Hb_BLR_alp1', 'Hb_BLR_alp2','Hb_BLR_sig' ,\
+                    'Hb_nar_peak', 'Hb_out_peak')
+            
+            fitted_model = OIII_QSO_BKPL
+            
+            res = {'name': 'OIII_QSO_BKP'}
+            for i in range(len(labels)):
+                res[labels[i]] = flat_samples[:,i]
         
         
     return res, fitted_model
-
-
-#
-
-def QSO_Fe_fitting_loop(data):
-    from IFU_tools_class import BIC_calc, prop_calc
-    wave, fluxs, error, z, template = data
-    
-    res, model = fitting_OIII(wave, fluxs, error, z, template=template, outflow='QSO', progress=True, priors=priors)#, progress=False)
-    props = prop_calc(res)
-    
-    chi, BIC = BIC_calc(wave, fluxs, error, model, props, 'OIII', template)
-    res_t = res, model, props, BIC
-    return res_t 
-
-
 
 
 def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= {'cont':[0,-3,1],\

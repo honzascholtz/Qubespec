@@ -174,32 +174,31 @@ def log_prior_Halpha(theta, priors):
     return -np.inf
 
 '''
-def log_prior_Halpha(theta, zguess, zcont):
+def log_prior_Halpha(theta, priors):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
+    zcont=0.01
     
+    logpriors = np.zeros_like(theta)
     
-    priors = np.zeros_like(theta)
+    logpriors[0] = norm.logpdf(z,priors['z'][0],zcont)
+    logpriors[1] = uniform.logpdf(np.log10(cont), -3,5)
+    logpriors[2] = uniform.logpdf(np.log10(Hal_peak), -3,5)
+    logpriors[3] = uniform.logpdf(np.log10(NII_peak), -3,5 )
+    logpriors[4] = uniform.logpdf(Nar_fwhm, 100, 900 )
+    logpriors[5] = norm.logpdf(cont_grad, 0, 0.1)
+    logpriors[6] = uniform.logpdf(np.log10(SII_bpk),-3,53)
+    logpriors[7] = uniform.logpdf(np.log10(SII_rpk), -3,5)
     
-    priors[0] = uniform.logpdf(z,zguess-zcont,zguess+zcont)
-    priors[1] = uniform.logpdf(np.log10(cont), -4,3)
-    priors[2] = uniform.logpdf(np.log10(Hal_peak),  -4, 3 )
-    priors[3] = uniform.logpdf(np.log10(NII_peak),  -4, 3 )
-    priors[4] = uniform.logpdf(Nar_fwhm, 100,1000 )
-    priors[5] = norm.logpdf(cont_grad, 0, 0.1)
-    priors[6] = uniform.logpdf(np.log10(SII_bpk), -4, 3)
-    priors[7] = uniform.logpdf(np.log10(SII_rpk), -4, 3)
+    logprior = np.einsum('i',logpriors)
     
-    logprior = np.sum(priors)
-    
-    if logprior==np.nan:
-        return -np.inf
-    else:
-        return logprior
+    return logprior
 '''
 def log_probability_Halpha(theta, x, y, yerr, priors):
     lp = log_prior_Halpha(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
+    #if not np.isfinite(lp):
+    #    return -np.inf
+    #lp[~np.isfinite(lp)] = -np.inf
+    
     return lp + log_likelihood_Halpha(theta, x, y, yerr)
 
 

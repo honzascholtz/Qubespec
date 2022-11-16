@@ -586,6 +586,7 @@ def W80_OIII_calc( function, sol, chains, plot):
             
             v10s[i] = v10
             v90s[i] = v90
+            v50s[i] = v50
             w80s[i] = w80
     
     else:
@@ -1938,6 +1939,18 @@ class Cube:
         
         elif outflow=='QSO':
             flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO',template=template, priors=priors)
+            prop_out = prop_calc(flat_samples_out)
+            
+            self.D1_fit_results = prop_out
+            self.D1_fit_chain = flat_samples_out
+            self.D1_fit_model = fitted_model_out
+            self.z = prop_out['popt'][0]
+            self.SNR =  10
+            self.SNR_hb = 10
+            self.dBIC = 3
+        
+        elif outflow=='QSO_bkp':
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO_bkp',template=template, priors=priors)
             prop_out = prop_calc(flat_samples_out)
             
             self.D1_fit_results = prop_out
@@ -3508,6 +3521,52 @@ class Cube:
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps.fits', overwrite=True)
         
         return f 
+    
+    def Regional_Spec(self, center, rad, err_range=None ):
+        
+        center =  center
+        shapes = self.dim
+        
+        print ('Center of cont', center)
+        print ('Extracting spectrum from diameter', rad*2, 'arcseconds')
+        
+        # Creating a mask for all spaxels. 
+        mask_catch = self.flux.mask.copy()
+        mask_catch[:,:,:] = True
+        header  = self.header
+        #arc = np.round(1./(header['CD2_2']*3600))
+        arc = np.round(1./(header['CDELT2']*3600))
+        print('Pixel scale:', arc)
+        print ('radius ', arc*rad)
+        
+        # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
+        for ix in range(shapes[0]):
+            for iy in range(shapes[1]):
+                dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
+                if dist< arc*rad:
+                    mask_catch[:,ix,iy] = False
+
+        # Loading mask of the sky lines an bad features in the spectrum 
+        mask_sky_1D = self.sky_clipped_1D.copy()
+        
+        if self.instrument=='NIRSPEC_IFU':
+            total_mask = np.logical_or( mask_catch, self.sky_clipped)
+        else:
+            total_mask = np.logical_or( mask_catch, self.flux.mask)
+        # M
+        flux = np.ma.array(data=self.flux.data, mask= total_mask) 
+        
+        D1_spectrum = np.ma.sum(flux, axis=(1,2))
+        D1_spectrum = np.ma.array(data = D1_spectrum.data, mask=mask_sky_1D)
+        
+        if self.instrument=='NIRSPEC_IFU':
+            D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) &(self.obs_wave<err_range[1])],sigma=3)[2]*np.ones(len(D1_spectrum))    
+        else:  
+            D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[2]*np.ones(len(D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+        
+        
+        return D1_spectrum, D1_spectrum_er, mask_catch
+        
         
 '''
 
