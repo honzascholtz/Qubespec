@@ -259,12 +259,6 @@ def OIII_QSO_BKPL(x, z, cont,cont_grad,\
     return contm+ OIII_nar + OIII_out + Hbeta_BLR + Hbeta_NLR
 
 
-def log_likelihood_OIII_QSO_BKPL(theta, x, y, yerr):
-    
-    model = OIII_QSO_BKPL(x,*theta)
-    sigma2 = yerr*yerr
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-
 
 def log_prior_OIII_QSO_BKPL(theta,priors):   
     z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
@@ -286,13 +280,6 @@ def log_prior_OIII_QSO_BKPL(theta,priors):
                                 return 0.0 
 
     return -np.inf
-
-
-def log_probability_OIII_QSO_BKPL(theta, x, y, yerr, priors):
-    lp = log_prior_OIII_QSO_BKPL(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_OIII_QSO_BKPL(theta, x, y, yerr)  
 
 # =============================================================================
 # High lum QSO Fe model
@@ -354,11 +341,6 @@ def OIII_Fe_QSO(x, z, cont,cont_grad,\
     
     return contm+ OIII_nar + OIII_out + Hbeta_BLR + Hbeta_NLR+ FeII
 
-def log_likelihood_OIII_Fe_QSO(theta, x, y, yerr, template):
-    
-    model = OIII_Fe_QSO(x,*theta, template)
-    sigma2 = yerr*yerr
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 def log_prior_OIII_Fe_QSO(theta,priors):   
     z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
@@ -380,8 +362,3 @@ def log_prior_OIII_Fe_QSO(theta,priors):
 
     return -np.inf
 
-def log_probability_OIII_Fe_QSO(theta, x, y, yerr, priors, template):
-    lp = log_prior_OIII_Fe_QSO(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_OIII_Fe_QSO(theta, x, y, yerr, template)  

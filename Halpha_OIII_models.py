@@ -118,15 +118,3 @@ def log_prior_Halpha_OIII(theta, priors):
                                             return 0.0 
     
     return -np.inf
-
-def log_likelihood_Halpha_OIII(theta, x, y, yerr): 
-    model = Halpha_OIII(x,*theta)
-    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-
-
-def log_probability_Halpha_OIII(theta, x, y, yerr,priors):
-    lp = log_prior_Halpha_OIII(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_Halpha_OIII(theta, x, y, yerr)  

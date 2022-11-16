@@ -67,13 +67,6 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR
     SII_bg = gauss(x, SII_bpk, SII_b, Nar_sig)
     
     return contm + Hal_nar + Hal_blr + NII_rg + NII_bg + SII_rg + SII_bg
-    
-
-def log_likelihood_Halpha_BLR(theta, x, y, yerr):
-    
-    model = Halpha_wBLR(x,*theta)
-    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
 def log_prior_Halpha_BLR(theta, priors):
@@ -118,11 +111,6 @@ def log_prior_Halpha_BLR(theta, pr):
     else:
         return logprior
 '''
-def log_probability_Halpha_BLR(theta, x, y, yerr, priors):
-    lp = log_prior_Halpha_BLR(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_Halpha_BLR(theta, x, y, yerr)
     
 from scipy.stats import norm, uniform
 
@@ -151,12 +139,6 @@ def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk
     contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
     
     return contm+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg
-
-def log_likelihood_Halpha(theta, x, y, yerr):
-    
-    model = Halpha(x,*theta)
-    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
 
 def log_prior_Halpha(theta, priors):
@@ -193,13 +175,6 @@ def log_prior_Halpha(theta, priors):
     
     return logprior
 '''
-def log_probability_Halpha(theta, x, y, yerr, priors):
-    lp = log_prior_Halpha(theta,priors)
-    #if not np.isfinite(lp):
-    #    return -np.inf
-    #lp[~np.isfinite(lp)] = -np.inf
-    
-    return lp + log_likelihood_Halpha(theta, x, y, yerr)
 
 
 # =============================================================================
@@ -241,12 +216,6 @@ def Halpha_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk,
     contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
     return contm+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg + outflow
 
-def log_likelihood_Halpha_outflow(theta, x, y, yerr):
-    
-    model = Halpha_outflow(x,*theta)
-    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-
 
 def log_prior_Halpha_outflow(theta, priors):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel = theta
@@ -265,8 +234,3 @@ def log_prior_Halpha_outflow(theta, priors):
     
     return -np.inf
 
-def log_probability_Halpha_outflow(theta, x, y, yerr, priors):
-    lp = log_prior_Halpha_outflow(theta,priors)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_Halpha_outflow(theta, x, y, yerr)

@@ -55,7 +55,6 @@ def gauss(x, k, mu,sig):
 
 from Halpha_models import *
 from OIII_models import *
-from OIII_Fe_models import *
 from Halpha_OIII_models import *
 from QSO_models import *
 
@@ -106,7 +105,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha_BLR, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, Halpha_wBLR, log_prior_Halpha_BLR))
     
         sampler.run_mcmc(pos, N, progress=progress);
     
@@ -155,7 +154,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
         nwalkers, ndim = pos.shape
     
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, Halpha_outflow, log_prior_Halpha_outflow))
     
         sampler.run_mcmc(pos, N, progress=progress);
     
@@ -220,7 +219,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         peak_beta = peak/3
     
     
-    nwalkers=32
+    nwalkers=64
     if outflow==1: 
         if template==0:
             if Hbeta_dual == 0:
@@ -232,7 +231,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
-                        nwalkers, ndim, log_probability_OIII_outflow, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+                        nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII_outflow, log_prior_OIII_outflow))
                 
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -255,7 +254,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_outflow_narHb, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII_outflow_narHb, log_prior_OIII_outflow_narHb))
                     
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -279,7 +278,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_outflow_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, template))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors,OIII_outflow_Fe, log_prior_OIII_outflow_Fe, template))
                     
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -303,7 +302,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_outflow_Fe_narHb, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, template))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII_outflow_Fe_narHb, log_prior_OIII_outflow_Fe_narHb, template))
                     
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -328,7 +327,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 nwalkers, ndim = pos.shape
                 
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII, log_prior_OIII))
             
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -355,7 +354,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 nwalkers, ndim = pos.shape
                 
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_dual_hbeta, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII_dual_hbeta, log_prior_OIII_dual_hbeta))
             
                 sampler.run_mcmc(pos, N, progress=progress);
                 flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
@@ -377,7 +376,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 nwalkers, ndim = pos.shape
                 
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, template))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors,OIII_Fe, log_prior_OIII_Fe, template))
             
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -404,7 +403,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                 nwalkers, ndim = pos.shape
                 
                 sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_dual_hbeta_Fe, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, template))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors,OIII_dual_hbeta_Fe, log_prior_OIII_dual_hbeta_Fe,  template))
             
                 sampler.run_mcmc(pos, N, progress=progress);
                 
@@ -463,7 +462,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
            
             nwalkers, ndim = pos.shape
             sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_Fe_QSO, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors,template))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors,OIII_Fe_QSO,log_prior_OIII_Fe_QSO, template))
             
             sampler.run_mcmc(pos, N, progress=progress);
             
@@ -492,7 +491,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
            
             nwalkers, ndim = pos.shape
             sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_QSO_BKPL, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII_QSO_BKPL,log_prior_OIII_QSO_BKPL))
             
             sampler.run_mcmc(pos, N, progress=progress);
             
@@ -512,6 +511,24 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         
     return res, fitted_model
 
+
+def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, template=None):
+    lp = logpriorfce(theta,priors)
+    
+    if not np.isfinite(lp):
+        return -np.inf
+    
+    if template:
+        evalm = model(x,*theta, template)
+    else:
+        evalm = model(x,*theta)
+       
+    sigma2 = yerr*yerr
+    log_likelihood = -0.5 * np.sum((y - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+    
+    return lp + log_likelihood
+    
+    
 
 def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= {'cont':[0,-3,1],\
                                                                 'cont_grad':[0,-10.,10], \
@@ -557,7 +574,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= 
 # =============================================================================
 #   Setting up fitting  
 # =============================================================================
-    nwalkers=32
+    nwalkers=64
     pos_l = np.array([z,np.median(flux[fit_loc]), -1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.2, peak_hal*0.2, peak_OIII*0.8,  priors['OIIIn_fwhm'][0], peak_hal*0.2, priors['OIII_vel'][0], peak_hal*0.3])
     
     pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
@@ -566,7 +583,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= 
     nwalkers, ndim = pos.shape
     
     sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha_OIII, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, Halpha_OIII, log_prior_Halpha_OIII))
     
     sampler.run_mcmc(pos, N, progress=progress);
     

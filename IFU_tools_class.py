@@ -1061,7 +1061,7 @@ class Cube:
         
         
     
-    def choose_pixels(self, plot, rad= 0.6, flg=1):
+    def choose_pixels(self, plot, rad= 0.6, flg=1, mask_manual=[0]):
         ''' Choosing the pixels that will collapse into the 1D spectrum. Also this mask is used later
         '''
         center =  self.center_data[1:3].copy()
@@ -1087,6 +1087,10 @@ class Cube:
                 dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
                 if dist< arc*rad:
                     mask_catch[:,ix,iy] = False
+                    
+        if len(mask_manual) !=1:
+            for i in range(shapes[2]):
+                mask_catch[i,:,:] = mask_manual.copy()
         
         # 587 have special extended stuff that I dont want to mask
         if flg=='K587':
