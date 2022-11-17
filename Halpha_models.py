@@ -31,6 +31,7 @@ Conversion2Chabrier=1.7 # Also Madau
 Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$' 
 
+from scipy.stats import norm, uniform
 
 def gauss(x, k, mu,sig):
 
@@ -112,7 +113,6 @@ def log_prior_Halpha_BLR(theta, pr):
         return logprior
 '''
     
-from scipy.stats import norm, uniform
 
 # =============================================================================
 # Function to fit just narrow Halpha
@@ -154,7 +154,6 @@ def log_prior_Halpha(theta, priors):
                     return 0.0 
     
     return -np.inf
-
 '''
 def log_prior_Halpha(theta, priors):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
@@ -175,8 +174,6 @@ def log_prior_Halpha(theta, priors):
     
     return logprior
 '''
-
-
 # =============================================================================
 # Function to fit  Halpha with outflow
 # =============================================================================

@@ -57,6 +57,7 @@ def gauss(x, k, mu,sig):
     y= k* e**expo
     
     return y
+from scipy.stats import norm, uniform
 
 PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 
@@ -157,8 +158,8 @@ def OIII_QSO(x, z, cont,cont_grad,\
     # Hbeta NLR
     out_vel_wv_hb = out_vel/3e5*Hbeta
     
-    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm)  + \
-                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm) 
+    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm_hb)  + \
+                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm_hb) 
      
     ############################################
     # Continuum
@@ -249,8 +250,8 @@ def OIII_QSO_BKPL(x, z, cont,cont_grad,\
     # Hbeta NLR
     out_vel_wv_hb = out_vel/3e5*Hbeta
     
-    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm)  + \
-                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm) 
+    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm_hb)  + \
+                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm_hb) 
      
     ############################################
     # Continuum
@@ -280,6 +281,46 @@ def log_prior_OIII_QSO_BKPL(theta,priors):
                                 return 0.0 
 
     return -np.inf
+
+def log_prior_OIII_QSO_BKPL(theta, priors):
+    z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
+        Hb_BLR_peak, Hb_BLR_vel, Hb_BLR_alp1, Hb_BLR_alp2, Hb_BLR_sig,\
+            Hb_nar_peak, Hb_out_peak, = theta.copy()
+    
+    if OIIIn_peak<OIIIw_peak:
+        return -np.inf
+    if Hb_out_peak>Hb_nar_peak:
+        return -np.inf
+    
+    logprior = sum([ f.logpdf(t) for f,t in zip(priors, theta)])
+    
+    '''
+    zcont=0.01
+    logpriors = np.zeros_like(theta)
+    
+    logpriors[0] = norm.logpdf(z,priors['z'][0],zcont)
+    logpriors[1] = uniform.logpdf(np.log10(cont), priors['cont'][1],priors['cont'][2])  
+    logpriors[2] = norm.logpdf(cont_grad,priors['cont_grad'][1], priors['cont_grad'][2])
+    
+    logpriors[3] = uniform.logpdf(np.log10(OIIIn_peak), priors['OIIIn_peak'][1],priors['OIIIn_peak'][2])
+    logpriors[4] = uniform.logpdf(np.log10(OIIIw_peak), priors['OIIIw_peak'][1],priors['OIIIw_peak'][2])
+      
+    logpriors[5] = uniform.logpdf(OIII_fwhm, priors['OIII_fwhm'][1],priors['OIII_fwhm'][2])
+    logpriors[6] = uniform.logpdf(OIII_out, priors['OIII_out'][1],priors['OIII_out'][2])
+    logpriors[7] = norm.logpdf(out_vel, priors['out_vel'][1],priors['out_vel'][2])
+    
+    logpriors[8] = uniform.logpdf(np.log10(Hb_BLR_peak), priors['Hb_BLR_peak'][1],priors['Hb_BLR_peak'][2])
+    logpriors[9] = uniform.logpdf(np.log10(Hb_nar_peak), priors['Hb_nar_peak'][1],priors['Hb_nar_peak'][2])
+    logpriors[10] = uniform.logpdf(np.log10(Hb_out_peak), priors['Hb_out_peak'][1],priors['Hb_out_peak'][2])
+    
+    logpriors[11] = norm.logpdf(Hb_BLR_vel,priors['Hb_BLR_vel'][1], priors['Hb_BLR_vel'][2])
+    logpriors[12] = uniform.logpdf(Hb_BLR_alp1, priors['Hb_BLR_alp1'][1],priors['Hb_BLR_alp1'][2])
+    logpriors[13] = uniform.logpdf(Hb_BLR_alp2, priors['Hb_BLR_alp2'][1],priors['Hb_BLR_alp2'][2])
+    logpriors[14] = uniform.logpdf(Hb_BLR_sig, priors['Hb_BLR_sig'][1],priors['Hb_BLR_sig'][2])
+    
+    logprior = np.sum(logpriors)
+    '''
+    return logprior
 
 # =============================================================================
 # High lum QSO Fe model
@@ -323,8 +364,8 @@ def OIII_Fe_QSO(x, z, cont,cont_grad,\
     # Hbeta NLR
     out_vel_wv_hb = out_vel/3e5*Hbeta
     
-    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm)  + \
-                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm) 
+    Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm_hb)  + \
+                gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm_hb) 
     
     ###################################
     # FeII 
@@ -362,3 +403,57 @@ def log_prior_OIII_Fe_QSO(theta,priors):
 
     return -np.inf
 
+    
+# =============================================================================
+# Halpha QSO model
+# =============================================================================
+def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel,Ha_BLR_peak, Ha_BLR_vel, Ha_BLR_alp1, Ha_BLR_alp2, Ha_BLR_sig):
+            
+    
+    Hal_wv = 6562.8*(1+z)/1e4     
+    NII_r = 6583.*(1+z)/1e4
+    NII_b = 6548.*(1+z)/1e4
+    
+    Hal_wv_vel = 6562.8*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_r_vel = 6583.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_b_vel = 6548.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    
+    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
+    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
+    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
+    
+    out_vel_hal = outflow_fwhm/3e5*Hal_wv/2.35482
+    out_vel_niir = outflow_fwhm/3e5*NII_r/2.35482
+    out_vel_niib = outflow_fwhm/3e5*NII_b/2.35482
+    
+    Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
+    NII_nar_r = gauss(x, NII_peak, NII_r, Nar_vel_niir)
+    NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_vel_niib)
+    
+    Hal_out = gauss(x, Hal_out_peak, Hal_wv_vel, out_vel_hal)
+    NII_out_r = gauss(x, NII_out_peak, NII_r_vel, out_vel_niir)
+    NII_out_b = gauss(x, NII_out_peak/3, NII_b_vel, out_vel_niib)
+    
+    outflow = Hal_out+ NII_out_r + NII_out_b
+    
+    
+    ############################################
+    # Hbeta BLR
+    Ha_BLR_vel_wv = Ha_BLR_vel/3e5*Hal_wv
+    
+    Ha_BLR_wv = Hal_wv+Ha_BLR_vel_wv 
+    Ha_BLR = BKPLG(x, Ha_BLR_peak, Ha_BLR_wv, Ha_BLR_sig, Ha_BLR_alp1, Ha_BLR_alp2)
+    
+    
+     
+    ############################################
+    # Continuum
+    contm = PowerLaw1D.evaluate(x, cont, Hal_wv, alpha=cont_grad)
+    
+    return contm+Hal_nar+NII_nar_r+NII_nar_b + outflow+ Ha_BLR
+
+
+def log_prior_Halpha_QSO_BKPL(theta, priors):
+    
+    
+    return sum([ f.logpdf(t) for f,t in zip(priors, theta)])

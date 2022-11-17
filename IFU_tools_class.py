@@ -866,7 +866,7 @@ class Cube:
         OIIIa=  501./1e3*(1+z)
         OIIIb=  496./1e3*(1+z)
         Hbeta=  485./1e3*(1+z)
-        width = 0.006
+        width = 300/3e5*OIIIa
     
         mask =  self.flux.mask.copy()
         wave= self.obs_wave
@@ -1129,7 +1129,7 @@ class Cube:
     
             
     
-    def flat_field_spec(self, center, rad=0.6):
+    def flat_field_spec(self, center, rad=0.6, plot=0):
         # Creating a mask for all spaxels.
         shapes = self.dim
         mask_catch = self.flux.mask.copy()
@@ -1159,7 +1159,7 @@ class Cube:
         for ix in range(shapes[0]):
             for iy in range(shapes[1]):
                 self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky
-        plot=1
+        
         if plot==1:
             plt.figure()
             plt.title('Sky spectrum')
@@ -1519,7 +1519,7 @@ class Cube:
             
             plt.tight_layout()
     
-    def fitting_collapse_Halpha(self, plot, AGN = 'BLR', progress=True,er_scale=1, priors= {'cont':[0,-3,1],\
+    def fitting_collapse_Halpha(self, plot, AGN = 'BLR', progress=True,er_scale=1, N=6000, priors= {'cont':[0,-3,1],\
                                                                                        'cont_grad':[0,-0.01,0.01], \
                                                                                        'Hal_peak':[0,-3,1],\
                                                                                        'BLR_peak':[0,-3,1],\
@@ -1545,7 +1545,7 @@ class Cube:
         
         
         if AGN=='BLR':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0, progress=progress)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=0, progress=progress, priors=priors)
     
             prop_sig = prop_calc(flat_samples_sig)
             
@@ -1554,7 +1554,7 @@ class Cube:
             chi2S = sum(((flux.data-y_model_sig)/error)**2)
             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z, BLR=1, progress=progress)
+            flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=1, progress=progress, priors=priors)
             prop_blr = prop_calc(flat_samples_blr)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
@@ -1618,7 +1618,7 @@ class Cube:
                  labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
         
         if AGN=='Outflow':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0, progress=progress)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=0, progress=progress,priors=priors)
     
             prop_sig = prop_calc(flat_samples_sig)
             
@@ -1627,21 +1627,21 @@ class Cube:
             chi2S = sum(((flux.data-y_model_sig)/error)**2)
             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z, BLR=-1, progress=progress)
-            prop_blr = prop_calc(flat_samples_blr)
+            flat_samples_out, fitted_model_out = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=-1, progress=progress, priors=priors)
+            prop_out = prop_calc(flat_samples_out)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
-            chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_blr, prop_blr, 'Halpha')
+            chi2M, BICM = BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'Halpha')
             
             
             if BICM-BICS <-2:
                 print('Delta BIC' , BICM-BICS, ' ')
                 print('BICM', BICM)
-                self.D1_fit_results = prop_blr
-                self.D1_fit_chain = flat_samples_blr
-                self.D1_fit_model = fitted_model_blr
+                self.D1_fit_results = prop_out
+                self.D1_fit_chain = flat_samples_out
+                self.D1_fit_model = fitted_model_out 
                 
-                self.z = prop_blr['popt'][0]
+                self.z = prop_out['popt'][0]
                 
                 self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
                 self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
@@ -1662,7 +1662,7 @@ class Cube:
                 labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
         
         if AGN=='Single_only':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0, progress=progress)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0,N=N, progress=progress, priors=priors)
     
             prop_sig = prop_calc(flat_samples_sig)
             
@@ -1685,9 +1685,27 @@ class Cube:
             self.dBIC = 3
             labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
         
+        if AGN=='Outflow_only':
+        
+            flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=-1, progress=progress, priors=priors)
+            prop = prop_calc(flat_samples_blr)
+            
+           
+            self.D1_fit_results = prop
+            self.D1_fit_chain = flat_samples
+            self.D1_fit_model = fitted_model
+            
+            self.z = prop_blr['popt'][0]
+                
+            self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
+            self.dBIC = 10
+            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
+                
+            
         if AGN=='BLR_only':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=1, progress=progress)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=1,N=N, progress=progress, priors=priors)
     
             prop_sig = prop_calc(flat_samples_sig)
             
@@ -1709,6 +1727,31 @@ class Cube:
                 
             self.dBIC = 3
             labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
+            
+        if AGN=='QSO_BKPL':
+            
+            flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, BLR='QSO_BKPL',N=N, progress=progress, priors=priors)
+    
+            prop = prop_calc(flat_samples_sig)
+            
+            y_model = fitted_model(wave, *prop_sig['popt'])
+            
+            
+            chi2S, BICS = BIC_calc(wave, flux, error, fitted_model, prop, 'Halpha')
+        
+            self.D1_fit_results = prop
+            self.D1_fit_chain = flat_samples
+            self.D1_fit_model = fitted_model
+            self.z = prop_sig['popt'][0]
+                
+            self.SNR =  10
+            self.SNR_sii =  10
+                
+            self.dBIC = 3
+            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
+                    'Hal_out_peak', 'NII_out_peak', 
+                    'outflow_fwhm', 'outflow_vel', \
+                    'Ha_BLR_peak', 'Ha_BLR_vel', 'Ha_BLR_alp1', 'Ha_BLR_alp2', 'Ha_BLR_sig')
             
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
@@ -1736,7 +1779,7 @@ class Cube:
             emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
             
             
-    def fitting_collapse_Halpha_OIII(self, plot, progress=True,priors= {'cont':[0,-3,1],\
+    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,priors= {'cont':[0,-3,1],\
                                                                     'cont_grad':[0,-0.01,0.01], \
                                                                     'OIIIn_peak':[0,-3,1],\
                                                                     'OIIIn_fwhm':[300,100,900],\
@@ -1759,7 +1802,7 @@ class Cube:
         flux = np.ma.array(data=fl, mask = msk)
         
         
-        flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z, progress=progress)
+        flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress)
     
         prop_sig = prop_calc(flat_samples_sig)
             
@@ -1816,7 +1859,7 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, outflow='both',template=0, Hbeta_dual=0, priors= {'cont':[0,-3,1],\
+    def fitting_collapse_OIII(self,  plot, outflow='both',template=0, Hbeta_dual=0, N=6000,priors= {'cont':[0,-3,1],\
                                                                     'cont_grad':[0,-0.01,0.01], \
                                                                     'OIIIn_peak':[0,-3,1],\
                                                                     'OIIIw_peak':[0,-3,1],\
@@ -1841,14 +1884,14 @@ class Cube:
         priors['z'] = [self.z, self.z-0.05, self.z+0.05]
         
         if outflow=='both':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
             chi2S = sum(((flux.data-y_model_sig)/error)**2)
             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_out = prop_calc(flat_samples_out)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
@@ -1909,7 +1952,7 @@ class Cube:
             
         elif outflow=='single':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
@@ -1929,7 +1972,7 @@ class Cube:
             
         elif outflow=='outflow':
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
             prop_out = prop_calc(flat_samples_out)
             
             
@@ -1942,7 +1985,7 @@ class Cube:
             self.dBIC = 3
         
         elif outflow=='QSO':
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO',template=template, priors=priors)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO',N=N,template=template, priors=priors)
             prop_out = prop_calc(flat_samples_out)
             
             self.D1_fit_results = prop_out
@@ -1954,7 +1997,7 @@ class Cube:
             self.dBIC = 3
         
         elif outflow=='QSO_bkp':
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO_bkp',template=template, priors=priors)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO_bkp',N=N,template=template, priors=priors)
             prop_out = prop_calc(flat_samples_out)
             
             self.D1_fit_results = prop_out
@@ -2395,26 +2438,7 @@ class Cube:
         print(len(Unwrapped_cube))
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "wb") as fp:
             pickle.dump(Unwrapped_cube, fp)      
-        
-    
-    
-    def Spaxel_fitting_OIII_MCMC(self):
-        import pickle
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
-            Unwrapped_cube= pickle.load(fp)
-            
-        print('import of the unwrap cube - done')
-        
-        results = []
-        
-        for i in range(len(Unwrapped_cube)):
-            results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i]))
-        
-        self.spaxel_fit_raw = results
-        
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
-            pickle.dump( results,fp)     
-            
+          
     def Spaxel_fitting_OIII_MCMC_mp(self, priors= {'cont':[0,-3,1],\
                                                   'cont_grad':[0,-0.01,0.01], \
                                                   'OIIIn_peak':[0,-3,1],\
@@ -3572,364 +3596,4 @@ class Cube:
         return D1_spectrum, D1_spectrum_er, mask_catch
         
         
-'''
-
-def W68_mes(out, mode, plot):
-    import scipy.integrate as scpi
-    
-    if mode=='OIII':
-        N= 5000
-        
-        cent = out.params['o3rn_center'].value
-        
-        bound1 =  cent + 4000/3e5*cent
-        bound2 =  cent - 4000/3e5*cent
-              
-        wvs = np.linspace(bound2, bound1, N)
-        
-        try:            
-            y = out.eval_components(x=wvs)['o3rw_'] + out.eval_components(x=wvs)['o3rn_']
-        
-        except:
-            y = out.eval_components(x=wvs)['o3rn_']
-                            
-        Int = np.zeros(N-1)
-        
-        for i in range(N-1):
-            
-            Int[i] = scpi.simps(y[:i+1], wvs[:i+1]) * 1e-13
-                    
-        Int = Int/max(Int)
-
-        ind16 = np.where( (Int>0.16*0.992)& (Int<0.16/0.992) )[0][0]            
-        ind84 = np.where( (Int>0.84*0.995)& (Int<0.84/0.995) )[0][0] 
-        ind50 = np.where( (Int>0.5*0.992)& (Int<0.5/0.992) )[0][0]            
-        
-        wv10 = wvs[ind16]
-        wv90 = wvs[ind84]
-        wv50 = wvs[ind50]
-        
-        v10 = (wv10-cent)/cent*3e5
-        v90 = (wv90-cent)/cent*3e5
-        v50 = (wv50-cent)/cent*3e5
-        
-        
-        w80 = v90-v10
-        
-        
-        if plot==1:
-            f,ax1 = plt.subplots(1)
-            ax1.plot(wvs,y, 'k--')
-        
-        
-            g, ax2 = plt.subplots(1)
-            ax2.plot(wvs[:-1], Int)
-        
-            ax2.plot(np.array([bound2,bound1]), np.array([0.9,0.9]), 'r--')
-            ax2.plot(np.array([bound2,bound1]), np.array([0.1,0.1]), 'r--')
-        
-            ax2.plot(np.array([cent,cent]), np.array([0,1]), 'b--')
-        
-            ax1.plot(np.array([wv10,wv10]), np.array([0, max(y)]), 'r--')
-            ax1.plot(np.array([wv90,wv90]), np.array([0, max(y)]), 'r--')
-            
-    
-    elif mode=='CO':
-        N= 5000
-        
-        cent = out.params['COn_center'].value
-        
-        bound1 =  cent + 4000/3e5*cent
-        bound2 =  cent - 4000/3e5*cent
-              
-        wvs = np.linspace(bound2, bound1, N)
-        
-        try:            
-            y = out.eval_components(x=wvs)['COn_'] + out.eval_components(x=wvs)['COb_']
-        
-        except:
-            y = out.eval_components(x=wvs)['COn_']
-                            
-        Int = np.zeros(N-1)
-        
-        for i in range(N-1):
-            
-            Int[i] = scpi.simps(y[:i+1], wvs[:i+1]) * 1e-13
-                    
-        Int = Int/max(Int)
-        try:
-            
-            ind10 = find_nearest(Int, 0.16)          
-               
-        
-        except:
-            print( np.where( (Int>0.16*0.991)& (Int<0.16/0.991) )[0]  )
-            plt.figure()
-            plt.plot(wvs[:-1], Int)
            
-            
-            
-        ind90 = np.where( (Int>0.84*0.995)& (Int<0.84/0.995) )[0][0] 
-        ind50 = np.where( (Int>0.5*0.992)& (Int<0.5/0.992) )[0][0] 
-        
-        wv10 = wvs[ind10]
-        wv90 = wvs[ind90]
-        wv50 = wvs[ind50]
-        
-        v10 = (wv10-cent)/cent*3e5
-        v90 = (wv90-cent)/cent*3e5
-        v50 = (wv50-cent)/cent*3e5
-        
-        
-        w80 = v90-v10
-        
-        
-        if plot==1:
-            f,ax1 = plt.subplots(1)
-            ax1.plot(wvs,y, 'k--')
-        
-        
-            g, ax2 = plt.subplots(1)
-            ax2.plot(wvs[:-1], Int)
-        
-            ax2.plot(np.array([bound2,bound1]), np.array([0.9,0.9]), 'r--')
-            ax2.plot(np.array([bound2,bound1]), np.array([0.1,0.1]), 'r--')
-        
-            ax2.plot(np.array([cent,cent]), np.array([0,1]), 'b--')
-        
-            ax1.plot(np.array([wv10,wv10]), np.array([0, max(y)]), 'r--')
-            ax1.plot(np.array([wv90,wv90]), np.array([0, max(y)]), 'r--')
-    
-    return v10,v90, w80, v50
-
-
-
-
-def Sub_QSO(storage_H):
-    ID = storage_H['X-ray ID']
-    z = storage_H['z_guess']
-    flux = storage_H['flux'].copy()
-    Mask = storage_H['sky_clipped']
-    Mask_1D = storage_H['sky_clipped_1D']
-    out = storage_H['1D_fit_Halpha_mul']
-    
-    wv_obs = storage_H['obs_wave'].copy()
-    
-    rst_w = storage_H['obs_wave'].copy()*1e4/(1+storage_H['z_guess'])
-        
-    center =  storage_H['Median_stack_white_Center_data'][1:3].copy()
-    sig = storage_H['Signal_mask'][0,:,:].copy()
-    sig[:,:] = True
-    
-    shapes = storage_H['dim']
-    # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
-    for ix in range(shapes[0]):
-        for iy in range(shapes[1]):
-            dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
-            if dist< 6:
-                sig[ix,iy] = False
-        
-    Mask_em = Mask_1D.copy()
-    Mask_em[:] = False
-        
-    wmin = out.params['Nb_center'].value - 1*out.params['Nb_sigma'].value
-    wmax = out.params['Nr_center'].value + 1*out.params['Nr_sigma'].value
-
-    
-        
-    em_nar = np.where((wv_obs>wmin) & (wv_obs<wmax))[0]        
-    Mask_em[em_nar] = True
-    
-    
-    
-    wmin = (6718.-5)*(1+z)/1e4
-    wmax = (6732.+5)*(1+z)/1e4
-    
-    em_nar = np.where((wv_obs>wmin) & (wv_obs<wmax))[0]        
-    Mask_em[em_nar] = True
-
-       
-    comb = np.logical_or(Mask_1D, Mask_em)
-    
-    shapes = storage_H['dim']
-    Cube = np.zeros((shapes[2], shapes[0], shapes[1]))
-    C_ms = Cube[:,:,:].copy()
-    C_ms[:,:,:] = False
-    Cube = np.ma.array(data=Cube, mask = C_ms)
-    
-    BLR_map = np.zeros((shapes[0], shapes[1]))
-    
-    
-    
-    x = range(shapes[0])
-    y = range(shapes[1])
-    
-    #x = np.linspace(30,60,31)
-    #y = np.linspace(30,60,31)
-    
-    x = np.array(x, dtype=int)
-    y = np.array(y, dtype=int)
-        
-    ls,ax = plt.subplots(1)
-    pdf_plots = PdfPages(PATH+'Four_Quasars/Graphs/'+ID+'_SUB_QSO.pdf') 
-    #import progressbar
-    for i in x:# progressbar.progressbar(x):
-        print (i,'/',x[-1])
-        for j in y:
-            flx_pl = flux[:,i,j]
-            flxm = np.ma.array(data=flx_pl, mask=comb)
-            
-                
-            error = STD_calc(wv_obs/(1+z)*1e4,flxm, 'H')* np.ones(len(flxm))
-            
-            plt.figure
-            
-            plt.plot(wv_obs, flxm.data)
-            
-            try:
-                
-            
-                out = emfit.sub_QSO(wv_obs, flxm, error,z, storage_H['1D_fit_Halpha_mul'])            
-                sums = flxm.data-(out.eval_components(x=wv_obs)['Ha_']+out.eval_components(x=wv_obs)['linear'])
-                Cube[:,i,j] = sums
-                
-                BLR_map[i,j] = np.sum(out.eval_components(x=wv_obs)['Ha_'])
-                    
-                    
-                if sig[i,j]==False:
-                    ax.plot(wv_obs, flxm.data, label='data')
-                    ax.plot(wv_obs,out.eval_components(x=wv_obs)['Ha_']+out.eval_components(x=wv_obs)['linear'], label='model')
-                    ax.plot(wv_obs, sums, label='Res')
-                        
-                    ax.legend(loc='best')
-                    wmin = out.params['Ha_center'].value - 3*out.params['Ha_sigma'].value
-                    wmax = out.params['Ha_center'].value + 3*out.params['Ha_sigma'].value
-                        
-                    ax.set_xlim(wmin,wmax)
-                        
-                    pdf_plots.savefig()
-                    
-                    ax.clear()
-            except:
-                Cube[:,i,j] = flxm.data
-                
-                BLR_map[i,j] =0
-                
-                print (i,j, ' BLR sub fail')
-                
-                
-                
-    pdf_plots.close()
-
-    Cube_ready = np.ma.array(data= Cube, mask= storage_H['flux'].copy().mask)               
-    storage_new = storage_H.copy()   
-    storage_new['flux'] = Cube_ready
-    storage_new['BLR_map'] = BLR_map
-        
-        
-    prhdr = storage_H['header']
-    hdu = fits.PrimaryHDU(Cube_ready.data, header=prhdr)
-    hdulist = fits.HDUList([hdu])
-    
-    hdulist.writeto(PATH+'Four_Quasars/Sub_QSO/'+ID+'.fits', overwrite=True)
-    
-    return storage_new
-
-
-'''
-
-def W80_OIII_calc_old( function, sol, plot):
-    popt = sol['popt']     
-    
-    import scipy.integrate as scpi
-    
-    
-    cent =  5008.*(1+popt[0])/1e4
-    
-    bound1 =  cent + 2000/3e5*cent
-    bound2 =  cent - 2000/3e5*cent
-    Ni = 500
-    
-    wvs = np.linspace(bound2, bound1, Ni)
-    N= 100
-    
-    if len(popt)==10:
-        OIIIr = 5008.*(1+popt[0])/1e4
-        
-        
-        fwhms = np.random.normal(sol['OIIIn_fwhm'][0], (sol['OIIIn_fwhm'][1]+sol['OIIIn_fwhm'][2]), N )/3e5/2.35*OIIIr
-        fwhmws = np.random.normal(sol['OIIIw_fwhm'][0], (sol['OIIIw_fwhm'][1]+sol['OIIIw_fwhm'][2]), N )/3e5/2.35*OIIIr
-        
-        OIIIrws = cent + np.random.normal(sol['out_vel'][0], (sol['out_vel'][1]+sol['out_vel'][2]),N)/3e5*OIIIr
-        
-        peakn = np.random.normal(sol['OIIIn_peak'][0], (sol['OIIIn_peak'][1]+sol['OIIIn_peak'][2]),N)
-        peakw = np.random.normal(sol['OIIIw_peak'][0], (sol['OIIIw_peak'][1]+sol['OIIIw_peak'][2]),N)
-        
-        v10s = np.zeros(N)
-        v90s = np.zeros(N)
-        w80s = np.zeros(N)
-        
-        for i in range(N):
-            y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
-            
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
-
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
-
-            Int = Int/max(Int)   
-
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
-
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
-            
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            w80s[i] = w80
-    
-    if len(popt)==7:
-        OIIIr = 5008.*(1+popt[0])/1e4
-        
-        fwhms = np.random.normal(sol['OIIIn_fwhm'][0], (sol['OIIIn_fwhm'][1]+sol['OIIIn_fwhm'][2]), N )/3e5/2.35*OIIIr
-        peakn = np.random.normal(sol['OIIIn_peak'][0], (sol['OIIIn_peak'][1]+sol['OIIIn_peak'][2]),N)
-        
-        
-        v10s = np.zeros(N)
-        v90s = np.zeros(N)
-        w80s = np.zeros(N)
-        
-        for i in range(N):
-            y = gauss(wvs, peakn[i],OIIIr, fwhms[i])
-            
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
-
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
-
-            Int = Int/max(Int)   
-
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
-
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
-            
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            w80s[i] = w80
-            
-            
-    return [np.median(v10s), np.std(v10s)], [np.median(v90s), np.std(v90s)], [np.median(w80s), np.std(w80s)]
-            

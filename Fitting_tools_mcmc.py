@@ -31,7 +31,7 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$' 
 
-N = 10000
+N = 6000
 PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 
 version = 'Main'    
@@ -64,7 +64,7 @@ from QSO_models import *
 # =============================================================================
 #  Primary function to fit Halpha both with or without BLR - data prep and fit 
 # =============================================================================
-def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors= {'cont':[0,-3,1],\
+def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,N=6000,priors= {'cont':[0,-3,1],\
                                                                                    'cont_grad':[0,-0.01,0.01], \
                                                                                    'Hal_peak':[0,-3,1],\
                                                                                    'BLR_peak':[0,-3,1],\
@@ -132,7 +132,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
         nwalkers, ndim = pos.shape
         
         sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_Halpha, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, Halpha, log_prior_Halpha))
     
         sampler.run_mcmc(pos, N, progress=progress);
     
@@ -168,6 +168,40 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
     
+    if BLR=='QSO_BKPL':
+        print(priors)
+        pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],\
+                          peak/6, peak/6,\
+                          priors['outflow_fwhm'][0],priors['outflow_vel'][0], \
+                          peak, priors['Ha_BLR_vel'][0], priors['Ha_BLR_alp1'][0], priors['Ha_BLR_alp2'][0],priors['Ha_BLR_sig'][0], \
+                          ])
+            
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        
+        priors['z'] = [z, norm(z,0.01)]
+        prl = [ priors[key][1] for key in list(priors.keys()) ]
+        
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(
+            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],prl, Hal_QSO_BKPL, log_prior_Halpha_QSO_BKPL))
+    
+        sampler.run_mcmc(pos, N, progress=progress);
+    
+        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
+        
+        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
+                'Hal_out_peak', 'NII_out_peak', 
+                'outflow_fwhm', 'outflow_vel', \
+                'Ha_BLR_peak', 'Ha_BLR_vel', 'Ha_BLR_alp1', 'Ha_BLR_alp2', 'Ha_BLR_sig')
+        
+        fitted_model = Hal_QSO_BKPL
+        
+        res = {'name': 'Halpha_QSO_BKPL'}
+        for i in range(len(labels)):
+            res[labels[i]] = flat_samples[:,i]
+        
+    
             
         
     return res, fitted_model
@@ -176,7 +210,7 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,priors
 # Primary function to fit [OIII] with and without outflows. 
 # =============================================================================
     
-def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, progress=True, \
+def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=6000, progress=True, \
                                                                  priors= {'cont':[0,-3,1],\
                                                                 'cont_grad':[0,-0.01,0.01], \
                                                                 'OIIIn_peak':[0,-3,1],\
@@ -485,13 +519,18 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
                     priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0],\
                     peak_beta, priors['Hb_BLR_vel'][0], priors['Hb_BLR_alp1'][0], priors['Hb_BLR_alp2'][0],priors['Hb_BLR_sig'][0], \
                     peak_beta/4, peak_beta/4])
-               
+            
+            print(pos_l)
+            priors['z'] = [z, norm(z,0.01)]
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(z,0.001, nwalkers)
+            
+            prl = [ priors[key][1] for key in list(priors.keys()) ]
+            print(prl)
            
             nwalkers, ndim = pos.shape
             sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, OIII_QSO_BKPL,log_prior_OIII_QSO_BKPL))
+                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],prl, OIII_QSO_BKPL,log_prior_OIII_QSO_BKPL))
             
             sampler.run_mcmc(pos, N, progress=progress);
             
@@ -511,26 +550,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0, prog
         
     return res, fitted_model
 
-
-def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, template=None):
-    lp = logpriorfce(theta,priors)
-    
-    if not np.isfinite(lp):
-        return -np.inf
-    
-    if template:
-        evalm = model(x,*theta, template)
-    else:
-        evalm = model(x,*theta)
-       
-    sigma2 = yerr*yerr
-    log_likelihood = -0.5 * np.sum((y - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-    
-    return lp + log_likelihood
-    
-    
-
-def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= {'cont':[0,-3,1],\
+def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True,N=6000, priors= {'cont':[0,-3,1],\
                                                                 'cont_grad':[0,-10.,10], \
                                                                 'OIIIn_peak':[0,-3,1],\
                                                                 'OIIIn_fwhm':[300,100,900],\
@@ -575,16 +595,17 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= 
 #   Setting up fitting  
 # =============================================================================
     nwalkers=64
-    pos_l = np.array([z,np.median(flux[fit_loc]), -1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.2, peak_hal*0.2, peak_OIII*0.8,  priors['OIIIn_fwhm'][0], peak_hal*0.2, priors['OIII_vel'][0], peak_hal*0.3])
+    fitted_model = Halpha_OIII
+    log_prior = log_prior_Halpha_OIII
     
+    pos_l = np.array([z,np.median(flux[fit_loc]), -1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.2, peak_hal*0.2, peak_OIII*0.8,  priors['OIIIn_fwhm'][0],\
+                      peak_hal*0.2, priors['OIII_vel'][0], peak_hal*0.3])  
     pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
     pos[:,0] = np.random.normal(z,0.001, nwalkers)
    
     nwalkers, ndim = pos.shape
-    
     sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, Halpha_OIII, log_prior_Halpha_OIII))
-    
+            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, fitted_model, log_prior)) 
     sampler.run_mcmc(pos, N, progress=progress);
     
     flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
@@ -592,13 +613,32 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01, progress=True, priors= 
         
     labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SII_rpk', 'SII_bpk', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'OIII_vel', 'OI_peak')
     
-    fitted_model = Halpha_OIII
+    
     
     res = {'name': 'Halpha_OIII'}
     for i in range(len(labels)):
         res[labels[i]] = flat_samples[:,i]
         
     return res, fitted_model
+
+def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, template=None):
+    lp = logpriorfce(theta,priors)
+    
+    try:
+        if not np.isfinite(lp):
+            return -np.inf
+    except:
+        lp[np.isnan(lp)] = -np.inf
+    
+    if template:
+        evalm = model(x,*theta, template)
+    else:
+        evalm = model(x,*theta)
+       
+    sigma2 = yerr*yerr
+    log_likelihood = -0.5 * np.sum((y - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+    
+    return lp + log_likelihood
 
 
 def Fitting_OIII_unwrap(lst):
@@ -669,48 +709,3 @@ def prop_calc(results):
     return res_dict
 
 
-# =============================================================================
-# Fit single Gaussian
-# =============================================================================
-def Single_gauss(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk):
-    Hal_wv = 6562.8*(1+z)/1e4     
-    NII_r = 6583.*(1+z)/1e4
-    NII_b = 6548.*(1+z)/1e4
-    
-    Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
-    Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
-    Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
-    
-    SII_r = 6731.*(1+z)/1e4   
-    SII_b = 6716.*(1+z)/1e4   
-    
-    Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
-    
-    NII_nar_r = gauss(x, NII_peak, NII_r, Nar_vel_niir)
-    NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_vel_niib)
-    
-    SII_rg = gauss(x, SII_rpk, SII_r, Nar_vel_hal)
-    SII_bg = gauss(x, SII_bpk, SII_b, Nar_vel_hal)
-    
-    return cont+x*cont_grad+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg
-
-def log_likelihood_single(theta, x, y, yerr):
-    
-    model = Halpha(x,*theta)
-    sigma2 = yerr*yerr#yerr ** 2 + model ** 2 #* np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
-
-
-def log_prior_single(theta, zguess, zcont):
-    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
-    if (zguess-zcont) < z < (zguess+zcont) and -3 < np.log10(cont)<1 and -3<np.log10(Hal_peak)<1 and -3<np.log10(NII_peak)<1 \
-        and 150 < Nar_fwhm<900 and -0.01<cont_grad<0.01 and 0<SII_bpk<0.5 and 0<SII_rpk<0.5:
-            return 0.0
-    
-    return -np.inf
-
-def log_probability_single(theta, x, y, yerr, zguess, zcont=0.05):
-    lp = log_prior_Halpha(theta,zguess,zcont)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood_Halpha(theta, x, y, yerr)
