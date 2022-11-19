@@ -127,9 +127,9 @@ def OIII_QSO(x, z, cont,cont_grad,\
     
     ############################################
     # OIII
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = 4959.*(1+z)/1e4
-    Hbeta = 4861.*(1+z)/1e4 
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     Out_fwhm = OIII_out/3e5*OIIIr/2.35482
@@ -222,9 +222,9 @@ def OIII_QSO_BKPL(x, z, cont,cont_grad,\
     
     ############################################
     # OIII
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = 4959.*(1+z)/1e4
-    Hbeta = 4861.*(1+z)/1e4 
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     Out_fwhm = OIII_out/3e5*OIIIr/2.35482
@@ -282,16 +282,19 @@ def log_prior_OIII_QSO_BKPL(theta,priors):
 
     return -np.inf
 
+
+uniform.logpdf(np.random.normal(size=15), *np.random.normal(size=(2, 15)))
+
 def log_prior_OIII_QSO_BKPL(theta, priors):
     z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
         Hb_BLR_peak, Hb_BLR_vel, Hb_BLR_alp1, Hb_BLR_alp2, Hb_BLR_sig,\
             Hb_nar_peak, Hb_out_peak, = theta.copy()
-    
+    '''
     if OIIIn_peak<OIIIw_peak:
         return -np.inf
     if Hb_out_peak>Hb_nar_peak:
         return -np.inf
-    
+    '''
     logprior = sum([ f.logpdf(t) for f,t in zip(priors, theta)])
     
     '''
@@ -333,9 +336,9 @@ def OIII_Fe_QSO(x, z, cont,cont_grad,\
     
     ############################################
     # OIII
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = 4959.*(1+z)/1e4
-    Hbeta = 4861.*(1+z)/1e4 
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     Out_fwhm = OIII_out/3e5*OIIIr/2.35482
@@ -410,13 +413,13 @@ def log_prior_OIII_Fe_QSO(theta,priors):
 def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel,Ha_BLR_peak, Ha_BLR_vel, Ha_BLR_alp1, Ha_BLR_alp2, Ha_BLR_sig):
             
     
-    Hal_wv = 6562.8*(1+z)/1e4     
-    NII_r = 6583.*(1+z)/1e4
-    NII_b = 6548.*(1+z)/1e4
+    Hal_wv = 6564.52*(1+z)/1e4     
+    NII_r = 6585.27*(1+z)/1e4
+    NII_b = 6549.86*(1+z)/1e4
     
-    Hal_wv_vel = 6562.8*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
-    NII_r_vel = 6583.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
-    NII_b_vel = 6548.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    Hal_wv_vel = 6564.52*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_r_vel = 6585.27*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_b_vel = 6549.86*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
     
     Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
     Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482

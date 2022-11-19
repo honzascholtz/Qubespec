@@ -61,15 +61,15 @@ PATH='/Users/jansen/My Drive/Astro/'
 
 PATH_store = PATH+'KASHz/'
 
-OIIIr = 5008.
-OIIIb = 4960
-Hal = 6562.8   
-NII_r = 6583.
-NII_b = 6548.
-Hbe = 4861.
+OIIIr = 5008.24
+OIIIb = 4960.3
+Hal = 6564.52
+NII_r = 6585.27
+NII_b = 6549.86
+Hbe = 4862.6
 
 SII_r = 6731
-SII_b = 6716
+SII_b = 6718.29
 import time
 # =============================================================================
 # Useful function 
@@ -236,7 +236,7 @@ def SNR_calc(wave,flux, error, dictsol, mode):
             contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
             model = flux-contfce 
         elif 'Nar_fwhm' in keys:
-            fwhm = dictsol['OIIIn_fwhm'][0]/3e5*center
+            fwhm = dictsol['Nar_fwhm'][0]/3e5*center
             
             center = OIIIr*(1+sol[0])/1e4
             
@@ -250,19 +250,10 @@ def SNR_calc(wave,flux, error, dictsol, mode):
             
     elif mode =='Hn':
         center = Hal*(1+sol[0])/1e4
-        if len(sol)==8:
-            fwhm = sol[5]/3e5*center
-            model = gauss(wave, sol[3], center, fwhm/2.35)
-        elif len(sol)==11:
-            fwhm = sol[6]/3e5*center*2
-            model = gauss(wave, sol[3], center, fwhm/2.35)
-        elif len(sol)==12:
-            fwhm = sol[5]/3e5*center*2
-            model = gauss(wave, sol[3], center, fwhm/2.35)
         
-        elif len(sol)==13:
-            fwhm = sol[5]/3e5*center*2
-            model = gauss(wave, sol[3], center, fwhm/2.35)
+        fwhm = dictsol['Nar_fwhm'][0]/3e5*center
+        model = gauss(wave, dictsol['Hal_peak'][0], center, fwhm/2.35)
+        
     
     elif mode =='Hblr':
         center = Hal*(1+sol[0])/1e4
@@ -362,7 +353,7 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         wave = wave[np.invert(fluxm.mask)]
         error = error[np.invert(fluxm.mask)]
         
-        fit_loc = np.where((wave>(6562.8-200)*(1+z)/1e4)&(wave<(6562.8+300)*(1+z)/1e4))[0]
+        fit_loc = np.where((wave>(6564.52-200)*(1+z)/1e4)&(wave<(6564.52+300)*(1+z)/1e4))[0]
         
         flux = flux[fit_loc]
         wave = wave[fit_loc]
@@ -392,27 +383,40 @@ def flux_calc(res, mode, norm=1e-13):
         
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         if 'OIIIw_peak' in keys:
-            o3 = 5008*(1+res['z'][0])/1e4
+            o3 = 5008.24*(1+res['z'][0])/1e4
             
             o3n = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
-        
             o3w = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
             
             model = o3n+o3w
+        if 'OIII_out_peak' in keys:
+            o3 = 5008.24*(1+res['z'][0])/1e4
+            
+            o3n = gauss(wave, res['OIIIn_peak'][0], o3, res['Nar_fwhm'][0]/2.355/3e5*o3  )*1.333
+            o3w = gauss(wave, res['OIII_out_peak'][0], o3, res['outflow_fwhm'][0]/2.355/3e5*o3  )*1.333
+            
+            model = o3n+o3w
+            
         else:# (res['popt']==7) | (res['popt']==9):
-            o3 = 5008*(1+res['z'][0])/1e4
-            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+            o3 = 5008.24*(1+res['z'][0])/1e4
+            try:
+                model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+            except:
+                model = gauss(wave, res['OIIIn_peak'][0], o3, res['Nar_fwhm'][0]/2.355/3e5*o3  )*1.333
             
     elif mode=='OIIIn':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         
-        o3 = 5008*(1+res['z'][0])/1e4
-        model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+        o3 = 5008.24*(1+res['z'][0])/1e4
+        try:
+            model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
+        except:
+            model = gauss(wave, res['OIIIn_peak'][0], o3, res['Nar_fwhm'][0]/2.355/3e5*o3  )*1.333
         
     elif mode=='OIIIw':
         wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         if 'OIIIw_peak' in keys:
-            o3 = 5008*(1+res['z'][0])/1e4
+            o3 = 5008.24*(1+res['z'][0])/1e4
             model = gauss(wave, res['OIIIw_peak'][0], o3, res['OIIIw_fwhm'][0]/2.355/3e5*o3  )*1.333
         else:
             model = np.zeros_like(wave)
@@ -449,7 +453,7 @@ def flux_calc(res, mode, norm=1e-13):
         
     elif mode=='Hbeta':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
-        hbeta = 4861*(1+res['z'][0])/1e4
+        hbeta = 4862.6*(1+res['z'][0])/1e4
         try:
             model = gauss(wave, res['Hbeta_peak'][0], hbeta, res['Hbeta_fwhm'][0]/2.355/3e5*hbeta  )
         except:
@@ -457,12 +461,12 @@ def flux_calc(res, mode, norm=1e-13):
     
     elif mode=='Hbetaw':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
-        hbeta = 4861*(1+res['z'][0])/1e4
+        hbeta = 4862.6*(1+res['z'][0])/1e4
         model = gauss(wave, res['Hbeta_peak'][0], hbeta, res['Hbeta_fwhm'][0]/2.355/3e5*hbeta  )
     
     elif mode=='Hbetan':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
-        hbeta = 4861*(1+res['z'][0])/1e4
+        hbeta = 4862.6*(1+res['z'][0])/1e4
         model = gauss(wave, res['Hbetan_peak'][0], hbeta, res['Hbetan_fwhm'][0]/2.355/3e5*hbeta  )
     
     elif mode=='OI':
@@ -471,7 +475,7 @@ def flux_calc(res, mode, norm=1e-13):
         model = gauss(wave, res['OI_peak'][0], OI, res['Nar_fwhm'][0]/2.355/3e5*OI  )    
     
     elif mode=='SIIr':
-        SII_r = 6731.*(1+res['z'][0])/1e4   
+        SII_r = 6732.67*(1+res['z'][0])/1e4   
         
         
         wave = np.linspace(6600,6800,200)*(1+res['z'][0])/1e4
@@ -487,7 +491,7 @@ def flux_calc(res, mode, norm=1e-13):
         return Flux_r
     
     elif mode=='SIIb':
-        SII_b = 6716.*(1+res['z'][0])/1e4   
+        SII_b = 6718.29*(1+res['z'][0])/1e4   
         
         wave = np.linspace(6600,6800,200)*(1+res['z'][0])/1e4
         try:
@@ -537,7 +541,7 @@ def W80_OIII_calc( function, sol, chains, plot):
     
     import scipy.integrate as scpi
     
-    cent =  5008.*(1+popt[0])/1e4
+    cent =  5008.24*(1+popt[0])/1e4
     
     bound1 =  cent + 2000/3e5*cent
     bound2 =  cent - 2000/3e5*cent
@@ -552,7 +556,7 @@ def W80_OIII_calc( function, sol, chains, plot):
     w80s = np.zeros(N)
     
     if 'OIIIw_fwhm' in sol:
-        OIIIr = 5008.*(1+popt[0])/1e4
+        OIIIr = 5008.24*(1+popt[0])/1e4
         
         fwhms = np.random.choice(chains['OIIIn_fwhm'], N)/3e5/2.35*OIIIr
         fwhmws = np.random.choice(chains['OIIIw_fwhm'], N)/3e5/2.35*OIIIr
@@ -590,7 +594,7 @@ def W80_OIII_calc( function, sol, chains, plot):
             w80s[i] = w80
     
     else:
-        OIIIr = 5008.*(1+popt[0])/1e4
+        OIIIr = 5008.24*(1+popt[0])/1e4
         
         fwhms = np.random.choice(chains['OIIIn_fwhm'], N)/3e5/2.35*OIIIr
         peakn = np.random.choice(chains['OIIIn_peak'], N)
@@ -768,7 +772,7 @@ class Cube:
                 header = hdulist[1].header
                 
         else:
-            print ('Instrument Flag is not understood!')
+            raise Exception('Instrument flag not understood')
         
         flux = np.ma.masked_invalid(flux_temp)   #  deal with NaN
        
@@ -1171,7 +1175,7 @@ class Cube:
             plt.xlabel('Observed wavelength')
     
     
-    def D1_spectra_collapse(self, plot, addsave='', err_range=[0]):
+    def D1_spectra_collapse(self, plot, addsave='', err_range=[0], boundary=2.4):
         '''
         This function collapses the Cube to form a 1D spectrum of the galaxy
         '''
@@ -1206,14 +1210,21 @@ class Cube:
         
         self.D1_spectrum = D1_spectra
         if self.instrument=='NIRSPEC_IFU':
-            '''
-            error_calc = np.ma.array(data=self.error_cube, mask=total_mask)
-            self.D1_spectrum_er = np.zeros_like(self.obs_wave)
-            for index in range(len(self.obs_wave)):
-                self.D1_spectrum_er[index] = np.sqrt(np.ma.sum(error_calc[index,:,:]**2))
-                if 2700<index < 2750: 
-                    print(error_calc[index,27-2:27+2,27-2:27+2])
-            '''
+            if len(err_range)==2:
+                error = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
+                                                             &(self.obs_wave<err_range[1])],sigma=3)[2] \
+                                                        *np.ones(len(D1_spectra))
+                                                        
+            elif len(err_range)==4:
+                error1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
+                                                             &(self.obs_wave<err_range[1])],sigma=3)[2]
+                error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[1]<self.obs_wave) \
+                                                             &(self.obs_wave<err_range[2])],sigma=3)[2]
+                
+                error = np.zeros(len(D1_spectra))
+                error[self.obs_wave<boundary] = error1
+                error[self.obs_wave>boundary] = error2
+            
             self.D1_spectrum_er = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) &(self.obs_wave<err_range[1])],sigma=3)[2]*np.ones(len(self.D1_spectrum))
             
         else:  
@@ -1573,7 +1584,7 @@ class Cube:
                 self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
                 self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 self.dBIC = BICM-BICS
-                labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
+                
             else:
                 print('Delta BIC' , BICM-BICS, ' ')
                 self.D1_fit_results = prop_sig
@@ -1585,7 +1596,6 @@ class Cube:
                 self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 
                 self.dBIC = BICM-BICS
-                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
                 
             
             if (self.ID=='cid_111') | (self.ID=='xuds_254') | (self.ID=='xuds_379') | (self.ID=='xuds_235') | (self.ID=='sxds_620')\
@@ -1602,8 +1612,7 @@ class Cube:
                 self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 self.dBIC = BICM-BICS
                 
-                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
-            
+                
             if (self.ID=='xuds_168') :
                  print('Delta BIC' , BICM-BICS, ' ')
                  print('BICM', BICM)
@@ -1615,8 +1624,7 @@ class Cube:
                  self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
                  self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                  self.dBIC = BICM-BICS
-                 labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
-        
+                 
         if AGN=='Outflow':
             flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=0, progress=progress,priors=priors)
     
@@ -1646,7 +1654,6 @@ class Cube:
                 self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
                 self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 self.dBIC = BICM-BICS
-                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
                 
             else:
                 print('Delta BIC' , BICM-BICS, ' ')
@@ -1659,8 +1666,7 @@ class Cube:
                 self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 
                 self.dBIC = BICM-BICS
-                labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
-        
+                
         if AGN=='Single_only':
             flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, BLR=0,N=N, progress=progress, priors=priors)
     
@@ -1683,12 +1689,11 @@ class Cube:
             self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 
             self.dBIC = 3
-            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
-        
+            
         if AGN=='Outflow_only':
         
             flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z,N=N, BLR=-1, progress=progress, priors=priors)
-            prop = prop_calc(flat_samples_blr)
+            prop = prop_calc(flat_samples)
             
            
             self.D1_fit_results = prop
@@ -1700,8 +1705,6 @@ class Cube:
             self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
             self.dBIC = 10
-            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
-                
             
         if AGN=='BLR_only':
             
@@ -1726,7 +1729,6 @@ class Cube:
             self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 
             self.dBIC = 3
-            labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'BLR_offset', 'SIIr_peak', 'SIIb_peak')
             
         if AGN=='QSO_BKPL':
             
@@ -1748,10 +1750,8 @@ class Cube:
             self.SNR_sii =  10
                 
             self.dBIC = 3
-            labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
-                    'Hal_out_peak', 'NII_out_peak', 
-                    'outflow_fwhm', 'outflow_vel', \
-                    'Ha_BLR_peak', 'Ha_BLR_vel', 'Ha_BLR_alp1', 'Ha_BLR_alp2', 'Ha_BLR_sig')
+        
+        labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
@@ -1776,11 +1776,14 @@ class Cube:
         if (AGN=='BLR') | (AGN=='Outflow'):
             g, (ax1a,ax2a) = plt.subplots(2)
             emplot.plotting_Halpha(wave, flux, ax1a, prop_sig , fitted_model_sig)
-            emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
+            try:
+                emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
+            except:
+                emplot.plotting_Halpha(wave, flux, ax2a, prop_out , fitted_model_out)
             
             
-    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,priors= {'cont':[0,-3,1],\
-                                                                    'cont_grad':[0,-0.01,0.01], \
+    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,outflow='Single_only', priors= {'cont':[0,-3,1],\
+                                                                    'cont_grad':[0,-1.,1], \
                                                                     'OIIIn_peak':[0,-3,1],\
                                                                     'OIIIn_fwhm':[300,100,900],\
                                                                     'OIII_vel':[-100,-600,600],\
@@ -1790,7 +1793,14 @@ class Cube:
                                                                     'Nar_fwhm':[300,150,900],\
                                                                     'SII_rpk':[0,-3,1],\
                                                                     'SII_bpk':[0,-3,1],\
-                                                                    'OI_peak':[0,-3,1]}):
+                                                                    'OI_peak':[0,-3,1],\
+                                                                    'outflow_fwhm':[300,300,900],\
+                                                                    'outflow_vel':[-100,-600,600],\
+                                                                    'Hal_out_peak':[0,-3,1],\
+                                                                    'NII_out_peak':[0,-3,1],\
+                                                                    'OIII_out_peak':[0,-3,1],\
+                                                                    'Hbeta_out_peak':[0,-3,1],\
+                                                                    'OI_out_peak':[0,-3,1]}):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
@@ -1801,37 +1811,55 @@ class Cube:
         
         flux = np.ma.array(data=fl, mask = msk)
         
+        if outflow=='Single_only':   
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow=0)
         
-        flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress)
+            prop_sig = prop_calc(flat_samples_sig)
+                
+                
+            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+            chi2S = sum(((flux.data-y_model_sig)/error)**2)
+            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+            
+            self.D1_fit_results = prop_sig
+            self.D1_fit_chain = flat_samples_sig
+            self.D1_fit_model = fitted_model_sig
+            self.z = prop_sig['popt'][0]
+            
+            self.SNR_hal =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
+            self.SNR_OIII =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+            self.SNR_nii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
     
-        prop_sig = prop_calc(flat_samples_sig)
+            
+            self.dBIC = 3
             
             
-        y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-        chi2S = sum(((flux.data-y_model_sig)/error)**2)
-        BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-            
-          
-            
-            
-            
-        self.D1_fit_results = prop_sig
-        self.D1_fit_chain = flat_samples_sig
-        self.D1_fit_model = fitted_model_sig
-        self.z = prop_sig['popt'][0]
+        elif outflow=='Outflow_only':   
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow=1)
         
-        self.SNR_hal =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
-        self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-        self.SNR_OIII =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
-        self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-        self.SNR_nii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
-
-        
-        self.dBIC = 3
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SII_rpk', 'SII_bpk', 'OIIIn_peak', 'OIIIn_fwhm', 'Hbeta_peak', 'OIII_vel', 'OI_peak')
-
+            prop_sig = prop_calc(flat_samples_sig)
+                
+                
+            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+            chi2S = sum(((flux.data-y_model_sig)/error)**2)
+            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+            
+            self.D1_fit_results = prop_sig
+            self.D1_fit_chain = flat_samples_sig
+            self.D1_fit_model = fitted_model_sig
+            self.z = prop_sig['popt'][0]
+            
+            self.SNR_hal =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
+            self.SNR_OIII =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+            self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+            self.SNR_nii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
             
             
+            self.dBIC = 3
+        labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
             unwrap_chain(self.D1_fit_chain), 
@@ -1839,13 +1867,13 @@ class Cube:
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
-        
+        '''
         print('SNR hal ', self.SNR_hal)
         print('SNR NII ', self.SNR_nii)
         print('SNR SII ', self.SNR_sii)
         print('SNR OIII ', self.SNR_OIII)
         print('SNR Hbeta ', self.SNR_hb)
-        
+        '''
         fig.savefig('/Users/jansen/Corner.pdf')
         
         f = plt.figure(figsize=(10,4))
@@ -1884,14 +1912,14 @@ class Cube:
         priors['z'] = [self.z, self.z-0.05, self.z+0.05]
         
         if outflow=='both':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
             chi2S = sum(((flux.data-y_model_sig)/error)**2)
             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual ,template=template)
             prop_out = prop_calc(flat_samples_out)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
@@ -1952,7 +1980,7 @@ class Cube:
             
         elif outflow=='single':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
             prop_sig = prop_calc(flat_samples_sig)
             
             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
@@ -1972,7 +2000,7 @@ class Cube:
             
         elif outflow=='outflow':
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
             prop_out = prop_calc(flat_samples_out)
             
             
@@ -2439,7 +2467,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "wb") as fp:
             pickle.dump(Unwrapped_cube, fp)      
           
-    def Spaxel_fitting_OIII_MCMC_mp(self, priors= {'cont':[0,-3,1],\
+    def Spaxel_fitting_OIII_MCMC_mp(self,Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
                                                   'cont_grad':[0,-0.01,0.01], \
                                                   'OIIIn_peak':[0,-3,1],\
                                                   'OIIIw_peak':[0,-3,1],\
@@ -2470,7 +2498,7 @@ class Cube:
         
         #for i in range(len(Unwrapped_cube)):   
             #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
-        with Pool(mp.cpu_count() - 1) as pool:
+        with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_OIII_unwrap, Unwrapped_cube )    
         
         
@@ -2480,7 +2508,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
     
-    def Spaxel_fitting_OIII_2G_MCMC_mp(self):
+    def Spaxel_fitting_OIII_2G_MCMC_mp(self, Ncores=(mp.cpu_count() - 1)):
         import pickle
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
@@ -2488,7 +2516,7 @@ class Cube:
         print('import of the unwrap cube - done')
         print(len(Unwrapped_cube))
         
-        with Pool(mp.cpu_count() - 1) as pool:
+        with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_OIII_2G_unwrap, Unwrapped_cube )    
         
         
@@ -2497,7 +2525,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
     
-    def Spaxel_fitting_Halpha_MCMC_mp(self, add='',priors={'cont':[0,-3,1],\
+    def Spaxel_fitting_Halpha_MCMC_mp(self, add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-3,1],\
                                                      'cont_grad':[0,-0.01,0.01], \
                                                      'Hal_peak':[0,-3,1],\
                                                      'BLR_peak':[0,-3,1],\
@@ -2526,7 +2554,7 @@ class Cube:
         with open('/Users/jansen/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)     
         
-        with Pool(mp.cpu_count() - 1) as pool:
+        with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_unwrap, Unwrapped_cube)
         
         
@@ -2538,7 +2566,7 @@ class Cube:
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
         
-    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='', priors= {'cont':[0,-3,1],\
+    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
                                                           'cont_grad':[0,-10.,10], \
                                                           'OIIIn_peak':[0,-3,1],\
                                                            'OIIIn_fwhm':[300,100,900],\
@@ -2565,7 +2593,7 @@ class Cube:
         with open('/Users/jansen/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)     
         
-        with Pool(mp.cpu_count() - 2) as pool:
+        with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
         
         self.spaxel_fit_raw = cube_res
@@ -2580,8 +2608,8 @@ class Cube:
     def Map_creation_OIII(self, SNR_cut=3, fwhmrange = [100,500], velrange=[-100,100]):
         z0 = self.z
     
-        wvo3 = 5008*(1+z0)/1e4
-        wvhb = 4861*(1+z0)/1e4
+        wvo3 = 5008.24*(1+z0)/1e4
+        wvhb = 4862.6*(1+z0)/1e4
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
@@ -2636,7 +2664,7 @@ class Cube:
             map_snr[i,j]= SNR
             if (SNR>SNR_cut) & (SNR<100):
                 
-                map_vel[i,j] = ((5008*(1+z)/1e4)-wvo3)/wvo3*3e5
+                map_vel[i,j] = ((5008.24*(1+z)/1e4)-wvo3)/wvo3*3e5
                 map_fwhm[i,j] = res_spx['popt'][4]
                 map_flux[i,j] = flux_calc(res_spx, 'OIIIt', self.flux_norm)
                 
@@ -2657,7 +2685,7 @@ class Cube:
             map_snrhb[i,j]= SNRhb
             if (SNRhb>SNR_cut) & (SNRhb<100):
                 
-                map_vel_hb[i,j] = ((4861*(1+z)/1e4)-wvhb)/wvhb*3e5
+                map_vel_hb[i,j] = ((4862.6*(1+z)/1e4)-wvhb)/wvhb*3e5
                 map_fwhm_hb[i,j] = res_spx['Hbeta_fwhm'][0]
                 map_flux_hb[i,j] = flux_calc(res_spx, 'Hbeta', self.flux_norm)
                 
@@ -2797,7 +2825,7 @@ class Cube:
     def Map_creation_OIII_2G(self):
         z0 = self.z
     
-        wvo3 = 5008*(1+z0)/1e4
+        wvo3 = 5008.24*(1+z0)/1e4
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
@@ -2839,7 +2867,7 @@ class Cube:
             map_snr[i,j]= SNR
             if SNR>3:
                 
-                map_vel[i,j] = ((5008*(1+z)/1e4)-wvo3)/wvo3*3e5
+                map_vel[i,j] = ((5008.24*(1+z)/1e4)-wvo3)/wvo3*3e5
                 map_fwhm[i,j] = res_spx['OIIIn_fwhm'][0] #W80_OIII_calc(emfit.OIII_outflow, sol, chains, plot)#res_spx['OIIIn_fwhm'][0]
                 map_flux[i,j] = flux_calc(res_spx, 'OIIIt',self.flux_norm)
                 
@@ -3107,7 +3135,7 @@ class Cube:
         z0 = self.z
     
         wv_hal = 6563*(1+z0)/1e4
-        wv_oiii = 5008*(1+z0)/1e4
+        wv_oiii = 5008.24*(1+z0)/1e4
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
@@ -3142,9 +3170,6 @@ class Cube:
         map_hal_ki = np.zeros((3,self.dim[0], self.dim[1]))
         map_hal_ki[:,:,:] = np.nan
         
-        map_oiii_ki = np.zeros((3,self.dim[0], self.dim[1]))
-        map_oiii_ki[:,:,:] = np.nan
-        
         map_oi = np.zeros((4,self.dim[0], self.dim[1]))
         map_oi[:,:,:] = np.nan
         
@@ -3163,6 +3188,9 @@ class Cube:
             
             i,j, res_spx,chains = results[row]
             i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+            
+            if 'Failed fit' in list(res_spx.keys()):
+                continue
             
             z = res_spx['popt'][0]
             
@@ -3240,16 +3268,11 @@ class Cube:
                 map_oiii[3,i,j] = p84_oiii.copy()
                 
                 
-                map_oiii_ki[1,i,j] = res_spx['OIIIn_fwhm'][0]
-                
-                measured_peak = (5008*(1+z)/1e4)+ res_spx['OIII_vel'][0]/3e5*wv_oiii
-                map_oiii_ki[0,i,j] = (measured_peak-wv_oiii)/wv_oiii*3e5
-                map_oiii_ki[2,i,j] = res_spx['OIII_vel'][0]
             else:
                 
                 
                 dl = self.obs_wave[1]-self.obs_wave[0]
-                n = width_upper/3e5*(5008*(1+self.z)/1e4)/dl
+                n = width_upper/3e5*(5008.24*(1+self.z)/1e4)/dl
                 map_oiii[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
              
 # =============================================================================
@@ -3467,23 +3490,6 @@ class Cube:
         axes[3,1].set_xlabel('RA offset (arcsecond)')
         axes[3,1].set_ylabel('Dec offset (arcsecond)')
         
-        # =============================================================================
-        # [OIII] vel
-        ax3= axes[2,2]
-        ax3.set_title('[OIII] vel')
-        fw = ax3.imshow(map_oiii_ki[0,:,:],vmin=velrange[0],vmax=velrange[1],cmap='coolwarm', origin='lower', extent= lim_sc)
-        divider = make_axes_locatable(ax3)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(fw, cax=cax, orientation='vertical')
-        
-        # =============================================================================
-        # [OIII] fwhm
-        ax3 = axes[3,2]
-        ax3.set_title('[OIII] fwhm')
-        fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-        divider = make_axes_locatable(ax3)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(fw, cax=cax, orientation='vertical')
         
         # =============================================================================
         # OI SNR
@@ -3541,16 +3547,15 @@ class Cube:
         siib_hdu = fits.ImageHDU(map_siib, name='SIIb')
         
         hal_kin_hdu = fits.ImageHDU(map_hal_ki, name='Hal_kin')
-        oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
         Av_hdu = fits.ImageHDU(Av, name='Av')
         
-        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oiii_kin_hdu,oi_hdu,siir_hdu, siib_hdu, Av_hdu ])
+        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu, siib_hdu, Av_hdu ])
         
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps.fits', overwrite=True)
         
         return f 
     
-    def Regional_Spec(self, center, rad, err_range=None ):
+    def Regional_Spec(self, center, rad, err_range=None, manual_mask=None, boundary=None):
         
         center =  center
         shapes = self.dim
@@ -3588,7 +3593,19 @@ class Cube:
         D1_spectrum = np.ma.array(data = D1_spectrum.data, mask=mask_sky_1D)
         
         if self.instrument=='NIRSPEC_IFU':
-            D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) &(self.obs_wave<err_range[1])],sigma=3)[2]*np.ones(len(D1_spectrum))    
+            if len(err_range)==2:
+                
+                D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) &(self.obs_wave<err_range[1])],sigma=3)[2]*np.ones(len(D1_spectrum))   
+            elif len(err_range) ==4:
+                error1 = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
+                                                              &(self.obs_wave<err_range[1])],sigma=3)[2]
+                
+                error2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[1]<self.obs_wave) \
+                                                              &(self.obs_wave<err_range[2])],sigma=3)[2]
+                    
+                D1_spectrum_er = np.zeros(len(D1_spectrum))
+                D1_spectrum_er[self.obs_wave<boundary] = error1
+                D1_spectrum_er[self.obs_wave>boundary] = error2
         else:  
             D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[2]*np.ones(len(D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
         

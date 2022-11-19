@@ -55,9 +55,9 @@ def gauss(x, k, mu,sig):
 #    functions to fit [OIII] only with outflow
 # =============================================================================
 def OIII_outflow(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm, Hbeta_vel):
-    OIIIr = 5008.*(1+z)/1e4   
+    OIIIr = 5008.24*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
-    Hbeta = 4861.*(1+z)/1e4 
+    Hbeta = 4862.6*(1+z)/1e4 
     
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
@@ -91,9 +91,9 @@ def log_prior_OIII_outflow(theta,priors):
 #    functions to fit [OIII] only with outflow with nar Hbeta
 # =============================================================================
 def OIII_outflow_narHb(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm,Hbetab_vel, Hbetan_peak, Hbetan_fwhm, Hbetan_vel):
-    OIIIr = 5008.*(1+z)/1e4   
+    OIIIr = 5008.24*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
-    Hbeta = 4861.*(1+z)/1e4 
+    Hbeta = 4862.6*(1+z)/1e4 
     
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
@@ -133,10 +133,10 @@ def log_prior_OIII_outflow_narHb(theta,priors):
 #  Function to fit [OIII] without outflow with hbeta
 # =============================================================================
 def OIII(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak, Hbeta_fwhm, Hbeta_vel):
-    OIIIr = 5008.*(1+z)/1e4   
+    OIIIr = 5008.24*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
-    Hbeta = 4861.*(1+z)/1e4 
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     
@@ -165,10 +165,10 @@ def log_prior_OIII(theta,priors):
 #  Function to fit [OIII] without outflow with dual hbeta
 # =============================================================================
 def OIII_dual_hbeta(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbetab_peak, Hbetab_fwhm, Hbetab_vel, Hbetan_peak, Hbetan_fwhm, Hbetan_vel):
-    OIIIr = 5008.*(1+z)/1e4   
+    OIIIr = 5008.24*(1+z)/1e4   
     OIIIb = OIIIr- (48.*(1+z)/1e4)
     
-    Hbeta = 4861.*(1+z)/1e4 
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     
@@ -253,7 +253,7 @@ def FeII_BG92(wave,z, FWHM_feii):
 
 '''
 def FeII_Veron(wave,z, FWHM_feii):
-    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
+    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008.24/2.35)
 
     convolved = convolve(Veron_d, gk)
     convolved = convolved/max(convolved[(Veron_wv<5400) &(Veron_wv>4900)])
@@ -263,7 +263,7 @@ def FeII_Veron(wave,z, FWHM_feii):
     return fce(wave)
 
 def FeII_Tsuzuki(wave,z, FWHM_feii):
-    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
+    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008.24/2.35)
 
     convolved = convolve(Tsuzuki_d, gk)
     convolved = convolved/max(convolved[(Tsuzuki_wv<5400) &(Tsuzuki_wv>4900)])
@@ -273,7 +273,7 @@ def FeII_Tsuzuki(wave,z, FWHM_feii):
     return fce(wave)
 
 def FeII_BG92(wave,z, FWHM_feii):
-    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008/2.35)
+    gk = Gaussian1DKernel(stddev=FWHM_feii/3e5*5008.24/2.35)
 
     convolved = convolve(BG92_d, gk)
     convolved = convolved/max(convolved[(BG92_wv<5400) &(BG92_wv>4900)])
@@ -287,9 +287,9 @@ def FeII_BG92(wave,z, FWHM_feii):
 #    functions to fit [OIII] only with outflow
 # =============================================================================
 def OIII_outflow_Fe(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm,Hbetab_vel, FeII_peak, FeII_fwhm, template):
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = OIIIr- (48.*(1+z)/1e4)
-    Hbeta = 4861.*(1+z)/1e4 
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
+    Hbeta = 4862.6*(1+z)/1e4 
     
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
@@ -334,9 +334,9 @@ def log_prior_OIII_outflow_Fe(theta,priors):
 #    functions to fit [OIII] only with outflow with nar Hbeta with Fe
 # =============================================================================
 def OIII_outflow_Fe_narHb(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbetab_peak, Hbetab_fwhm, Hbetab_vel, Hbetan_peak, Hbetan_fwhm,Hbetan_vel, FeII_peak, FeII_fwhm, template):
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = OIIIr- (48.*(1+z)/1e4)
-    Hbeta = 4861.*(1+z)/1e4 
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
+    Hbeta = 4862.6*(1+z)/1e4 
     
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
@@ -387,10 +387,10 @@ def log_prior_OIII_outflow_Fe_narHb(theta,priors):
 #  Function to fit [OIII] without outflow with Fe
 # =============================================================================
 def OIII_Fe(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak, Hbeta_fwhm,Hbeta_vel, FeII_peak, FeII_fwhm, template):
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
     
-    Hbeta = 4861.*(1+z)/1e4 
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     
@@ -431,10 +431,10 @@ def log_prior_OIII_Fe(theta,priors):
 #  Function to fit [OIII] without outflow with dual hbeta and FeII
 # =============================================================================
 def OIII_dual_hbeta_Fe(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbetab_peak, Hbetab_fwhm, Hbetab_vel, Hbetan_peak, Hbetan_fwhm,Hbetan_vel,FeII_peak, FeII_fwhm, template):
-    OIIIr = 5008.*(1+z)/1e4   
-    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    OIIIr = 5008.24*(1+z)/1e4   
+    OIIIb = 4960.3*(1+z)/1e4
     
-    Hbeta = 4861.*(1+z)/1e4 
+    Hbeta = 4862.6*(1+z)/1e4 
     
     Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
     

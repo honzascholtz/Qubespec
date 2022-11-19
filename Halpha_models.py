@@ -45,12 +45,12 @@ def gauss(x, k, mu,sig):
 #  Function for fitting Halpha with BLR
 # =============================================================================
 def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk):
-    Hal_wv = 6562.8*(1+z)/1e4     
-    NII_r = 6583.*(1+z)/1e4
-    NII_b = 6548.*(1+z)/1e4
+    Hal_wv = 6564.52*(1+z)/1e4     
+    NII_r = 6585.27*(1+z)/1e4
+    NII_b = 6549.86*(1+z)/1e4
     
-    SII_r = 6731.*(1+z)/1e4   
-    SII_b = 6716.*(1+z)/1e4   
+    SII_r = 6732.67*(1+z)/1e4   
+    SII_b = 6718.29*(1+z)/1e4   
     
     Nar_sig= Nar_fwhm/3e5*Hal_wv/2.35482
     BLR_sig = BLR_fwhm/3e5*Hal_wv/2.35482
@@ -118,16 +118,16 @@ def log_prior_Halpha_BLR(theta, pr):
 # Function to fit just narrow Halpha
 # =============================================================================
 def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk):
-    Hal_wv = 6562.8*(1+z)/1e4     
-    NII_r = 6583.*(1+z)/1e4
-    NII_b = 6548.*(1+z)/1e4
+    Hal_wv = 6564.52*(1+z)/1e4     
+    NII_r = 6585.27*(1+z)/1e4
+    NII_b = 6549.86*(1+z)/1e4
     
     Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
     Nar_vel_niir = Nar_fwhm/3e5*NII_r/2.35482
     Nar_vel_niib = Nar_fwhm/3e5*NII_b/2.35482
     
-    SII_r = 6731.*(1+z)/1e4   
-    SII_b = 6716.*(1+z)/1e4   
+    SII_r = 6732.67*(1+z)/1e4   
+    SII_b = 6718.29*(1+z)/1e4   
     
     Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
     
@@ -178,13 +178,13 @@ def log_prior_Halpha(theta, priors):
 # Function to fit  Halpha with outflow
 # =============================================================================
 def Halpha_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel):
-    Hal_wv = 6562.8*(1+z)/1e4     
-    NII_r = 6583.*(1+z)/1e4
-    NII_b = 6548.*(1+z)/1e4
+    Hal_wv = 6564.52*(1+z)/1e4     
+    NII_r = 6585.27*(1+z)/1e4
+    NII_b = 6549.86*(1+z)/1e4
     
-    Hal_wv_vel = 6562.8*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
-    NII_r_vel = 6583.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
-    NII_b_vel = 6548.*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    Hal_wv_vel = 6564.52*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_r_vel = 6585.27*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_b_vel = 6549.86*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
     
     
     Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
@@ -195,8 +195,8 @@ def Halpha_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk,
     out_vel_niir = outflow_fwhm/3e5*NII_r/2.35482
     out_vel_niib = outflow_fwhm/3e5*NII_b/2.35482
     
-    SII_r = 6731.*(1+z)/1e4   
-    SII_b = 6716.*(1+z)/1e4   
+    SII_r = 6732.67*(1+z)/1e4   
+    SII_b = 6718.29*(1+z)/1e4   
     
     Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_vel_hal)
     NII_nar_r = gauss(x, NII_peak, NII_r, Nar_vel_niir)
