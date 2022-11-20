@@ -57,10 +57,6 @@ Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$' 
 
 
-PATH='/Users/jansen/My Drive/Astro/'
-
-PATH_store = PATH+'KASHz/'
-
 OIIIr = 5008.24
 OIIIb = 4960.3
 Hal = 6564.52
@@ -1874,7 +1870,7 @@ class Cube:
         print('SNR OIII ', self.SNR_OIII)
         print('SNR Hbeta ', self.SNR_hb)
         '''
-        fig.savefig('/Users/jansen/Corner.pdf')
+        fig.savefig('~/Corner.pdf')
         
         f = plt.figure(figsize=(10,4))
         baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
@@ -2046,7 +2042,7 @@ class Cube:
             title_kwargs={"fontsize": 12})
         
         if outflow=='QSO':
-            fig.savefig('/Users/jansen/QSO_corner_test.pdf')
+            fig.savefig('~/QSO_corner_test.pdf')
         print(self.SNR)
         print(self.SNR_hb)
         
@@ -2057,8 +2053,8 @@ class Cube:
         
         emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2, template=template)
         if outflow=='QSO':
-            fig.savefig('/Users/jansen/QSO_corner_test.pdf')
-            f.savefig('/Users/jansen/QSO_OIII_test.pdf')
+            fig.savefig('~/QSO_corner_test.pdf')
+            f.savefig('~/QSO_OIII_test.pdf')
         self.fit_plot = [f,ax1,ax2]  
             
     
@@ -2493,9 +2489,10 @@ class Cube:
         obs_wave = self.obs_wave.copy()
         z = self.z
         
-        with open('/Users/jansen/priors.pkl', "wb") as fp:
-            pickle.dump( priors,fp)     
-        
+        if Ncores<1:
+            Ncores=1
+        with open('~/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)       
         #for i in range(len(Unwrapped_cube)):   
             #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
         with Pool(Ncores) as pool:
@@ -2508,14 +2505,32 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
     
-    def Spaxel_fitting_OIII_2G_MCMC_mp(self, Ncores=(mp.cpu_count() - 1)):
+    def Spaxel_fitting_OIII_2G_MCMC_mp(self, Ncores=(mp.cpu_count() - 1), priors={'cont':[0,-3,1],\
+                                                     'cont_grad':[0,-0.01,0.01], \
+                                                     'Hal_peak':[0,-3,1],\
+                                                     'BLR_peak':[0,-3,1],\
+                                                     'NII_peak':[0,-3,1],\
+                                                     'Nar_fwhm':[300,100,900],\
+                                                     'BLR_fwhm':[4000,2000,9000],\
+                                                     'BLR_offset':[-200,-900,600],\
+                                                     'SII_rpk':[0,-3,1],\
+                                                     'SII_bpk':[0,-3,1],\
+                                                     'Hal_out_peak':[0,-3,1],\
+                                                     'NII_out_peak':[0,-3,1],\
+                                                     'outflow_fwhm':[600,300,1500],\
+                                                     'outflow_vel':[-50, -300,300]}):
         import pickle
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
-            
+        
+        with open('~/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)    
+                
         print('import of the unwrap cube - done')
         print(len(Unwrapped_cube))
         
+        if Ncores<1:
+            Ncores=1
         with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_OIII_2G_unwrap, Unwrapped_cube )    
         
@@ -2545,15 +2560,13 @@ class Cube:
             Unwrapped_cube= pickle.load(fp)
             
         print('import of the unwrap cube - done')
+        with open('~/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)    
+            
         
-        #results = []
-        #for i in range(len(Unwrapped_cube)):   
-        #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
-        #cube_res = results
-        
-        with open('/Users/jansen/priors.pkl', "wb") as fp:
-            pickle.dump( priors,fp)     
-        
+        if Ncores<1:
+            Ncores=1
+            
         with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_unwrap, Unwrapped_cube)
         
@@ -2590,9 +2603,11 @@ class Cube:
         #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
         #cube_res = results
         
-        with open('/Users/jansen/priors.pkl', "wb") as fp:
+        with open('~/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)     
         
+        if Ncores<1:
+            Ncores=1
         with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
         

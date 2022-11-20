@@ -22,7 +22,6 @@ from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from astropy.nddata import Cutout2D
 
-PATH='/Users/jansen/Google Drive/Astro/'
 from astropy.modeling.powerlaws import PowerLaw1D
 
 import Graph_setup as gst 
