@@ -1863,14 +1863,7 @@ class Cube:
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
-        '''
-        print('SNR hal ', self.SNR_hal)
-        print('SNR NII ', self.SNR_nii)
-        print('SNR SII ', self.SNR_sii)
-        print('SNR OIII ', self.SNR_OIII)
-        print('SNR Hbeta ', self.SNR_hb)
-        '''
-        fig.savefig(os.getenv("HOME")+'/Corner.pdf')
+        
         
         f = plt.figure(figsize=(10,4))
         baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
@@ -2041,8 +2034,6 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
         
-        if outflow=='QSO':
-            fig.savefig(os.getenv("HOME")+'/QSO_corner_test.pdf')
         print(self.SNR)
         print(self.SNR_hb)
         
@@ -2052,9 +2043,7 @@ class Cube:
         ax2.yaxis.tick_left()
         
         emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2, template=template)
-        if outflow=='QSO':
-            fig.savefig(os.getenv("HOME")+'/QSO_corner_test.pdf')
-            f.savefig(os.getenv("HOME")+'/QSO_OIII_test.pdf')
+        
         self.fit_plot = [f,ax1,ax2]  
             
     
