@@ -19,7 +19,7 @@ import pickle
 import emcee
 import corner
 import tqdm
-
+import os
 
 from astropy import stats
 
@@ -1870,7 +1870,7 @@ class Cube:
         print('SNR OIII ', self.SNR_OIII)
         print('SNR Hbeta ', self.SNR_hb)
         '''
-        fig.savefig('~/Corner.pdf')
+        fig.savefig(os.getenv("HOME")+'/Corner.pdf')
         
         f = plt.figure(figsize=(10,4))
         baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
@@ -2042,7 +2042,7 @@ class Cube:
             title_kwargs={"fontsize": 12})
         
         if outflow=='QSO':
-            fig.savefig('~/QSO_corner_test.pdf')
+            fig.savefig(os.getenv("HOME")+'/QSO_corner_test.pdf')
         print(self.SNR)
         print(self.SNR_hb)
         
@@ -2053,8 +2053,8 @@ class Cube:
         
         emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2, template=template)
         if outflow=='QSO':
-            fig.savefig('~/QSO_corner_test.pdf')
-            f.savefig('~/QSO_OIII_test.pdf')
+            fig.savefig(os.getenv("HOME")+'/QSO_corner_test.pdf')
+            f.savefig(os.getenv("HOME")+'/QSO_OIII_test.pdf')
         self.fit_plot = [f,ax1,ax2]  
             
     
@@ -2491,7 +2491,7 @@ class Cube:
         
         if Ncores<1:
             Ncores=1
-        with open('~/priors.pkl', "wb") as fp:
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)       
         #for i in range(len(Unwrapped_cube)):   
             #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], self.obs_wave, self.z))
@@ -2523,7 +2523,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
         
-        with open('~/priors.pkl', "wb") as fp:
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)    
                 
         print('import of the unwrap cube - done')
@@ -2560,7 +2560,7 @@ class Cube:
             Unwrapped_cube= pickle.load(fp)
             
         print('import of the unwrap cube - done')
-        with open('~/priors.pkl', "wb") as fp:
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)    
             
         
@@ -2603,7 +2603,7 @@ class Cube:
         #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
         #cube_res = results
         
-        with open('~/priors.pkl', "wb") as fp:
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
             pickle.dump( priors,fp)     
         
         if Ncores<1:

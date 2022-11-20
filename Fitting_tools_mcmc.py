@@ -16,7 +16,7 @@ from astropy.table import Table, join, vstack
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 from scipy.optimize import curve_fit
-
+import os
 import emcee
 import corner
 from astropy.modeling.powerlaws import PowerLaw1D
@@ -684,7 +684,7 @@ def Fitting_OIII_unwrap(lst):
     
     i,j,flx_spax_m, error, wave, z = lst
     
-    with open('~/priors.pkl', "rb") as fp:
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     
     flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, outflow=0, progress=False, priors=priors)
@@ -692,7 +692,7 @@ def Fitting_OIII_unwrap(lst):
     return cube_res
 
 def Fitting_Halpha_OIII_unwrap(lst, progress=False):
-    with open('~/priors.pkl', "rb") as fp:
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     i,j,flx_spax_m, error, wave, z = lst
     deltav = 1500
@@ -717,7 +717,7 @@ import time
 
 def Fitting_Halpha_unwrap(lst): 
     
-    with open('~/priors.pkl', "rb") as fp:
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     print(priors)  
     i,j,flx_spax_m, error, wave, z = lst
