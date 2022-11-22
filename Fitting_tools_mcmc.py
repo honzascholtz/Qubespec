@@ -618,7 +618,8 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                           peak_hal*0.2, peak_hal*0.3])  
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
-       
+        print(pos_l)                  
+
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(
                 nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, fitted_model, log_prior)) 
@@ -645,7 +646,6 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                           peak_OIII*0.8, peak_OIII*0.3, peak_hal*0.2, peak_hal*0.2, peak_hal*0.1,\
                           priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
                           peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1, peak_OIII*0.2])
-                          
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
        
