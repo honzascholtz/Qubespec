@@ -67,6 +67,9 @@ Hbe = 4862.6
 SII_r = 6731
 SII_b = 6718.29
 import time
+
+
+from Halpha_OIII_models import *
 # =============================================================================
 # Useful function 
 # =============================================================================
@@ -393,7 +396,7 @@ def flux_calc(res, mode, norm=1e-13):
             
             model = o3n+o3w
             
-        else:# (res['popt']==7) | (res['popt']==9):
+        else:
             o3 = 5008.24*(1+res['z'][0])/1e4
             try:
                 model = gauss(wave, res['OIIIn_peak'][0], o3, res['OIIIn_fwhm'][0]/2.355/3e5*o3  )*1.333
@@ -1781,8 +1784,6 @@ class Cube:
     def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,outflow='Single_only', priors= {'cont':[0,-3,1],\
                                                                     'cont_grad':[0,-1.,1], \
                                                                     'OIIIn_peak':[0,-3,1],\
-                                                                    'OIIIn_fwhm':[300,100,900],\
-                                                                    'OIII_vel':[-100,-600,600],\
                                                                     'Hbeta_peak':[0,-3,1],\
                                                                     'Hal_peak':[0,-3,1],\
                                                                     'NII_peak':[0,-3,1],\
@@ -1796,7 +1797,12 @@ class Cube:
                                                                     'NII_out_peak':[0,-3,1],\
                                                                     'OIII_out_peak':[0,-3,1],\
                                                                     'Hbeta_out_peak':[0,-3,1],\
-                                                                    'OI_out_peak':[0,-3,1]}):
+                                                                    'OI_out_peak':[0,-3,1],\
+                                                                    'BLR_fwhm':[4000,2000,7000],\
+                                                                    'BLR_offset':[20,-300,300],\
+                                                                    'BLR_hal_peak':[0,-3,1],\
+                                                                    'BLR_hbe_peak':[0,-3,1],\
+                                                                    }):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
@@ -1808,7 +1814,7 @@ class Cube:
         flux = np.ma.array(data=fl, mask = msk)
         
         if outflow=='Single_only':   
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow=0)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow=0, priors=priors)
         
             prop_sig = prop_calc(flat_samples_sig)
                 
@@ -1833,7 +1839,7 @@ class Cube:
             
             
         elif outflow=='Outflow_only':   
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow=1)
+            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow=1, priors=priors)
         
             prop_sig = prop_calc(flat_samples_sig)
                 
@@ -1855,6 +1861,30 @@ class Cube:
             
             
             self.dBIC = 3
+            
+        elif outflow=='BLR':   
+             flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow='BLR', priors=priors)
+         
+             prop_sig = prop_calc(flat_samples_sig)
+                 
+                 
+             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+             chi2S = sum(((flux.data-y_model_sig)/error)**2)
+             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+             
+             self.D1_fit_results = prop_sig
+             self.D1_fit_chain = flat_samples_sig
+             self.D1_fit_model = fitted_model_sig
+             self.z = prop_sig['popt'][0]
+             
+             self.SNR_hal =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+             self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
+             self.SNR_OIII =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+             self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+             self.SNR_nii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
+             
+             
+             self.dBIC = 3
         labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
@@ -1866,7 +1896,7 @@ class Cube:
         
         
         f = plt.figure(figsize=(10,4))
-        baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
+        baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
         
         emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')
         baxes.set_xlabel('Restframe wavelength (ang)')
@@ -2494,20 +2524,21 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
     
-    def Spaxel_fitting_OIII_2G_MCMC_mp(self, Ncores=(mp.cpu_count() - 1), priors={'cont':[0,-3,1],\
-                                                     'cont_grad':[0,-0.01,0.01], \
-                                                     'Hal_peak':[0,-3,1],\
-                                                     'BLR_peak':[0,-3,1],\
-                                                     'NII_peak':[0,-3,1],\
-                                                     'Nar_fwhm':[300,100,900],\
-                                                     'BLR_fwhm':[4000,2000,9000],\
-                                                     'BLR_offset':[-200,-900,600],\
-                                                     'SII_rpk':[0,-3,1],\
-                                                     'SII_bpk':[0,-3,1],\
-                                                     'Hal_out_peak':[0,-3,1],\
-                                                     'NII_out_peak':[0,-3,1],\
-                                                     'outflow_fwhm':[600,300,1500],\
-                                                     'outflow_vel':[-50, -300,300]}):
+    def Spaxel_fitting_OIII_2G_MCMC_mp(self, Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
+                                                                    'cont_grad':[0,-0.01,0.01], \
+                                                                    'OIIIn_peak':[0,-3,1],\
+                                                                    'OIIIw_peak':[0,-3,1],\
+                                                                    'OIII_fwhm':[300,100,900],\
+                                                                    'OIII_out':[900,600,2500],\
+                                                                    'out_vel':[-200,-900,600],\
+                                                                    'Hbeta_peak':[0,-3,1],\
+                                                                    'Hbeta_fwhm':[200,120,7000],\
+                                                                    'Hbeta_vel':[10,-200,200],\
+                                                                    'Hbetan_peak':[0,-3,1],\
+                                                                    'Hbetan_fwhm':[300,120,700],\
+                                                                    'Hbetan_vel':[10,-100,100],\
+                                                                    'Fe_peak':[0,-3,2],\
+                                                                    'Fe_fwhm':[3000,2000,6000]}):
         import pickle
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
@@ -2606,6 +2637,52 @@ class Cube:
             pickle.dump( cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+    
+    def Spaxel_fitting_Halpha_OIII_AGN_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
+         'cont_grad':[0,-1.,1], \
+         'OIIIn_peak':[0,-3,1],\
+         'Hbeta_peak':[0,-3,1],\
+         'Hal_peak':[0,-3,1],\
+         'NII_peak':[0,-3,1],\
+         'Nar_fwhm':[300,150,900],\
+         'SII_rpk':[0,-3,1],\
+         'SII_bpk':[0,-3,1],\
+         'outflow_fwhm':[600,300,900],\
+         'outflow_vel':[-100,-600,600],\
+         'Hal_out_peak':[0,-3,1],\
+         'NII_out_peak':[0,-3,1],\
+         'OIII_out_peak':[0,-3,1],\
+         'Hbeta_out_peak':[0,-3,1],\
+         'BLR_fwhm':[5000,300,7000],\
+         'BLR_offset':[100,-200,200],\
+         'BLR_hal_peak':[0,-3,1],\
+         'BLR_hbe_peak':[0,-3,1],}):
+        import pickle
+        start_time = time.time()
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        #results = []
+        #for i in range(len(Unwrapped_cube)):   
+        #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
+        #cube_res = results
+        
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)     
+        
+        if Ncores<1:
+            Ncores=1
+        with Pool(Ncores) as pool:
+            cube_res = pool.map(emfit.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube)
+        
+        self.spaxel_fit_raw = cube_res
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
 
     
@@ -2666,23 +2743,23 @@ class Cube:
             z = res_spx['popt'][0]
             SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
             map_snr[i,j]= SNR
-            if (SNR>SNR_cut) & (SNR<100):
+            if (SNR>SNR_cut):
                 
                 map_vel[i,j] = ((5008.24*(1+z)/1e4)-wvo3)/wvo3*3e5
                 map_fwhm[i,j] = res_spx['popt'][4]
                 map_flux[i,j] = flux_calc(res_spx, 'OIIIt', self.flux_norm)
                 
                 
-                emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, emfit.OIII, error=error)
-                ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
-                ax.set_xlim(4830,5030)
-                plt.tight_layout()
-                Spax.savefig()  
-                ax.clear()
-                
                 Resid_cube[:,i,j] = flx_spax_m.data-emfit.OIII(self.obs_wave, *res_spx['popt'])
             else:
                 Resid_cube[:,i,j] = flx_spax_m.data
+            
+            emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, emfit.OIII, error=error)
+            ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
+            ax.set_xlim(4830,5030)
+            plt.tight_layout()
+            Spax.savefig()  
+            ax.clear()
                 
             
             SNRhb = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hb')
@@ -2872,7 +2949,7 @@ class Cube:
             if SNR>3:
                 
                 map_vel[i,j] = ((5008.24*(1+z)/1e4)-wvo3)/wvo3*3e5
-                map_fwhm[i,j] = res_spx['OIIIn_fwhm'][0] #W80_OIII_calc(emfit.OIII_outflow, sol, chains, plot)#res_spx['OIIIn_fwhm'][0]
+                map_fwhm[i,j] = W80_OIII_calc(emfit.OIII_outflow, res_spx, chains, 0)#res_spx['OIIIn_fwhm'][0]
                 map_flux[i,j] = flux_calc(res_spx, 'OIIIt',self.flux_norm)
                 
                 
@@ -3135,7 +3212,7 @@ class Cube:
         return f 
         
     
-    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add=''):
+    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = Halpha_OIII_BLR):
         z0 = self.z
     
         wv_hal = 6563*(1+z0)/1e4
@@ -3189,9 +3266,11 @@ class Cube:
         
         for row in tqdm.tqdm(range(len(results))):
             
-            
-            i,j, res_spx,chains = results[row]
-            i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+            try:
+                i,j, res_spx,chains,wave,flx_spax_m,error = results[row]
+            except:
+                i,j, res_spx,chains= results[row]
+                i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
             
             if 'Failed fit' in list(res_spx.keys()):
                 continue
@@ -3228,7 +3307,7 @@ class Cube:
 # =============================================================================
             f = plt.figure(figsize=(10,4))
             baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
-            emplot.plotting_Halpha_OIII(self.obs_wave, flx_spax_m, baxes, res_spx, emfit.Halpha_OIII)
+            emplot.plotting_Halpha_OIII(self.obs_wave, flx_spax_m, baxes, res_spx, modelfce)
             
             if res_spx['Hal_peak'][0]<3*error[0]:
                 baxes.set_ylim(-error[0], 5*error[0])
@@ -3300,20 +3379,21 @@ class Cube:
 # =============================================================================
 #             OI
 # =============================================================================
-            flux_oi, p16_oi,p84_oi = flux_calc_mcmc(res_spx, chains, 'OI', self.flux_norm)
-            SNR_oi=  flux_oi/p16_oi
-            SNRs = np.append(SNRs, SNR_oi)
-            map_oi[0,i,j]= SNR_oi.copy()
-            if SNR_oi>SNR_cut:
-                map_oi[1,i,j] = flux_oi.copy()
-                map_oi[2,i,j] = p16_oi.copy()
-                map_oi[3,i,j] = p84_oi.copy()
-            
-            else:
+            if 'OI_peak' in list(res_spx.keys()):  
+                flux_oi, p16_oi,p84_oi = flux_calc_mcmc(res_spx, chains, 'OI', self.flux_norm)
+                SNR_oi=  flux_oi/p16_oi
+                SNRs = np.append(SNRs, SNR_oi)
+                map_oi[0,i,j]= SNR_oi.copy()
+                if SNR_oi>SNR_cut:
+                    map_oi[1,i,j] = flux_oi.copy()
+                    map_oi[2,i,j] = p16_oi.copy()
+                    map_oi[3,i,j] = p84_oi.copy()
                 
-                dl = self.obs_wave[1]-self.obs_wave[0]
-                n = width_upper/3e5*(6300*(1+self.z)/1e4)/dl
-                map_oi[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
+                else:
+                    
+                    dl = self.obs_wave[1]-self.obs_wave[0]
+                    n = width_upper/3e5*(6300*(1+self.z)/1e4)/dl
+                    map_oi[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
                   
 # =============================================================================
 #           SII

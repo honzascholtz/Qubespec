@@ -388,13 +388,14 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
     fwhm = sol['Nar_fwhm'][0]/3e5/2.35*Hbeta
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
             color= 'orange', linestyle ='dashed')
-            
-    OI = 6302.0*(1+z)/1e4
-    fwhm = sol['Nar_fwhm'][0]/3e5/2.35*OI
-    ax.plot(wv_rest[fit_loc] , gauss(wave[fit_loc], sol['OI_peak'][0],OI, fwhm), color='green', linestyle='dashed')
+    
+    if 'OI_peak' in list(sol.keys()):    
+        OI = 6302.0*(1+z)/1e4
+        fwhm = sol['Nar_fwhm'][0]/3e5/2.35*OI
+        ax.plot(wv_rest[fit_loc] , gauss(wave[fit_loc], sol['OI_peak'][0],OI, fwhm), color='green', linestyle='dashed')
     
     if 'outflow_vel' in list(sol.keys()):
-        
+        OI = 6302.0*(1+z)/1e4
         
         Out_vel_hal = sol['outflow_fwhm'][0]/3e5*Hal_wv/2.35482
         Out_vel_niir = sol['outflow_fwhm'][0]/3e5*NII_r/2.35482 
@@ -418,15 +419,29 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
         
         Outflow =  gauss(wave[fit_loc], sol['Hal_out_peak'][0], Hal_wv, Out_vel_hal)  + \
             gauss(wave[fit_loc],  sol['NII_out_peak'][0], NII_r, Out_vel_niir)+  gauss(wave[fit_loc],  sol['NII_out_peak'][0]/3, NII_b, Out_vel_niib) + \
-            gauss(wave[fit_loc],  sol['OI_out_peak'][0], OI, Out_vel_oi)   +\
             gauss(wave[fit_loc],  sol['OIII_out_peak'][0], OIII_r, Out_vel_oiiir) + gauss(wave[fit_loc],  sol['OIII_out_peak'][0]/3, OIII_b, Out_vel_oiiib)+\
             gauss(wave[fit_loc],  sol['Hbeta_out_peak'][0], Hbeta, Out_vel_hbe )
             
-        
+        if 'OI_peak' in list(sol.keys()):
+            Outflow+= gauss(wave[fit_loc], sol['OI_out_peak'][0], OI, Out_vel_oi)
+                
         ax.plot(wv_rest[fit_loc] , Outflow, color='magenta', linestyle='dashed')
         
         
-    
+    if 'BLR_fwhm' in list(sol.keys()):
+        Hal_wv = 6564.52*(1+z)/1e4
+        Hbe_wv = 4862.6*(1+z)/1e4
+        
+        BLR_sig_hal = sol['BLR_fwhm'][0]/3e5*Hal_wv/2.35482
+        BLR_sig_hbe = sol['BLR_fwhm'][0]/3e5*Hbe_wv/2.35482
+        
+        BLR_wv_hal = Hal_wv + sol['BLR_offset'][0]/3e5*Hal_wv
+        BLR_wv_hbe = Hal_wv + sol['BLR_offset'][0]/3e5*Hbe_wv
+        
+        Hal_blr = gauss(wave[fit_loc], sol['BLR_hal_peak'][0], BLR_wv_hal, BLR_sig_hal)
+        Hbe_blr = gauss(wave[fit_loc], sol['BLR_hbe_peak'][0], BLR_wv_hbe, BLR_sig_hbe)
+        
+        ax.plot(wv_rest[fit_loc], Hal_blr+Hbe_blr, linestyle='dashed',color='lightblue')
     
         
 def overide_axes_labels(fig,ax,lims,showx=1,showy=1,labelx=1,labely=1,color='k',fewer_x=0,pruney=0,prunex=0,tick_color='k', tickin=0, labelsize=12, white=0):

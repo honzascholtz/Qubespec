@@ -458,5 +458,9 @@ def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_pea
 
 def log_prior_Halpha_QSO_BKPL(theta, priors):
     
-    
     return sum([ f.logpdf(t) for f,t in zip(priors, theta)])
+
+
+
+
+

@@ -229,7 +229,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
     
     
     
-    priors['z'] = [z, z-0.05, z+0.05]
+    priors['z'] = [z, z-0.02, z+0.02]
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
@@ -560,14 +560,19 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                                                                 'SII_rpk':[0,-3,1],\
                                                                 'SII_bpk':[0,-3,1],\
                                                                 'OI_peak':[0,-3,1],\
-                                                                'outflow_fwhm':[300,300,900],\
+                                                                'outflow_fwhm':[300,400,900],\
                                                                 'outflow_vel':[-100,-600,600],\
                                                                 'Hal_out_peak':[0,-3,1],\
                                                                 'NII_out_peak':[0,-3,1],\
                                                                 'OIII_out_peak':[0,-3,1],\
                                                                 'Hbeta_out_peak':[0,-3,1],\
-                                                                'OI_out_peak':[0,-3,1]}):
-    priors['z'] = [z, z-zcont, z+zcont]
+                                                                'OI_out_peak':[0,-3,1],\
+                                                                'BLR_fwhm':[4000,2000,7000],\
+                                                                'BLR_offset':[20,-300,300],\
+                                                                'BLR_hal_peak':[0,-3,1],\
+                                                                'BLR_hbe_peak':[0,-3,1],\
+                                                                }):
+    
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     wave = wave[np.invert(fluxs.mask)]
@@ -597,11 +602,14 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         z= znew
     '''
     peak_hal = np.ma.max(flux_zoom)
+    if peak_hal<0:
+        peak_hal==3e-3
     
 # =============================================================================
 #   Setting up fitting  
 # =============================================================================
     if outflow==0:
+        priors['z'] = [z, z-zcont, z+zcont]
         nwalkers=64
         fitted_model = Halpha_OIII
         log_prior = log_prior_Halpha_OIII
@@ -628,6 +636,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
             res[labels[i]] = flat_samples[:,i]
             
     if outflow==1:
+        priors['z'] = [z, z-zcont, z+zcont]
         nwalkers=64
         fitted_model = Halpha_OIII_outflow
         log_prior = log_prior_Halpha_OIII_outflow
@@ -657,6 +666,42 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         res = {'name': 'Halpha_OIII_outflow'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
+    if outflow=='BLR':
+        priors['z'] = [z, z-zcont, z+zcont]
+        nwalkers=64
+        fitted_model = Halpha_OIII_BLR
+        log_prior = log_prior_Halpha_OIII_BLR
+        
+        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+                          peak_OIII*0.8, peak_hal*0.3, peak_hal*0.2, peak_hal*0.2,\
+                          priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
+                          peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
+                          priors['BLR_fwhm'][0], priors['BLR_offset'][0], peak_hal*0.3, peak_hal*0.1])
+        
+        #prl = [ priors[key][1] for key in list(priors.keys()) ]
+        
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+       
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(
+                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, fitted_model, log_prior)) 
+        
+        sampler.run_mcmc(pos, N, progress=progress);
+        
+        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+                                  
+                                  
+        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIIIn_peak', 'Hbeta_peak','SII_rpk', 'SII_bpk',\
+                'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' ,\
+                'BLR_fwhm', 'BLR_offset', 'BLR_hal_peak', 'BLR_hbe_peak')
+        
+        
+        
+        res = {'name': 'Halpha_OIII_BLR'}
+        for i in range(len(labels)):
+            res[labels[i]] = flat_samples[:,i]
+        
         
     return res, fitted_model
 
@@ -699,7 +744,20 @@ def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     deltaz = deltav/3e5*(1+z)
     try:
         flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors)
-        cube_res  = [i,j,prop_calc(flat_samples_sig), flat_samples_sig]
+        cube_res  = [i,j,prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error]
+    except:
+        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+    return cube_res
+
+def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
+        priors= pickle.load(fp) 
+    i,j,flx_spax_m, error, wave, z = lst
+    deltav = 1500
+    deltaz = deltav/3e5*(1+z)
+    try:
+        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow='BLR')
+        cube_res  = [i,j,prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error ]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
@@ -724,7 +782,7 @@ def Fitting_Halpha_unwrap(lst):
     print(i)
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
-    flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, BLR=0, progress=False, priors=priors)
+    flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, BLR=0, progress=False, priors=priors,N=10000)
     cube_res  = [i,j,prop_calc(flat_samples_sig)]
     
     return cube_res
