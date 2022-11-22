@@ -435,8 +435,8 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
         BLR_sig_hal = sol['BLR_fwhm'][0]/3e5*Hal_wv/2.35482
         BLR_sig_hbe = sol['BLR_fwhm'][0]/3e5*Hbe_wv/2.35482
         
-        BLR_wv_hal = Hal_wv + sol['BLR_offset'][0]/3e5*Hal_wv
-        BLR_wv_hbe = Hal_wv + sol['BLR_offset'][0]/3e5*Hbe_wv
+        BLR_wv_hal = 6564.52*(1+sol['zBLR'][0])/1e4 
+        BLR_wv_hbe = 4862.6*(1+sol['zBLR'][0])/1e4 
         
         Hal_blr = gauss(wave[fit_loc], sol['BLR_hal_peak'][0], BLR_wv_hal, BLR_sig_hal)
         Hbe_blr = gauss(wave[fit_loc], sol['BLR_hbe_peak'][0], BLR_wv_hbe, BLR_sig_hbe)

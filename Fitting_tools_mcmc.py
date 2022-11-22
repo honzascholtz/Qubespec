@@ -618,8 +618,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                           peak_hal*0.2, peak_hal*0.3])  
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        print(pos_l)                  
-
+        
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(
                 nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors, fitted_model, log_prior)) 
@@ -676,7 +675,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                           peak_OIII*0.8, peak_hal*0.3, peak_hal*0.2, peak_hal*0.2,\
                           priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
                           peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
-                          priors['BLR_fwhm'][0], priors['BLR_offset'][0], peak_hal*0.3, peak_hal*0.1])
+                          priors['BLR_fwhm'][0], priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
         
         #prl = [ priors[key][1] for key in list(priors.keys()) ]
         
@@ -694,7 +693,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                                   
         labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIIIn_peak', 'Hbeta_peak','SII_rpk', 'SII_bpk',\
                 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' ,\
-                'BLR_fwhm', 'BLR_offset', 'BLR_hal_peak', 'BLR_hbe_peak')
+                'BLR_fwhm', 'zBLR', 'BLR_hal_peak', 'BLR_hbe_peak')
         
         
         

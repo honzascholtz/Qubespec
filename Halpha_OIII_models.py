@@ -214,7 +214,7 @@ def log_prior_Halpha_OIII_outflow(theta, priors):
 def Halpha_OIII_BLR(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk,\
                         Nar_fwhm, outflow_fwhm, outflow_vel, \
                         Hal_out_peak, NII_out_peak, OIII_out_peak,  Hbeta_out_peak,\
-                        BLR_fwhm, BLR_offset, BLR_hal_peak, BLR_hbe_peak):
+                        BLR_fwhm, zBLR, BLR_hal_peak, BLR_hbe_peak):
                             
     
     
@@ -231,8 +231,8 @@ def Halpha_OIII_BLR(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta
     BLR_sig_hal = BLR_fwhm/3e5*Hal_wv/2.35482
     BLR_sig_hbe = BLR_fwhm/3e5*Hbe_wv/2.35482
     
-    BLR_wv_hal = Hal_wv + BLR_offset/3e5*Hal_wv
-    BLR_wv_hbe = Hal_wv + BLR_offset/3e5*Hbe_wv
+    BLR_wv_hal = 6564.52*(1+zBLR)/1e4
+    BLR_wv_hbe = 4862.6*(1+zBLR)/1e4
     
     Hal_blr = gauss(x, BLR_hal_peak, BLR_wv_hal, BLR_sig_hal)
     Hbe_blr = gauss(x, BLR_hbe_peak, BLR_wv_hbe, BLR_sig_hbe)
@@ -246,7 +246,7 @@ def log_prior_Halpha_OIII_BLR(theta, priors):
     z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk,\
                             Nar_fwhm, outflow_fwhm, outflow_vel, \
                             Hal_out_peak, NII_out_peak, OIII_out_peak,  Hbeta_out_peak,\
-                            BLR_fwhm, BLR_offset, BLR_hal_peak, BLR_hbe_peak = theta
+                            BLR_fwhm, zBLR, BLR_hal_peak, BLR_hbe_peak = theta
     
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)) \
         | (BLR_hal_peak/BLR_hbe_peak<(2.86/1.35)) | (OIII_out_peak>OIIIn_peak) \
@@ -269,7 +269,7 @@ def log_prior_Halpha_OIII_BLR(theta, priors):
         and priors['BLR_hal_peak'][1] < np.log10(BLR_hal_peak)< priors['BLR_hal_peak'][2]\
         and priors['BLR_hbe_peak'][1] < np.log10(BLR_hbe_peak)< priors['BLR_hbe_peak'][2]\
         and priors['BLR_fwhm'][1] < BLR_fwhm <priors['BLR_fwhm'][2] \
-        and priors['BLR_offset'][1] < BLR_offset <priors['BLR_offset'][2]\
+        and priors['zBLR'][1] < zBLR <priors['zBLR'][2]\
         and 0.44<(SII_rpk/SII_bpk)<1.45:
             return 0.0 
     

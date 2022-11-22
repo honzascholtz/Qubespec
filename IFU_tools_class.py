@@ -2599,7 +2599,7 @@ class Cube:
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
         
-    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
+    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 2), priors= {'cont':[0,-3,1],\
                                                           'cont_grad':[0,-10.,10], \
                                                           'OIIIn_peak':[0,-3,1],\
                                                            'OIIIn_fwhm':[300,100,900],\
@@ -3212,9 +3212,9 @@ class Cube:
         return f 
         
     
-    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = Halpha_OIII_BLR):
+    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = Halpha_OIII):
         z0 = self.z
-    
+        failed_fits=0
         wv_hal = 6563*(1+z0)/1e4
         wv_oiii = 5008.24*(1+z0)/1e4
         # =============================================================================
@@ -3273,6 +3273,7 @@ class Cube:
                 i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
             
             if 'Failed fit' in list(res_spx.keys()):
+                failed_fits+=1
                 continue
             
             z = res_spx['popt'][0]
@@ -3431,6 +3432,7 @@ class Cube:
             Spax.savefig()  
             plt.close(f)
         
+        print('Failed fits', failed_fits)
         Spax.close() 
 # =============================================================================
 #         Calculating Avs
