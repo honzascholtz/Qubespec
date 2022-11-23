@@ -1132,7 +1132,7 @@ class Cube:
     
             
     
-    def flat_field_spec(self, center, rad=0.6, plot=0):
+    def background_sub_spec(self, center, rad=0.6, plot=0):
         # Creating a mask for all spaxels.
         shapes = self.dim
         mask_catch = self.flux.mask.copy()
