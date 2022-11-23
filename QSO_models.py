@@ -37,8 +37,6 @@ Conversion2Chabrier=1.7 # Also Madau
 Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$' 
 
-
-PATH='/Users/jansen/My Drive/Astro/'
 fsz = gst.graph_format()
 
 def find_nearest(array, value):
@@ -77,8 +75,6 @@ Veron_wv = np.arange(Veron_hd['CRVAL1'], Veron_hd['CRVAL1']+ Veron_hd['NAXIS1'])
 Tsuzuki = np.loadtxt(PATH_TO_FeII+'FeII_Tsuzuki_opttemp.txt')
 Tsuzuki_d = Tsuzuki[:,1]
 Tsuzuki_wv = Tsuzuki[:,0]
-
-
 
 BG92 = np.loadtxt(PATH_TO_FeII+'bg92.con')
 BG92_d = BG92[:,1]

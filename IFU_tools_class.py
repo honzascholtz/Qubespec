@@ -2433,7 +2433,10 @@ class Cube:
                     
                     Spax_mask_pick = ThD_mask.copy()
                     Spax_mask_pick[:,:,:] = True
-                    Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
+                    if sp_binning=='Nearest':
+                        Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
+                    if sp_binning=='Single':
+                        Spax_mask_pick[:, i, j] = False
                     
                     if self.instrument=='NIRSPEC_IFU':
                         total_mask = np.logical_or(Spax_mask_pick, self.sky_clipped)

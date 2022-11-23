@@ -724,6 +724,19 @@ def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, templ
     return lp + log_likelihood
 
 
+'''
+@numba.njit
+def logprior_general(theta, priors):
+    results = 0.
+    for t,p in zip( theta, priors):
+        results += (
+            -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2 if prior[0]
+            elif prior[0]==1  np.log(p[1]<t<p[2]/(p[1]-p[1])) elif prior[0]==2  np.log(p[1]<t<p[2]/(p[1]-p[1]))
+            )
+    return results
+'''
+
+
 def Fitting_OIII_unwrap(lst):
     
     i,j,flx_spax_m, error, wave, z = lst
