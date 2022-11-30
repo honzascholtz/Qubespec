@@ -284,8 +284,8 @@ def SNR_calc(wave,flux, error, dictsol, mode):
         
         fwhm = dictsol['Nar_fwhm'][0]/3e5*center
         try:
-            model_r = gauss(wave, dictsol['SII_rpk'][0], center, fwhm/2.35) 
-            model_b = gauss(wave, dictsol['SII_bpk'][0], center, fwhm/2.35) 
+            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm/2.35) 
+            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm/2.35) 
         except:
             model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm/2.35) 
             model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm/2.35) 
@@ -481,7 +481,7 @@ def flux_calc(res, mode, norm=1e-13):
         try:  
             model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
         except:
-            model_r = gauss(wave, res['SII_rpk'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
+            model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
         
         import scipy.integrate as scpi
             
@@ -496,7 +496,7 @@ def flux_calc(res, mode, norm=1e-13):
         try:
             model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
         except:
-            model_b = gauss(wave, res['SII_bpk'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
+            model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
         
         import scipy.integrate as scpi
             
@@ -1529,20 +1529,21 @@ class Cube:
             
             plt.tight_layout()
     
-    def fitting_collapse_Halpha(self, plot, AGN = 'BLR', progress=True,er_scale=1, N=6000, priors= {'cont':[0,-3,1],\
-                                                                                       'cont_grad':[0,-0.01,0.01], \
-                                                                                       'Hal_peak':[0,-3,1],\
-                                                                                       'BLR_peak':[0,-3,1],\
-                                                                                       'NII_peak':[0,-3,1],\
-                                                                                       'Nar_fwhm':[300,100,900],\
-                                                                                       'BLR_fwhm':[4000,2000,9000],\
-                                                                                       'BLR_offset':[-200,-900,600],\
-                                                                                        'SII_rpk':[0,-3,1],\
-                                                                                        'SII_bpk':[0,-3,1],\
-                                                                                        'Hal_out_peak':[0,-3,1],\
-                                                                                        'NII_out_peak':[0,-3,1],\
-                                                                                        'outflow_fwhm':[600,300,1500],\
-                                                                                        'outflow_vel':[-50, -300,300]}):
+    def fitting_collapse_Halpha(self, plot, AGN = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-3,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'BLR_peak':[0,'loguniform',-3,1],\
+                                                                                       'NII_peak':[0,'loguniform',-3,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'BLR_offset':[-100,'normal',0,200],\
+                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300]}):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()/er_scale
@@ -1699,7 +1700,7 @@ class Cube:
             self.D1_fit_chain = flat_samples
             self.D1_fit_model = fitted_model
             
-            self.z = prop_blr['popt'][0]
+            self.z = prop['popt'][0]
                 
             self.SNR =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
@@ -1732,18 +1733,14 @@ class Cube:
         if AGN=='QSO_BKPL':
             
             flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, BLR='QSO_BKPL',N=N, progress=progress, priors=priors)
-    
-            prop = prop_calc(flat_samples_sig)
-            
-            y_model = fitted_model(wave, *prop_sig['popt'])
-            
+            prop = prop_calc(flat_samples)
             
             chi2S, BICS = BIC_calc(wave, flux, error, fitted_model, prop, 'Halpha')
         
             self.D1_fit_results = prop
             self.D1_fit_chain = flat_samples
             self.D1_fit_model = fitted_model
-            self.z = prop_sig['popt'][0]
+            self.z = prop['popt'][0]
                 
             self.SNR =  10
             self.SNR_sii =  10
@@ -1781,28 +1778,29 @@ class Cube:
                 emplot.plotting_Halpha(wave, flux, ax2a, prop_out , fitted_model_out)
             
             
-    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,outflow='Single_only', priors= {'cont':[0,-3,1],\
-                                                                    'cont_grad':[0,-1.,1], \
-                                                                    'OIIIn_peak':[0,-3,1],\
-                                                                    'Hbeta_peak':[0,-3,1],\
-                                                                    'Hal_peak':[0,-3,1],\
-                                                                    'NII_peak':[0,-3,1],\
-                                                                    'Nar_fwhm':[300,150,900],\
-                                                                    'SII_rpk':[0,-3,1],\
-                                                                    'SII_bpk':[0,-3,1],\
-                                                                    'OI_peak':[0,-3,1],\
-                                                                    'outflow_fwhm':[300,300,900],\
-                                                                    'outflow_vel':[-100,-600,600],\
-                                                                    'Hal_out_peak':[0,-3,1],\
-                                                                    'NII_out_peak':[0,-3,1],\
-                                                                    'OIII_out_peak':[0,-3,1],\
-                                                                    'Hbeta_out_peak':[0,-3,1],\
-                                                                    'OI_out_peak':[0,-3,1],\
-                                                                    'BLR_fwhm':[4000,2000,7000],\
-                                                                    'BLR_offset':[20,-300,300],\
-                                                                    'BLR_hal_peak':[0,-3,1],\
-                                                                    'BLR_hbe_peak':[0,-3,1],\
-                                                                    }):
+    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,outflow='Single_only', priors={'z':[0,'normal', 0, 0.003],\
+                                                                                                     'cont':[0,'loguniform', -3,1],\
+                                                                                                     'cont_grad':[0,'normal', 0,0.2],\
+                                                                                                     'Hal_peak':[0,'loguniform', -3,1],\
+                                                                                                     'NII_peak':[0,'loguniform', -3,1],\
+                                                                                                     'Nar_fwhm':[300,'uniform', 200,900],\
+                                                                                                     'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                                     'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                                     'OIIIn_peak':[0,'loguniform', -3,1],\
+                                                                                                     'Hbeta_peak':[0,'loguniform', -3,1],\
+                                                                                                     'OI_peak':[0,'loguniform', -3,1],\
+                                                                                                     'outflow_fwhm':[450,'uniform', 300,900],\
+                                                                                                     'outflow_vel':[-50,'normal', -50,100],\
+                                                                                                     'Hal_out_peak':[0,'loguniform', -3,1],\
+                                                                                                     'NII_out_peak':[0,'loguniform', -3,1],\
+                                                                                                     'OIII_out_peak':[0,'loguniform', -3,1],\
+                                                                                                     'OI_out_peak':[0,'loguniform', -3,1],\
+                                                                                                     'Hbeta_out_peak':[0,'loguniform', -3,1],\
+                                                                                                     'zBLR':[0,'normal', 0,0.003],\
+                                                                                                     'BLR_fwhm':[4000,'normal', 5000,500],\
+                                                                                                     'BLR_hal_peak':[0,'loguniform', -3,1],\
+                                                                                                     'BLR_hbe_peak':[0,'loguniform', -3,1],\
+                                                                                                     }):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
@@ -1885,6 +1883,29 @@ class Cube:
              
              
              self.dBIC = 3
+        
+        elif outflow=='QSO_BKPL':   
+             flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, outflow='QSO_BKPL', priors=priors)
+         
+             prop_sig = prop_calc(flat_samples_sig)
+                 
+                 
+             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
+             chi2S = sum(((flux.data-y_model_sig)/error)**2)
+             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+             
+             self.D1_fit_results = prop_sig
+             self.D1_fit_chain = flat_samples_sig
+             self.D1_fit_model = fitted_model_sig
+             self.z = prop_sig['popt'][0]
+             '''
+             self.SNR_hal =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+             self.SNR_OIII =  SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+             self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+             self.SNR_nii =  SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
+             '''
+             
+             self.dBIC = 3
         labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
@@ -1896,7 +1917,11 @@ class Cube:
         
         
         f = plt.figure(figsize=(10,4))
-        baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
+        if outflow=='QSO_BKPL':
+            baxes = brokenaxes(xlims=((4700,5050),(6200,6800)),  hspace=.01)
+        
+        else:
+            baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
         
         emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')
         baxes.set_xlabel('Restframe wavelength (ang)')
@@ -1906,21 +1931,22 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, outflow='both',template=0, Hbeta_dual=0, N=6000,priors= {'cont':[0,-3,1],\
-                                                                    'cont_grad':[0,-0.01,0.01], \
-                                                                    'OIIIn_peak':[0,-3,1],\
-                                                                    'OIIIw_peak':[0,-3,1],\
-                                                                    'OIII_fwhm':[300,100,900],\
-                                                                    'OIII_out':[900,600,2500],\
-                                                                    'out_vel':[-200,-900,600],\
-                                                                    'Hbeta_peak':[0,-3,1],\
-                                                                    'Hbeta_fwhm':[200,120,7000],\
-                                                                    'Hbeta_vel':[10,-200,200],\
-                                                                    'Hbetan_peak':[0,-3,1],\
-                                                                    'Hbetan_fwhm':[300,120,700],\
-                                                                    'Hbetan_vel':[10,-100,100],\
-                                                                    'Fe_peak':[0,-3,2],\
-                                                                    'Fe_fwhm':[3000,2000,6000]}):
+    def fitting_collapse_OIII(self,  plot, outflow='both',template=0, Hbeta_dual=0, N=6000,priors= {'z': [0,'normal',0, 0.003],\
+                                                                                                    'cont':[0,'loguniform',-3,1],\
+                                                                                                    'cont_grad':[0,'normal',0,0.2], \
+                                                                                                    'OIIIn_peak':[0,'loguniform',-3,1],\
+                                                                                                    'OIIIw_peak':[0,'loguniform',-3,1],\
+                                                                                                    'OIIIn_fwhm':[300,'uniform', 100,900],\
+                                                                                                    'OIIIw_fwhm':[700,'uniform',600,2500],\
+                                                                                                    'out_vel':[-50,'normal',0,200],\
+                                                                                                    'Hbeta_peak':[0,'loguniform',-3,1],\
+                                                                                                    'Hbeta_fwhm':[400,'uniform',120,7000],\
+                                                                                                    'Hbeta_vel':[10,'normal', 0,200],\
+                                                                                                    'Hbetan_peak':[0,'loguniform',-3,1],\
+                                                                                                    'Hbetan_fwhm':[300,'uniform',120,700],\
+                                                                                                    'Hbetan_vel':[10,'normal', 0,100],\
+                                                                                                    'Fe_peak':[0,'loguniform',-3,1],\
+                                                                                                    'Fe_fwhm':[3000,'uniform',2000,6000]}):
         
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
@@ -1928,7 +1954,6 @@ class Cube:
         z = self.z
         ID = self.ID
         
-        priors['z'] = [self.z, self.z-0.05, self.z+0.05]
         
         if outflow=='both':
             flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0,N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
@@ -2571,8 +2596,8 @@ class Cube:
                                                      'Nar_fwhm':[300,100,900],\
                                                      'BLR_fwhm':[4000,2000,9000],\
                                                      'BLR_offset':[-200,-900,600],\
-                                                     'SII_rpk':[0,-3,1],\
-                                                     'SII_bpk':[0,-3,1],\
+                                                     'SIIr_peak':[0,-3,1],\
+                                                     'SIIb_peak':[0,-3,1],\
                                                      'Hal_out_peak':[0,-3,1],\
                                                      'NII_out_peak':[0,-3,1],\
                                                      'outflow_fwhm':[600,300,1500],\
@@ -2611,8 +2636,8 @@ class Cube:
                                                            'Hal_peak':[0,-3,1],\
                                                            'NII_peak':[0,-3,1],\
                                                            'Nar_fwhm':[300,150,900],\
-                                                           'SII_rpk':[0,-3,1],\
-                                                           'SII_bpk':[0,-3,1],\
+                                                           'SIIr_peak':[0,-3,1],\
+                                                           'SIIb_peak':[0,-3,1],\
                                                            'OI_peak':[0,-3,1]}):
         import pickle
         start_time = time.time()
@@ -2648,8 +2673,8 @@ class Cube:
          'Hal_peak':[0,-3,1],\
          'NII_peak':[0,-3,1],\
          'Nar_fwhm':[300,150,900],\
-         'SII_rpk':[0,-3,1],\
-         'SII_bpk':[0,-3,1],\
+         'SIIr_peak':[0,-3,1],\
+         'SIIb_peak':[0,-3,1],\
          'outflow_fwhm':[600,300,900],\
          'outflow_vel':[-100,-600,600],\
          'Hal_out_peak':[0,-3,1],\
@@ -3313,8 +3338,8 @@ class Cube:
             baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
             emplot.plotting_Halpha_OIII(self.obs_wave, flx_spax_m, baxes, res_spx, modelfce)
             
-            if res_spx['Hal_peak'][0]<3*error[0]:
-                baxes.set_ylim(-error[0], 5*error[0])
+            #if res_spx['Hal_peak'][0]<3*error[0]:
+            #    baxes.set_ylim(-error[0], 5*error[0])
             #if (res_spx['SIIr_peak'][0]>res_spx['Hal_peak'][0]) & (res_spx['SIIb_peak'][0]>res_spx['Hal_peak'][0]):
             #    baxes.set_ylim(-error[0], 5*error[0])
             

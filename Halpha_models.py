@@ -17,6 +17,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 
 from astropy.modeling.powerlaws import PowerLaw1D
+import numba
 
 pi= np.pi
 e= np.e
@@ -69,49 +70,26 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR
     
     return contm + Hal_nar + Hal_blr + NII_rg + NII_bg + SII_rg + SII_bg
 
-
+@numba.njit
 def log_prior_Halpha_BLR(theta, priors):
     z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta
     
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak<SII_rpk) | (Hal_peak<SII_bpk) | (BLR_peak<0):
         return -np.inf
    
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['Hal_peak'][1] < np.log10(Hal_peak) < priors['Hal_peak'][2] and priors['Nar_fwhm'][1] < Nar_fwhm <priors['Nar_fwhm'][2] and priors['NII_peak'][1] < np.log10(NII_peak) < priors['NII_peak'][2]\
-            and priors['BLR_peak'][1] < np.log10(BLR_peak) < priors['BLR_peak'][2] and priors['BLR_fwhm'][1] < BLR_fwhm <priors['BLR_fwhm'][2] and priors['BLR_offset'][1] < BLR_offset <priors['BLR_offset'][2]\
-                and priors['SII_rpk'][1] < np.log10(SII_rpk) < priors['SII_rpk'][2] and priors['SII_bpk'][1] < np.log10(SII_bpk)<priors['SII_bpk'][2]\
-                    and 0.44<(SII_rpk/SII_bpk)<1.45:
-                        return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+    
+    return results
 
-    return -np.inf
-'''
-def log_prior_Halpha_BLR(theta, pr):
-    z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta
-    
-    
-    zcont=0.05
-    priors = []
-    
-    priors.append(uniform.logpdf(z,pr['z'][1], pr['z'][2]))
-    priors.append(uniform.logpdf(np.log10(cont), -4,3))
-    priors.append(uniform.logpdf(np.log10(Hal_peak),  -4, 3 ))
-    priors.append(uniform.logpdf(np.log10(NII_peak),  -4, 3 ))
-    priors.append(uniform.logpdf(Nar_fwhm, 100,1000 ))
-    priors.append(norm.logpdf(cont_grad, 0, 0.1))
-    priors.append(uniform.logpdf(np.log10(SII_bpk), -4, 3))
-    priors.append(uniform.logpdf(np.log10(SII_rpk), -4, 3))
-    
-    priors.append(uniform.logpdf(np.log10(BLR_peak),  -4, 3 ))
-    priors.append(uniform.logpdf(BLR_fwhm, 2000,9000 ))
-    priors.append(norm.logpdf(BLR_offset, 0, 200))
-    
-    logprior = np.sum(priors)
-    
-    if logprior==np.nan:
-        return -np.inf
-    else:
-        return logprior
-'''
     
 
 # =============================================================================
@@ -140,51 +118,38 @@ def Halpha(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk
     
     return contm+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg
 
-
+@numba.njit
 def log_prior_Halpha(theta, priors):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
     
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0):
         return -np.inf
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['Hal_peak'][1] < np.log10(Hal_peak) < priors['Hal_peak'][2] and priors['Nar_fwhm'][1] < Nar_fwhm <priors['Nar_fwhm'][2] and priors['NII_peak'][1] < np.log10(NII_peak) < priors['NII_peak'][2]\
-            and priors['SII_rpk'][1] < np.log10(SII_rpk) < priors['SII_rpk'][2] and priors['SII_bpk'][1] < np.log10(SII_bpk)<priors['SII_bpk'][2]\
-                and 0.44<(SII_rpk/SII_bpk)<1.45:
-                    return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
-'''
-def log_prior_Halpha(theta, priors):
-    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk = theta
-    zcont=0.01
+    return results
     
-    logpriors = np.zeros_like(theta)
-    
-    logpriors[0] = norm.logpdf(z,priors['z'][0],zcont)
-    logpriors[1] = uniform.logpdf(np.log10(cont), -3,5)
-    logpriors[2] = uniform.logpdf(np.log10(Hal_peak), -3,5)
-    logpriors[3] = uniform.logpdf(np.log10(NII_peak), -3,5 )
-    logpriors[4] = uniform.logpdf(Nar_fwhm, 100, 900 )
-    logpriors[5] = norm.logpdf(cont_grad, 0, 0.1)
-    logpriors[6] = uniform.logpdf(np.log10(SII_bpk),-3,53)
-    logpriors[7] = uniform.logpdf(np.log10(SII_rpk), -3,5)
-    
-    logprior = np.einsum('i',logpriors)
-    
-    return logprior
-'''
 # =============================================================================
 # Function to fit  Halpha with outflow
 # =============================================================================
 def Halpha_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel):
+    
     Hal_wv = 6564.52*(1+z)/1e4     
     NII_r = 6585.27*(1+z)/1e4
     NII_b = 6549.86*(1+z)/1e4
     
     Hal_wv_vel = 6564.52*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
-    NII_r_vel = 6585.27*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
-    NII_b_vel = 6549.86*(1+z)/1e4 + outflow_vel/3e5*Hal_wv 
+    NII_r_vel = 6585.27*(1+z)/1e4 + outflow_vel/3e5*NII_r
+    NII_b_vel = 6549.86*(1+z)/1e4 + outflow_vel/3e5*NII_b 
     
     
     Nar_vel_hal = Nar_fwhm/3e5*Hal_wv/2.35482
@@ -213,7 +178,7 @@ def Halpha_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk,
     contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
     return contm+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg + outflow
 
-
+@numba.njit
 def log_prior_Halpha_outflow(theta, priors):
     z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm,  SII_rpk, SII_bpk, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel = theta
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak<SII_rpk) | (Hal_peak<SII_bpk):
@@ -221,13 +186,16 @@ def log_prior_Halpha_outflow(theta, priors):
     if Hal_peak<Hal_out_peak:
         return -np.inf
    
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['Hal_peak'][1] < np.log10(Hal_peak) < priors['Hal_peak'][2] and priors['Nar_fwhm'][1] < Nar_fwhm <priors['Nar_fwhm'][2] and priors['NII_peak'][1] < np.log10(NII_peak) < priors['NII_peak'][2]\
-            and priors['SII_rpk'][1] < np.log10(SII_rpk) < priors['SII_rpk'][2] and priors['SII_bpk'][1] < np.log10(SII_bpk) <priors['SII_bpk'][2]\
-                and priors['Hal_out_peak'][1] < np.log10(Hal_out_peak) < priors['Hal_out_peak'][2] and priors['outflow_fwhm'][1] < outflow_fwhm <priors['outflow_fwhm'][2] \
-                    and priors['NII_out_peak'][1] < np.log10(NII_out_peak) < priors['NII_out_peak'][2] and priors['outflow_vel'][1] < outflow_vel <priors['outflow_vel'][2]\
-                        and 0.44<(SII_rpk/SII_bpk)<1.45:
-                            return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
-
+    return results
+    

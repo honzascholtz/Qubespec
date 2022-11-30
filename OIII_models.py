@@ -31,7 +31,8 @@ Conversion2Chabrier=1.7 # Also Madau
 Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$' 
 
-PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
+import Fe_path as fpt
+PATH_TO_FeII = fpt.PATH_TO_FeII
 
 def find_nearest(array, value):
     """ Find the location of an array closest to a value 
@@ -76,16 +77,20 @@ def OIII_outflow(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_o
     return contm+ OIII_nar + OIII_out + Hbeta_nar
 
 def log_prior_OIII_outflow(theta,priors):
-    
     z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm, Hbeta_vel, = theta
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['OIIIw_peak'][1] < np.log10(OIIIw_peak) < priors['OIIIw_peak'][2] and priors['OIII_out'][1] < OIII_out <priors['OIII_out'][2]  and priors['out_vel'][1]<out_vel< priors['out_vel'][2] \
-                and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2] and  priors['Hbeta_fwhm'][1]<Hbeta_fwhm<priors['Hbeta_fwhm'][2] and  priors['Hbeta_vel'][1]<Hbeta_vel<priors['Hbeta_vel'][2]:
-                    return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
+    return results
 
 # =============================================================================
 #    functions to fit [OIII] only with outflow with nar Hbeta
@@ -120,15 +125,18 @@ def log_prior_OIII_outflow_narHb(theta,priors):
     
     z, cont, cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_fwhm,Hbeta_vel, Hbetan_peak, Hbetan_fwhm, Hbetan_vel, = theta
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['OIIIw_peak'][1] < np.log10(OIIIw_peak) < priors['OIIIw_peak'][2] and priors['OIII_out'][1] < OIII_out <priors['OIII_out'][2]  and priors['out_vel'][1]<out_vel< priors['out_vel'][2] \
-                and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2] and  priors['Hbeta_fwhm'][1]<Hbeta_fwhm<priors['Hbeta_fwhm'][2] and  priors['Hbeta_vel'][1]<Hbeta_vel<priors['Hbeta_vel'][2]\
-                    and  priors['Hbetan_peak'][1] < np.log10(Hbetan_peak)<priors['Hbetan_peak'][2] and priors['Hbetan_fwhm'][1]<Hbetan_fwhm<priors['Hbetan_fwhm'][2] and  priors['Hbetan_vel'][1]<Hbetan_vel<priors['Hbetan_vel'][2]:
-                        return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
-
+    return results
 # =============================================================================
 #  Function to fit [OIII] without outflow with hbeta
 # =============================================================================
@@ -154,12 +162,18 @@ def log_prior_OIII(theta,priors):
     
     z, cont, cont_grad, OIIIn_peak, OIII_fwhm, Hbeta_peak, Hbeta_fwhm, Hbeta_vel = theta
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2] and  priors['Hbeta_fwhm'][1]<Hbeta_fwhm<priors['Hbeta_fwhm'][2] and  priors['Hbeta_vel'][1]<Hbeta_vel<priors['Hbeta_vel'][2]:
-                return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
+    return results
 
 # =============================================================================
 #  Function to fit [OIII] without outflow with dual hbeta
@@ -189,13 +203,18 @@ def log_prior_OIII_dual_hbeta(theta,priors):
     
     z, cont, cont_grad, OIIIn_peak, OIII_fwhm, Hbeta_peak, Hbeta_fwhm,Hbeta_vel, Hbetan_peak, Hbetan_fwhm, Hbetan_vel= theta
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2] and  priors['Hbeta_fwhm'][1]<Hbeta_fwhm<priors['Hbeta_fwhm'][2] and  priors['Hbeta_vel'][1]<Hbeta_vel<priors['Hbeta_vel'][2]\
-                and priors['Hbetan_peak'][1] < np.log10(Hbetan_peak)< priors['Hbetan_peak'][2] and  priors['Hbetan_fwhm'][1]<Hbetan_fwhm<priors['Hbetan_fwhm'][2] and  priors['Hbetan_vel'][1]<Hbetan_vel<priors['Hbetan_vel'][2]:
-                    return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
+    return results
 
 # =============================================================================
 # FeII code 

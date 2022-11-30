@@ -189,18 +189,18 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         ax.plot(wv_rest[fit_loc] , Hbeta_NLR2, color= 'orange', linestyle ='dotted')
         #ax.plot(wv_rest[fit_loc] , Hbeta_NLR+Hbeta_NLR2, color= 'orange', linestyle ='dotted')
     
-    if 'Hb_BLR_vel' in keys:
-        if 'Hb_BLR_alp1' in keys:
+    if ('Hb_BLR_vel' in keys) | ('BLR_vel' in keys):
+        if 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             from astropy.modeling.powerlaws import BrokenPowerLaw1D
             from astropy.convolution import Gaussian1DKernel
             from astropy.convolution import convolve
 
             Hbeta= 4862.6*(1+z)/1e4
-            Hb_BLR_vel_wv = sol['Hb_BLR_vel'][0]/3e5*Hbeta
+            Hb_BLR_vel_wv = sol['BLR_vel'][0]/3e5*Hbeta
             
             Hbeta_BLR_wv = Hbeta+Hb_BLR_vel_wv 
-            Hbeta_BLR = BKPLG(wave[fit_loc], sol['Hb_BLR_peak'][0], Hbeta_BLR_wv, sol['Hb_BLR_sig'][0], sol['Hb_BLR_alp1'][0], sol['Hb_BLR_alp2'][0])
+            Hbeta_BLR = BKPLG(wave[fit_loc], sol['BLR_peak'][0], Hbeta_BLR_wv, sol['BLR_sig'][0], sol['BLR_alp1'][0], sol['BLR_alp2'][0])
             ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
         else:
             Hbeta= 4862.6*(1+z)/1e4
@@ -301,16 +301,16 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
         ax.plot(wv_rest[fit_loc], NII_out_r, color='magenta', linestyle='dashed')
         ax.plot(wv_rest[fit_loc], NII_out_b, color='magenta', linestyle='dashed')
         
-    if 'Ha_BLR_alp1' in keys:
+    if 'BLR_alp1' in keys:
         from QSO_models import BKPLG
         from astropy.modeling.powerlaws import BrokenPowerLaw1D
         from astropy.convolution import Gaussian1DKernel
         from astropy.convolution import convolve
        
-        Ha_BLR_vel_wv = sol['Ha_BLR_vel'][0]/3e5*Hal_wv
+        Ha_BLR_vel_wv = sol['BLR_vel'][0]/3e5*Hal_wv
 
         Ha_BLR_wv = Hal_wv+Ha_BLR_vel_wv 
-        Ha_BLR = BKPLG(wave[fit_loc], sol['Ha_BLR_peak'][0], Ha_BLR_wv, sol['Ha_BLR_sig'][0], sol['Ha_BLR_alp1'][0], sol['Ha_BLR_alp2'][0])
+        Ha_BLR = BKPLG(wave[fit_loc], sol['BLR_peak'][0], Ha_BLR_wv, sol['BLR_sig'][0], sol['BLR_alp1'][0], sol['BLR_alp2'][0])
         ax.plot(wv_rest[fit_loc] , Ha_BLR , color= 'magenta', linestyle ='dashed')
     
     if residual !='none':
@@ -332,14 +332,14 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
     z = popt[0]
     
     wv_rest = wave/(1+z)*1e4
-    fit_loc = np.where((wv_rest>4800.)&(wv_rest<7500.))[0]
+    fit_loc = np.where((wv_rest>4500.)&(wv_rest<7500.))[0]
     
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
 
     flux = fluxs.data[np.invert(fluxs.mask)]
     wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         
-    fit_loc_sc = np.where((wv_rst_sc>4800)&(wv_rst_sc<7500))[0]   
+    fit_loc_sc = np.where((wv_rst_sc>4500)&(wv_rst_sc<7500))[0]   
     
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
     
@@ -370,19 +370,23 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
             color='darkgreen', linestyle='dashed')
     ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
             color='darkgreen', linestyle='dashed')
-        
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SII_rpk'][0], SII_r, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
-            color='darkblue', linestyle='dashed')
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SII_bpk'][0], SII_b, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
-            color='darkblue', linestyle='dashed')
+     
+    if 'SIIr_peak' in list(sol.keys()):  
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+                color='darkblue', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+                color='darkblue', linestyle='dashed')
         
     OIII_r = OIIIr = 5008.24*(1+z)/1e4   
     OIII_b = OIIIb = 4960.3*(1+z)/1e4   
         
     fwhm = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
-        
-    ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIIIn_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) \
+    try:   
+        ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIIIn_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) \
             ,color= 'green', linestyle ='dashed')  
+    except:
+        ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIII_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_peak'][0],OIIIr, fwhm) \
+                ,color= 'green', linestyle ='dashed')  
             
     Hbeta= 4862.6*(1+z)/1e4
     fwhm = sol['Nar_fwhm'][0]/3e5/2.35*Hbeta

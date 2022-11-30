@@ -33,6 +33,7 @@ arrow = u'$\u2193$'
 
 PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 
+import numba
 
 def find_nearest(array, value):
     """ Find the location of an array closest to a value 
@@ -96,25 +97,26 @@ def Halpha_OIII(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SI
     
     return contm+Hal_nar+NII_nar_r+NII_nar_b + SII_rg + SII_bg+ OIII_nar + Hbeta_nar + OI_nar
 
-
+@numba.njit
 def log_prior_Halpha_OIII(theta, priors):
     z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, OIIIn_peak, Hbeta_peak, OI_peak = theta
     
-    if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)):
+    if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)) | \
+        (SII_rpk > Hal_peak) | (SII_bpk> Hal_peak) | (OI_peak> OIIIn_peak):
         return -np.inf
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['Hal_peak'][1] < np.log10(Hal_peak) < priors['Hal_peak'][2] \
-            and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2]\
-                and priors['NII_peak'][1] < np.log10(NII_peak) < priors['NII_peak'][2]\
-                    and priors['Nar_fwhm'][1] < Nar_fwhm <priors['Nar_fwhm'][2] \
-                        and priors['SII_rpk'][1] < np.log10(SII_rpk) < priors['SII_rpk'][2] and priors['SII_bpk'][1] < np.log10(SII_bpk)<priors['SII_bpk'][2]\
-                            and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] \
-                                    and priors['OI_peak'][1] < np.log10(OI_peak) < priors['OI_peak'][2]\
-                                        and 0.44<(SII_rpk/SII_bpk)<1.45:
-                                            return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
+    return results
 
 
 def Halpha_OIII_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk, OI_peak,\
@@ -179,33 +181,29 @@ def Halpha_OIII_outflow(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, H
     
     return contm+Nar+ Outflow
 
-
+@numba.njit
 def log_prior_Halpha_OIII_outflow(theta, priors):
     z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk, OI_peak,\
                             Nar_fwhm, outflow_fwhm, outflow_vel, \
                             Hal_out_peak, NII_out_peak, OIII_out_peak, OI_out_peak, Hbeta_out_peak = theta
     
-    if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)):
+    if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35))|\
+        (SII_rpk > Hal_peak) | (SII_bpk> Hal_peak) | (OIIIn_peak<OIII_out_peak) | (OI_peak> OIIIn_peak):
         return -np.inf
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['Hal_peak'][1] < np.log10(Hal_peak) < priors['Hal_peak'][2] \
-        and priors['NII_peak'][1] < np.log10(NII_peak) < priors['NII_peak'][2]\
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] \
-        and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2]\
-        and priors['SII_rpk'][1] < np.log10(SII_rpk) < priors['SII_rpk'][2] and priors['SII_bpk'][1] < np.log10(SII_bpk)<priors['SII_bpk'][2]\
-        and priors['OI_peak'][1] < np.log10(OI_peak) < priors['OI_peak'][2]\
-        and priors['Nar_fwhm'][1] < Nar_fwhm <priors['Nar_fwhm'][2] \
-        and priors['outflow_fwhm'][1] < outflow_fwhm <priors['outflow_fwhm'][2] and priors['outflow_vel'][1] < outflow_vel <priors['outflow_vel'][2] \
-        and priors['Hal_out_peak'][1] < np.log10(Hal_out_peak) < priors['Hal_out_peak'][2] \
-        and priors['NII_out_peak'][1] < np.log10(NII_out_peak) < priors['NII_out_peak'][2]\
-        and priors['OIII_out_peak'][1] < np.log10(OIII_out_peak) < priors['OIII_out_peak'][2] \
-        and priors['Hbeta_out_peak'][1] < np.log10(Hbeta_out_peak)< priors['Hbeta_out_peak'][2]\
-        and priors['OI_out_peak'][1] < np.log10(OI_out_peak) < priors['OI_out_peak'][2]\
-        and 0.44<(SII_rpk/SII_bpk)<1.45:
-            return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    return -np.inf
+    return results
+
 
 
 
@@ -241,7 +239,7 @@ def Halpha_OIII_BLR(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta
     return NLR+Outflow+Hal_blr + Hbe_blr
     
     
-
+@numba.njit
 def log_prior_Halpha_OIII_BLR(theta, priors):
     z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk,\
                             Nar_fwhm, outflow_fwhm, outflow_vel, \
@@ -249,33 +247,22 @@ def log_prior_Halpha_OIII_BLR(theta, priors):
                             BLR_fwhm, zBLR, BLR_hal_peak, BLR_hbe_peak = theta
     
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)) \
-        | (BLR_hal_peak/BLR_hbe_peak<(2.86/1.35)) | (OIII_out_peak>OIIIn_peak) \
+        | (BLR_hal_peak/BLR_hbe_peak<(2.86/1.35)) | (OIII_out_peak>OIIIn_peak) | (NII_out_peak>NII_peak) \
             | (Hbeta_out_peak>Hbeta_peak) | (Hal_out_peak>Hal_peak) :
         return -np.inf
     
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['Hal_peak'][1] < np.log10(Hal_peak) < priors['Hal_peak'][2] \
-        and priors['NII_peak'][1] < np.log10(NII_peak) < priors['NII_peak'][2]\
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] \
-        and priors['Hbeta_peak'][1] < np.log10(Hbeta_peak)< priors['Hbeta_peak'][2]\
-        and priors['SII_rpk'][1] < np.log10(SII_rpk) < priors['SII_rpk'][2] and priors['SII_bpk'][1] < np.log10(SII_bpk)<priors['SII_bpk'][2]\
-        and priors['Nar_fwhm'][1] < Nar_fwhm <priors['Nar_fwhm'][2] \
-        and priors['outflow_fwhm'][1] < outflow_fwhm <priors['outflow_fwhm'][2] and priors['outflow_vel'][1] < outflow_vel <priors['outflow_vel'][2] \
-        and priors['Hal_out_peak'][1] < np.log10(Hal_out_peak) < priors['Hal_out_peak'][2] \
-        and priors['NII_out_peak'][1] < np.log10(NII_out_peak) < priors['NII_out_peak'][2]\
-        and priors['OIII_out_peak'][1] < np.log10(OIII_out_peak) < priors['OIII_out_peak'][2] \
-        and priors['Hbeta_out_peak'][1] < np.log10(Hbeta_out_peak)< priors['Hbeta_out_peak'][2]\
-        and priors['Hbeta_out_peak'][1] < np.log10(Hbeta_out_peak)< priors['Hbeta_out_peak'][2]\
-        and priors['BLR_hal_peak'][1] < np.log10(BLR_hal_peak)< priors['BLR_hal_peak'][2]\
-        and priors['BLR_hbe_peak'][1] < np.log10(BLR_hbe_peak)< priors['BLR_hbe_peak'][2]\
-        and priors['BLR_fwhm'][1] < BLR_fwhm <priors['BLR_fwhm'][2] \
-        and priors['zBLR'][1] < zBLR <priors['zBLR'][2]\
-        and 0.44<(SII_rpk/SII_bpk)<1.45:
-            return 0.0 
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-    #return sum([ f.logpdf(t) for f,t in zip(priors, theta)])
-    return -np.inf
-    
+    return results
 
 
 
