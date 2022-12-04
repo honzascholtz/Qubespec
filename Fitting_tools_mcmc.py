@@ -271,9 +271,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                print(log_prior_OIII_outflow(pos_l,pr_code))
-                print(pr_code)
-                print(pos_l)
+                
                 nwalkers, ndim = pos.shape
                 sampler = emcee.EnsembleSampler(
                         nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_outflow))
@@ -633,7 +631,26 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         pr_code = prior_create(labels, priors)
             
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
-                          peak_hal*0.2, peak_hal*0.3])  
+                          peak_hal*0.2, peak_OIII*0.1])  
+        
+        if (log_prior(pos_l, pr_code)==-np.inf):
+            
+            '''
+            print((Hal_peak<0))
+            print(NII_peak<0) 
+            print(SII_rpk<0) 
+            print(SII_bpk<0)
+            print(Hal_peak/Hbeta_peak<(2.86/1.35))
+            print(SII_rpk> Hal_peak)
+            print(SII_bpk> Hal_peak)
+            print((OI_peak> OIIIn_peak))
+            print(pos_l)
+            '''
+            logprior_general_test(pos_l, pr_code)
+            
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible. {pos_l}')
+            
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -660,11 +677,29 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         log_prior = log_prior_Halpha_OIII_outflow
         
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                          peak_OIII*0.8, peak_OIII*0.3, peak_hal*0.2, peak_hal*0.2, peak_hal*0.1,\
+                          peak_OIII*0.8, peak_hal*0.2, peak_hal*0.2, peak_hal*0.2, peak_hal*0.1,\
                           priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
-                          peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05, peak_OIII*0.2])
+                          peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05, peak_hal*0.05])
         
         
+        if (log_prior(pos_l, pr_code)==-np.inf):
+            
+            '''
+            print((Hal_peak<0))
+            print(NII_peak<0) 
+            print(SII_rpk<0) 
+            print(SII_bpk<0)
+            print(Hal_peak/Hbeta_peak<(2.86/1.35))
+            print(SII_rpk> Hal_peak)
+            print(SII_bpk> Hal_peak)
+            print((OI_peak> OIIIn_peak))
+            print(pos_l)
+            '''
+            logprior_general_test(pos_l, pr_code)
+            
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible. {pos_l}')
+                            
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
        
@@ -685,17 +720,27 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                 'BLR_fwhm', 'zBLR', 'BLR_hal_peak', 'BLR_hbe_peak')
             
         nwalkers=64
+        
+        if priors['BLR_hal_peak'][2]=='error':
+            priors['BLR_hal_peak'][2]=error[-2]; priors['BLR_hal_peak'][3]=error[-2]*2
+        if priors['BLR_hbe_peak'][2]=='error':
+            priors['BLR_hbe_peak'][2]=error[2]; priors['BLR_hbe_peak'][3]=error[2]*2
+        
         pr_code = prior_create(labels, priors)   
         log_prior = log_prior_Halpha_OIII_BLR
-        
         fitted_model = Halpha_OIII_BLR
+        
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
                           peak_OIII*0.8, peak_hal*0.3, peak_hal*0.2, peak_hal*0.2,\
                           priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
                           peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
                           priors['BLR_fwhm'][0], priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
         
-        #prl = [ priors[key][1] for key in list(priors.keys()) ]
+        if (log_prior(pos_l, pr_code)==np.nan)|\
+            (log_prior(pos_l, pr_code)==-np.inf):
+            print(pos_l)
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible. {pos_l} ')
         
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
@@ -721,7 +766,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
     
         nwalkers=64
         pr_code = prior_create(labels, priors)   
-        log_prior = logprior_Halpha_OIII_BLR
+        log_prior = logprior_general
         fitted_model =  Halpha_OIII_QSO_BKPL
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
                           peak_OIII*0.8, peak_OIII*0.3,priors['Nar_fwhm'][0],\
@@ -730,6 +775,11 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                           peak_hal*0.4, peak_OIII*0.4, priors['BLR_vel'][0], 
                           priors['BLR_alp1'][0], priors['BLR_alp2'][0],priors['BLR_sig'][0]])
         
+        if (log_prior(pos_l, pr_code)==np.nan)|\
+            (log_prior(pos_l, pr_code)==-np.inf):
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible: {pos_l}')
+                            
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -743,7 +793,9 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         res = {'name': 'Halpha_OIII_BLR'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
-    
+    else:
+        raise Exception('outflow variable not understood.')
+        
     return res, fitted_model
 
 def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, template=None):
@@ -781,7 +833,20 @@ def logprior_general(theta, priors):
     
     return results
 
-
+def logprior_general_test(theta, priors):
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results = np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==2:
+            results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results = np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+    
+        print(results)
+        
 def prior_create(labels,priors):
     pr_code = np.zeros((len(labels),3))
     
@@ -837,10 +902,36 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow='BLR')
+        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow='BLR', N=10000)
         cube_res  = [i,j,prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error ]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+    return cube_res
+
+def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
+        priors= pickle.load(fp) 
+    i,j,flx_spax_m, error, wave, z = lst
+    deltav = 1500
+    deltaz = deltav/3e5*(1+z)
+    if 1==1:
+        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow=0, N=10000)    
+        flat_samples_out, fitted_model_out = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow=1, N=10000)
+        
+        BIC_sig = BIC_calc(wave, flx_spax_m, error, fitted_model_sig, prop_calc(flat_samples_sig), 'Halpha_OIII' )
+        BIC_out = BIC_calc(wave, flx_spax_m, error, fitted_model_out, prop_calc(flat_samples_out), 'Halpha_OIII' )
+        
+        if (BIC_sig[1]-BIC_out[1])>5:
+            fitted_model = fitted_model_out
+            flat_samples = flat_samples_out
+        else:
+            fitted_model = fitted_model_sig
+            flat_samples = flat_samples_sig
+            
+        cube_res  = [i,j,prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
+    else:
+        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+        print('Failed fit')
     return cube_res
 
 def Fitting_OIII_2G_unwrap(lst):
@@ -888,3 +979,67 @@ def prop_calc(results):
     return res_dict
 
 
+def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
+    """ calculates BIC
+	
+	"""
+    popt = results['popt']
+    z= popt[0]
+    
+    if mode=='OIII':
+        
+        flux = fluxm.data[np.invert(fluxm.mask)]
+        wave = wave[np.invert(fluxm.mask)]
+        error = error[np.invert(fluxm.mask)]
+        
+        fit_loc = np.where((wave>4800*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+        
+        flux = flux[fit_loc]
+        wave = wave[fit_loc]
+        error = error[fit_loc]
+        
+        if template==0:
+            y_model = model(wave, *popt)
+        else:
+            y_model = model(wave, *popt, template)
+        chi2 = sum(((flux-y_model)/error)**2)
+        BIC = chi2+ len(popt)*np.log(len(flux))
+    
+    if mode=='Halpha':
+        
+        flux = fluxm.data[np.invert(fluxm.mask)]
+        wave = wave[np.invert(fluxm.mask)]
+        error = error[np.invert(fluxm.mask)]
+        
+        fit_loc = np.where((wave>(6564.52-200)*(1+z)/1e4)&(wave<(6564.52+300)*(1+z)/1e4))[0]
+        
+        flux = flux[fit_loc]
+        wave = wave[fit_loc]
+        error = error[fit_loc]
+        
+        y_model = model(wave, *popt)
+        chi2 = sum(((flux-y_model)/error)**2)
+        BIC = chi2+ len(popt)*np.log(len(flux))
+    
+    if mode=='Halpha_OIII':
+        fit_loc = np.where((wave>4700*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+        fit_loc = np.append(fit_loc, np.where((wave>(6300-50)*(1+z)/1e4)&(wave<(6300+50)*(1+z)/1e4))[0])
+        fit_loc = np.append(fit_loc, np.where((wave>(6564.52-170)*(1+z)/1e4)&(wave<(6564.52+170)*(1+z)/1e4))[0])
+        
+        flux = fluxm.data[np.invert(fluxm.mask)]
+        wave = wave[np.invert(fluxm.mask)]
+        error = error[np.invert(fluxm.mask)]
+        
+        fit_loc = np.where((wave>(6564.52-200)*(1+z)/1e4)&(wave<(6564.52+300)*(1+z)/1e4))[0]
+        
+        flux = flux[fit_loc]
+        wave = wave[fit_loc]
+        error = error[fit_loc]
+        
+        y_model = model(wave, *popt)
+        chi2 = sum(((flux-y_model)/error)**2)
+        BIC = chi2+ len(popt)*np.log(len(flux))
+        
+        
+    
+    return chi2, BIC

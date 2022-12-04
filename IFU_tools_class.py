@@ -362,6 +362,27 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         chi2 = sum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
     
+    if mode=='Halpha_OIII':
+        fit_loc = np.where((wave>4700*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
+        fit_loc = np.append(fit_loc, np.where((wave>(6300-50)*(1+z)/1e4)&(wave<(6300+50)*(1+z)/1e4))[0])
+        fit_loc = np.append(fit_loc, np.where((wave>(6564.52-170)*(1+z)/1e4)&(wave<(6564.52+170)*(1+z)/1e4))[0])
+        
+        flux = fluxm.data[np.invert(fluxm.mask)]
+        wave = wave[np.invert(fluxm.mask)]
+        error = error[np.invert(fluxm.mask)]
+        
+        fit_loc = np.where((wave>(6564.52-200)*(1+z)/1e4)&(wave<(6564.52+300)*(1+z)/1e4))[0]
+        
+        flux = flux[fit_loc]
+        wave = wave[fit_loc]
+        error = error[fit_loc]
+        
+        y_model = model(wave, *popt)
+        chi2 = sum(((flux-y_model)/error)**2)
+        BIC = chi2+ len(popt)*np.log(len(flux))
+        
+        
+    
     return chi2, BIC
 
 def unwrap_chain(res):
@@ -592,6 +613,44 @@ def W80_OIII_calc( function, sol, chains, plot):
             v50s[i] = v50
             w80s[i] = w80
     
+    elif 'Nar_fwhm' in sol:
+        OIIIr = 5008.24*(1+popt[0])/1e4
+        
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*OIIIr
+        fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
+        
+        peakn = np.random.choice(chains['OIIIn_peak'], N)
+        peakw = np.random.choice(chains['OIII_out_peak'], N)
+        
+        
+        for i in range(N):
+            y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
+            
+            Int = np.zeros(Ni-1)
+    
+            for j in range(Ni-1):
+
+                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+            Int = Int/max(Int)   
+
+            wv10 = wvs[find_nearest(Int, 0.1)]
+            wv90 = wvs[find_nearest(Int, 0.9)]
+            wv50 = wvs[find_nearest(Int, 0.5)]
+
+            v10 = (wv10-cent)/cent*3e5
+            v90 = (wv90-cent)/cent*3e5
+            v50 = (wv50-cent)/cent*3e5
+            
+            w80 = v90-v10
+            
+            v10s[i] = v10
+            v90s[i] = v90
+            v50s[i] = v50
+            w80s[i] = w80
+            
     else:
         OIIIr = 5008.24*(1+popt[0])/1e4
         
@@ -629,14 +688,98 @@ def W80_OIII_calc( function, sol, chains, plot):
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
 
 
-
-
-def W80_Halpha_calc( function, sol, chains, plot):
-    popt = sol['popt']     
+def W80_OIII_calc_single( function, sol, plot, z=0):
+    popt = sol['popt']  
+    
+    if z==0:
+        z = popt[0]
+  
     
     import scipy.integrate as scpi
     
-    cent =  6562.*(1+popt[0])/1e4
+    cent =  5008.24*(1+z)/1e4
+    
+    bound1 =  cent + 2000/3e5*cent
+    bound2 =  cent - 2000/3e5*cent
+    Ni = 500
+    
+    wvs = np.linspace(bound2, bound1, Ni)
+    N= 100
+    
+    v10s = np.zeros(N)
+    v50s = np.zeros(N)
+    v90s = np.zeros(N)
+    w80s = np.zeros(N)
+    
+    if 'OIIIw_fwhm' in sol:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
+        fwhmws =sol['OIIIw_fwhm'][0]/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + sol['out_vel'][0]/3e5*OIIIr
+        
+        peakn = sol['OIIIn_peak'][0]
+        peakw = sol['OIIIw_peak'][0]
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+          
+    
+    elif 'Nar_fwhm' in sol:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + sol['outflow_vel'][0]/3e5*OIIIr
+        
+        peakn = sol['OIIIn_peak'][0]
+        peakw = sol['OIII_out_peak'][0]
+        
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+            
+            
+    else:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
+        peakn = sol['OIIIn_peak'][0]
+        
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms)
+            
+         
+    Int = np.zeros(Ni-1)
+
+    for j in range(Ni-1):
+        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+    Int = Int/max(Int)   
+
+    wv10 = wvs[find_nearest(Int, 0.1)]
+    wv90 = wvs[find_nearest(Int, 0.9)]
+    wv50 = wvs[find_nearest(Int, 0.5)]
+
+    v10 = (wv10-cent)/cent*3e5
+    v90 = (wv90-cent)/cent*3e5
+    v50 = (wv50-cent)/cent*3e5
+    
+    w80 = v90-v10
+           
+    return v10,v90, w80, v50
+
+
+
+
+def W80_Halpha_calc( function, sol, chains, plot,z=0):
+    popt = sol['popt'] 
+    if z==0:
+        z=popt[0]
+    
+    import scipy.integrate as scpi
+    
+    cent =  6562.*(1+z)/1e4
     
     bound1 =  cent + 2000/3e5*cent
     bound2 =  cent - 2000/3e5*cent
@@ -651,7 +794,7 @@ def W80_Halpha_calc( function, sol, chains, plot):
     w80s = np.zeros(N)
     
     if 'outflow_fwhm' in sol:
-        Halpha = 6562.*(1+popt[0])/1e4
+        Halpha = 6562.*(1+z)/1e4
         
         fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
         fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*Halpha
@@ -688,7 +831,7 @@ def W80_Halpha_calc( function, sol, chains, plot):
             w80s[i] = w80
     
     else:
-        Halpha = 6562.*(1+popt[0])/1e4
+        Halpha = 6562.*(1+z)/1e4
         
         fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
         peakn = np.random.choice(chains['Hal_peak'], N)
@@ -722,6 +865,128 @@ def W80_Halpha_calc( function, sol, chains, plot):
             
            
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
+
+def W80_Halpha_calc_single( function, sol, plot, z=0):
+    popt = sol['popt']  
+    
+    if z==0:
+        z = popt[0]
+  
+    
+    import scipy.integrate as scpi
+    
+    cent =  5008.24*(1+z)/1e4
+    
+    bound1 =  cent + 2000/3e5*cent
+    bound2 =  cent - 2000/3e5*cent
+    Ni = 500
+    
+    wvs = np.linspace(bound2, bound1, Ni)
+    
+    
+    if 'outflow_fwhm' in sol:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + sol['out_vel'][0]/3e5*OIIIr
+        
+        peakn = sol['Hal_peak'][0]
+        peakw = sol['Hal_out_peak'][0]
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+         
+    else:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        peakn = sol['Hal_peak'][0]
+        
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms)
+            
+         
+    Int = np.zeros(Ni-1)
+
+    for j in range(Ni-1):
+        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+    Int = Int/max(Int)   
+
+    wv10 = wvs[find_nearest(Int, 0.1)]
+    wv90 = wvs[find_nearest(Int, 0.9)]
+    wv50 = wvs[find_nearest(Int, 0.5)]
+
+    v10 = (wv10-cent)/cent*3e5
+    v90 = (wv90-cent)/cent*3e5
+    v50 = (wv50-cent)/cent*3e5
+    
+    w80 = v90-v10
+           
+    return v10,v90, w80, v50
+
+
+def W80_NII_calc_single( function, sol, plot, z=0):
+    popt = sol['popt']  
+    
+    if z==0:
+        z = popt[0]
+  
+    
+    import scipy.integrate as scpi
+    
+    cent =  5008.24*(1+z)/1e4
+    
+    bound1 =  cent + 2000/3e5*cent
+    bound2 =  cent - 2000/3e5*cent
+    Ni = 500
+    
+    wvs = np.linspace(bound2, bound1, Ni)
+    
+    
+    if 'outflow_fwhm' in sol:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        
+        OIIIrws = cent + sol['out_vel'][0]/3e5*OIIIr
+        
+        peakn = sol['NII_peak'][0]
+        peakw = sol['NII_out_peak'][0]
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+         
+    else:
+        OIIIr = 5008.24*(1+z)/1e4
+        
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        peakn = sol['NII_peak'][0]
+        
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms)
+            
+         
+    Int = np.zeros(Ni-1)
+
+    for j in range(Ni-1):
+        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+
+    Int = Int/max(Int)   
+
+    wv10 = wvs[find_nearest(Int, 0.1)]
+    wv90 = wvs[find_nearest(Int, 0.9)]
+    wv50 = wvs[find_nearest(Int, 0.5)]
+
+    v10 = (wv10-cent)/cent*3e5
+    v90 = (wv90-cent)/cent*3e5
+    v50 = (wv50-cent)/cent*3e5
+    
+    w80 = v90-v10
+           
+    return v10,v90, w80, v50
+
     
 
 # ============================================================================
@@ -1906,6 +2171,9 @@ class Cube:
              '''
              
              self.dBIC = 3
+        
+        else:
+            raise Exception('outflow variable not understood.')
         labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
@@ -2042,7 +2310,7 @@ class Cube:
             self.SNR_hb =  SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.dBIC = 3
             
-        elif outflow=='outflow':
+        elif outflow=='outflow_only':
             
             flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1,N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
             prop_out = prop_calc(flat_samples_out)
@@ -2627,7 +2895,7 @@ class Cube:
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
         
-    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 2), priors= {'cont':[0,-3,1],\
+    def Spaxel_fitting_Halpha_OIII_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 2),BLR='None', priors= {'cont':[0,-3,1],\
                                                           'cont_grad':[0,-10.,10], \
                                                           'OIIIn_peak':[0,-3,1],\
                                                            'OIIIn_fwhm':[300,100,900],\
@@ -2656,9 +2924,19 @@ class Cube:
         
         if Ncores<1:
             Ncores=1
-        with Pool(Ncores) as pool:
-            cube_res = pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
+        if BLR=='None':
+            with Pool(Ncores) as pool:
+                cube_res =pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
+        elif BLR=='BLR':
+            with Pool(Ncores) as pool:
+                cube_res =pool.map(emfit.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube)
         
+        elif BLR=='outflow_both':
+            with Pool(Ncores) as pool:
+                cube_res =pool.map(emfit.Fitting_Halpha_OIII_outflowboth_unwrap, Unwrapped_cube)
+        else:
+            raise Exception('Mode {BLR} not understood. Options are: None, BLR and outflow_both')
+            
         self.spaxel_fit_raw = cube_res
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
@@ -2666,51 +2944,6 @@ class Cube:
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
     
-    def Spaxel_fitting_Halpha_OIII_AGN_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
-         'cont_grad':[0,-1.,1], \
-         'OIIIn_peak':[0,-3,1],\
-         'Hbeta_peak':[0,-3,1],\
-         'Hal_peak':[0,-3,1],\
-         'NII_peak':[0,-3,1],\
-         'Nar_fwhm':[300,150,900],\
-         'SIIr_peak':[0,-3,1],\
-         'SIIb_peak':[0,-3,1],\
-         'outflow_fwhm':[600,300,900],\
-         'outflow_vel':[-100,-600,600],\
-         'Hal_out_peak':[0,-3,1],\
-         'NII_out_peak':[0,-3,1],\
-         'OIII_out_peak':[0,-3,1],\
-         'Hbeta_out_peak':[0,-3,1],\
-         'BLR_fwhm':[5000,300,7000],\
-         'BLR_offset':[100,-200,200],\
-         'BLR_hal_peak':[0,-3,1],\
-         'BLR_hbe_peak':[0,-3,1],}):
-        import pickle
-        start_time = time.time()
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
-            Unwrapped_cube= pickle.load(fp)
-            
-        print('import of the unwrap cube - done')
-        
-        #results = []
-        #for i in range(len(Unwrapped_cube)):   
-        #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
-        #cube_res = results
-        
-        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
-            pickle.dump( priors,fp)     
-        
-        if Ncores<1:
-            Ncores=1
-        with Pool(Ncores) as pool:
-            cube_res = pool.map(emfit.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube)
-        
-        self.spaxel_fit_raw = cube_res
-        
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
-            pickle.dump( cube_res,fp)  
-        
-        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
 
     
@@ -3279,6 +3512,9 @@ class Cube:
         map_hal_ki = np.zeros((3,self.dim[0], self.dim[1]))
         map_hal_ki[:,:,:] = np.nan
         
+        map_oiii_ki = np.zeros((5,self.dim[0], self.dim[1]))
+        map_oiii_ki[:,:,:] = np.nan
+        
         map_oi = np.zeros((4,self.dim[0], self.dim[1]))
         map_oi[:,:,:] = np.nan
         
@@ -3300,11 +3536,19 @@ class Cube:
                 i,j, res_spx,chains= results[row]
                 i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
             
-            if 'Failed fit' in list(res_spx.keys()):
+            lists = list(res_spx.keys())
+            if 'Failed fit' in lists:
                 failed_fits+=1
                 continue
             
             z = res_spx['popt'][0]
+            
+            if 'zBLR' in lists:
+                modelfce = Halpha_OIII_BLR
+            elif 'outflow_vel' not in lists:
+                modelfce = Halpha_OIII
+            elif 'outflow_vel' in lists and 'zBLR' not in lists:
+                modelfce = Halpha_OIII_outflow
             
 # =============================================================================
 #             Halpha
@@ -3312,23 +3556,29 @@ class Cube:
             
             flux_hal, p16_hal,p84_hal = flux_calc_mcmc(res_spx, chains, 'Han', self.flux_norm)
             SNR_hal = flux_hal/p16_hal
-            map_hal[0,i,j]= SNR_hal.copy()
+            map_hal[0,i,j]= SNR_hal
             
-            SNR_hold = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hn')
+            SNR_hal = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hn')
+            SNR_oiii = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
+            SNR_nii = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'NII')
+            SNR_hb = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'Hb')
+            
             if SNR_hal>SNR_cut:
-                
-                map_hal_ki[0,i,j] = ((6563*(1+z)/1e4)-wv_hal)/wv_hal*3e5
-                map_hal_ki[1,i,j] = res_spx['Nar_fwhm'][0]
                 map_hal[1,i,j] = flux_hal.copy()
                 map_hal[2,i,j] = p16_hal.copy()
                 map_hal[3,i,j] = p84_hal.copy()
-            
+                
+                map_hal_ki[0,i,j] = ((6563*(1+z)/1e4)-wv_hal)/wv_hal*3e5
+                map_hal_ki[1,i,j] = res_spx['Nar_fwhm'][0]
+                
             else:
                 
                 
                 dl = self.obs_wave[1]-self.obs_wave[0]
                 n = width_upper/3e5*(6562*(1+self.z)/1e4)/dl
                 map_hal[3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
+                
+            
                 
             
 # =============================================================================
@@ -3350,11 +3600,9 @@ class Cube:
 # =============================================================================
             #SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'NII')
             flux_NII, p16_NII,p84_NII = flux_calc_mcmc(res_spx, chains, 'NII', self.flux_norm)
-            SNR_NII = flux_NII/p16_NII
-            SNRs = np.append(SNRs, SNR_NII)
             
-            map_nii[0,i,j]= SNR_NII.copy()
-            if SNR_NII>SNR_cut:
+            map_nii[0,i,j]= SNR_nii
+            if SNR_nii>SNR_cut:
                 map_nii[1,i,j] = flux_NII.copy()
                 map_nii[2,i,j] = p16_NII.copy()
                 map_nii[3,i,j] = p84_NII.copy()
@@ -3369,16 +3617,20 @@ class Cube:
 #             OIII
 # =============================================================================
             flux_oiii, p16_oiii,p84_oiii = flux_calc_mcmc(res_spx, chains, 'OIIIt', self.flux_norm)
-            SNR_oiii= flux_oiii/p16_oiii
-            SNRs = np.append(SNRs, SNR_oiii)
-            map_oiii[0,i,j]= SNR_oiii.copy()
-            SNR_oold = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
-
+            
+            map_oiii[0,i,j]= SNR_oiii
+            
             if SNR_oiii>SNR_cut:
                 map_oiii[1,i,j] = flux_oiii.copy()
                 map_oiii[2,i,j] = p16_oiii.copy()
                 map_oiii[3,i,j] = p84_oiii.copy()
                 
+                map_oiii_ki[0,i,j] = ((5008.24*(1+z)/1e4)-wv_oiii)/wv_oiii*3e5
+                if 'OIII_out_peak' in list(res_spx.keys()):
+                    map_oiii_ki[2,i,j],map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[4,i,j] = W80_OIII_calc_single(modelfce, res_spx, 0)#res_spx['Nar_fwhm'][0] 
+                    
+                else:
+                    map_oiii_ki[1,i,j] = res_spx['Nar_fwhm'][0]
                 
             else:
                 
@@ -3391,8 +3643,7 @@ class Cube:
 #             Hbeta
 # =============================================================================
             flux_hb, p16_hb,p84_hb = flux_calc_mcmc(res_spx, chains, 'Hbeta', self.flux_norm)
-            SNR_hb=  flux_hb/p16_hb
-            SNRs = np.append(SNRs, SNR_hb)
+
             map_hb[0,i,j]= SNR_hb.copy()
             if SNR_hb>SNR_cut:
                 map_hb[1,i,j] = flux_hb.copy()
@@ -3454,9 +3705,12 @@ class Cube:
 
 
 
-            baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = ' +str(np.round(SNRs,1))+ str(np.round([SNR_hold, SNR_oold],1)))
+            baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = '+ str(np.round([SNR_hal, SNR_oiii, SNR_nii, SNR_SII],1)))
             baxes.set_xlabel('Restframe wavelength (ang)')
             baxes.set_ylabel(r'$10^{-16}$ ergs/s/cm2/mic')
+            wv0 = 5008.24*(1+z0)
+            wv0 = wv0/(1+z)
+            baxes.vlines(wv0, 0,10, linestyle='dashed', color='k')
             Spax.savefig()  
             plt.close(f)
         
@@ -3604,6 +3858,31 @@ class Cube:
         axes[3,1].set_xlabel('RA offset (arcsecond)')
         axes[3,1].set_ylabel('Dec offset (arcsecond)')
         
+        # =============================================================================
+        # OIII  velocity
+        ax2 = axes[2,2]
+        vel = ax2.imshow(map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
+        ax2.set_title('OIII Velocity offset map')
+        divider = make_axes_locatable(ax2)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(vel, cax=cax, orientation='vertical')
+        
+        cax.set_ylabel('Velocity (km/s)')
+        ax2.set_xlabel('RA offset (arcsecond)')
+        ax2.set_ylabel('Dec offset (arcsecond)')
+        
+        # =============================================================================
+        # OIII fwhm
+        ax3 = axes[3,2]
+        fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+        ax3.set_title('OIII FWHM map')
+        divider = make_axes_locatable(ax3)
+        cax = divider.append_axes('right', size='5%', pad=0.05)
+        f.colorbar(fw, cax=cax, orientation='vertical')
+        
+        cax.set_ylabel('FWHM (km/s)')
+        ax2.set_xlabel('RA offset (arcsecond)')
+        ax2.set_ylabel('Dec offset (arcsecond)')
         
         # =============================================================================
         # OI SNR
@@ -3661,10 +3940,10 @@ class Cube:
         siib_hdu = fits.ImageHDU(map_siib, name='SIIb')
         
         hal_kin_hdu = fits.ImageHDU(map_hal_ki, name='Hal_kin')
+        oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
         Av_hdu = fits.ImageHDU(Av, name='Av')
         
-        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu, siib_hdu, Av_hdu ])
-        
+        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps.fits', overwrite=True)
         
         return f 
