@@ -31,6 +31,8 @@ import Plotting_tools_v2 as emplot
 import Fitting_tools_mcmc as emfit
 from brokenaxes import brokenaxes
 
+from astropy.utils.exceptions import AstropyWarning
+import astropy.constants, astropy.cosmology, astropy.units, astropy.wcs
 
 def switch(read_module):
     emfit = __import__(read_module)
@@ -1015,11 +1017,25 @@ class Cube:
         
         elif flag=='NIRSPEC_IFU':
             with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/norm
-                self.error_cube = hdulist['ERR'].data/norm
+                flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
-        
+                cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
+                wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
+                wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
+                if wave.unit==astropy.units.m:
+                    wave = wave.to('um')
+                else:
+                    wave *= 1.e6 # Somehow, units are autoconverted to m
+                
+                error *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                flux_temp *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                flux_temp = flux_temp.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                error = error.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                flux_temp = flux_temp.value
+                self.error_cube = error.value
+                
         elif flag=='NIRSPEC_IFU_fl':
             with fits.open(Full_path, memmap=False) as hdulist:
                 flux_temp = hdulist['SCI'].data/norm*1000
@@ -1091,17 +1107,7 @@ class Cube:
         Ypix = header['NAXIS2']
         Yph = Ypix*arc_per_pix_y
         
-        if flag=='NIRSPEC_IFU':
-            import astropy.units as u
-            k = (1. * u.Jy).to(u.erg / u.cm**2 / u.s / u.micron, equivalencies=u.spectral_density(wave* u.micron))
-            print(k)#f_nu.to(f_lambda, wave, equivalencies=u.spectral_density(one_mic))
-            for i in range(dim[0]):
-                for j in range(dim[1]):
-                    flux[:,i,j] = flux[:,i,j]*(2.35e-7)*k/1e8
-                    self.error_cube[:,i,j] = self.error_cube[:,i,j]*(2.35e-7)*k/1e8
-            
-            flux = flux#/1e-13
-            self.error_cube = self.error_cube#/1e-13
+        
         
         self.flux_norm= norm
         self.dim = dim
