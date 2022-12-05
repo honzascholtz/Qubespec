@@ -446,12 +446,11 @@ def flux_calc(res, mode, norm=1e-13):
         hn = 6565*(1+res['z'][0])/1e4
         
         model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
-    
-    elif mode=='Hao':
-        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
-        hn = 6565*(1+res['z'][0])/1e4
         
-        model = gauss(wave, res['Hal_out_peak'][0], hn, res['outflow_fwhm'][0]/2.355/3e5*hn  )
+        if 'outflow_fwhm' in list(res.keys()):
+            model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  ) + \
+                gauss(wave, res['Hal_out_peak'][0], hn, res['outflow_fwhm'][0]/2.355/3e5*hn  )
+    
     
     elif mode=='Hblr':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
@@ -465,11 +464,15 @@ def flux_calc(res, mode, norm=1e-13):
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         nii = 6583*(1+res['z'][0])/1e4
         model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+        
+        if 'outflow_fwhm' in list(res.keys()):
+            model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  ) + \
+                gauss(wave, res['NII_out_peak'][0], nii, res['outflow_fwhm'][0]/2.355/3e5*nii  )
     
     elif mode=='NIIo':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         nii = 6583*(1+res['z'][0])/1e4
-        model = gauss(wave, res['NII_out_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+        model = gauss(wave, res['NII_out_peak'][0], nii, res['outflow_fwhm'][0]/2.355/3e5*nii  )*1.333
         
     elif mode=='Hbeta':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
@@ -704,15 +707,10 @@ def W80_OIII_calc_single( function, sol, plot, z=0):
     Ni = 500
     
     wvs = np.linspace(bound2, bound1, Ni)
-    N= 100
     
-    v10s = np.zeros(N)
-    v50s = np.zeros(N)
-    v90s = np.zeros(N)
-    w80s = np.zeros(N)
-    
+ 
     if 'OIIIw_fwhm' in sol:
-        OIIIr = 5008.24*(1+z)/1e4
+        OIIIr = 5008.24*(1+sol['z'][0])/1e4
         
         fwhms = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
         fwhmws =sol['OIIIw_fwhm'][0]/3e5/2.35*OIIIr
@@ -726,22 +724,23 @@ def W80_OIII_calc_single( function, sol, plot, z=0):
           
     
     elif 'Nar_fwhm' in sol:
-        OIIIr = 5008.24*(1+z)/1e4
+        OIIIr = 5008.24*(1+sol['z'][0])/1e4
         
         fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
-        fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
-        
-        OIIIrws = cent + sol['outflow_vel'][0]/3e5*OIIIr
-        
         peakn = sol['OIIIn_peak'][0]
-        peakw = sol['OIII_out_peak'][0]
+        try:
+            fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+            OIIIrws = cent + sol['outflow_vel'][0]/3e5*OIIIr
         
-        
-        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+            peakw = sol['OIII_out_peak'][0]
+            y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+        except:
+            y = gauss(wvs, peakn,OIIIr, fwhms) 
+            
             
             
     else:
-        OIIIr = 5008.24*(1+z)/1e4
+        OIIIr = 5008.24*(1+sol['z'][0])/1e4
         
         fwhms = sol['OIIIn_fwhm'][0]/3e5/2.35*OIIIr
         peakn = sol['OIIIn_peak'][0]
@@ -779,7 +778,7 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
     
     import scipy.integrate as scpi
     
-    cent =  6562.*(1+z)/1e4
+    cent =  6564.52**(1+z)/1e4
     
     bound1 =  cent + 2000/3e5*cent
     bound2 =  cent - 2000/3e5*cent
@@ -794,7 +793,7 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
     w80s = np.zeros(N)
     
     if 'outflow_fwhm' in sol:
-        Halpha = 6562.*(1+z)/1e4
+        Halpha = 6564.52*(1+chains['z'])/1e4
         
         fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
         fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*Halpha
@@ -831,7 +830,7 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
             w80s[i] = w80
     
     else:
-        Halpha = 6562.*(1+z)/1e4
+        Halpha = 6564.52*(1+z)/1e4
         
         fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
         peakn = np.random.choice(chains['Hal_peak'], N)
@@ -847,7 +846,7 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
                 Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
 
             Int = Int/max(Int)   
-
+            
             wv10 = wvs[find_nearest(Int, 0.1)]
             wv90 = wvs[find_nearest(Int, 0.9)]
             wv50 = wvs[find_nearest(Int, 0.5)]
@@ -875,7 +874,7 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     
     import scipy.integrate as scpi
     
-    cent =  5008.24*(1+z)/1e4
+    cent =  6564.52*(1+z)/1e4
     
     bound1 =  cent + 2000/3e5*cent
     bound2 =  cent - 2000/3e5*cent
@@ -885,12 +884,12 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     
     
     if 'outflow_fwhm' in sol:
-        OIIIr = 5008.24*(1+z)/1e4
+        OIIIr = 6564.52*(1+sol['z'][0])/1e4
         
         fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
         fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
         
-        OIIIrws = cent + sol['out_vel'][0]/3e5*OIIIr
+        OIIIrws = cent + sol['outflow_vel'][0]/3e5*OIIIr
         
         peakn = sol['Hal_peak'][0]
         peakw = sol['Hal_out_peak'][0]
@@ -898,7 +897,7 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
         y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
          
     else:
-        OIIIr = 5008.24*(1+z)/1e4
+        OIIIr = 6564.52*(1+sol['z'][0])/1e4
         
         fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
         peakn = sol['Hal_peak'][0]
@@ -910,7 +909,7 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     Int = np.zeros(Ni-1)
 
     for j in range(Ni-1):
-        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) 
 
     Int = Int/max(Int)   
 
@@ -923,7 +922,7 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     v50 = (wv50-cent)/cent*3e5
     
     w80 = v90-v10
-           
+    
     return v10,v90, w80, v50
 
 
@@ -2173,7 +2172,7 @@ class Cube:
              self.dBIC = 3
         
         else:
-            raise Exception('outflow variable not understood.')
+            raise Exception('outflow variable in fitting_collapse_Halpha_OIII not understood.')
         labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
@@ -3476,7 +3475,7 @@ class Cube:
     def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = Halpha_OIII):
         z0 = self.z
         failed_fits=0
-        wv_hal = 6563*(1+z0)/1e4
+        wv_hal = 6564.52*(1+z0)/1e4
         wv_oiii = 5008.24*(1+z0)/1e4
         # =============================================================================
         #         Importing all the data necessary to post process
@@ -3509,7 +3508,7 @@ class Cube:
         map_siib = np.zeros((4,self.dim[0], self.dim[1]))
         map_siib[:,:,:] = np.nan
         
-        map_hal_ki = np.zeros((3,self.dim[0], self.dim[1]))
+        map_hal_ki = np.zeros((4,self.dim[0], self.dim[1]))
         map_hal_ki[:,:,:] = np.nan
         
         map_oiii_ki = np.zeros((5,self.dim[0], self.dim[1]))
@@ -3568,14 +3567,15 @@ class Cube:
                 map_hal[2,i,j] = p16_hal.copy()
                 map_hal[3,i,j] = p84_hal.copy()
                 
-                map_hal_ki[0,i,j] = ((6563*(1+z)/1e4)-wv_hal)/wv_hal*3e5
-                map_hal_ki[1,i,j] = res_spx['Nar_fwhm'][0]
-                
-            else:
-                
+                if 'Hal_out_peak' in list(res_spx.keys()):
+                    map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = W80_Halpha_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
+                    
+                else:
+                    map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = W80_Halpha_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
+                    
                 
                 dl = self.obs_wave[1]-self.obs_wave[0]
-                n = width_upper/3e5*(6562*(1+self.z)/1e4)/dl
+                n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
                 map_hal[3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
                 
             
@@ -3611,7 +3611,7 @@ class Cube:
                 
                 
                 dl = self.obs_wave[1]-self.obs_wave[0]
-                n = width_upper/3e5*(6562*(1+self.z)/1e4)/dl
+                n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
                 map_nii[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
 # =============================================================================
 #             OIII
@@ -3625,13 +3625,16 @@ class Cube:
                 map_oiii[2,i,j] = p16_oiii.copy()
                 map_oiii[3,i,j] = p84_oiii.copy()
                 
-                map_oiii_ki[0,i,j] = ((5008.24*(1+z)/1e4)-wv_oiii)/wv_oiii*3e5
+                
                 if 'OIII_out_peak' in list(res_spx.keys()):
-                    map_oiii_ki[2,i,j],map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[4,i,j] = W80_OIII_calc_single(modelfce, res_spx, 0)#res_spx['Nar_fwhm'][0] 
+                    map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = W80_OIII_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
                     
                 else:
+                    map_oiii_ki[0,i,j] = ((5008.24*(1+z)/1e4)-wv_oiii)/wv_oiii*3e5
                     map_oiii_ki[1,i,j] = res_spx['Nar_fwhm'][0]
-                
+                    map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = W80_OIII_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
+                    
+                    
             else:
                 
                 

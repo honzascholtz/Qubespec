@@ -666,7 +666,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
             
-    if outflow==1:
+    elif outflow==1:
         nwalkers=64
         fitted_model = Halpha_OIII_outflow
         
@@ -714,7 +714,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         res = {'name': 'Halpha_OIII_outflow'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
-    if outflow=='BLR':
+    elif outflow=='BLR':
         labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIIIn_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
                 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' ,\
                 'BLR_fwhm', 'zBLR', 'BLR_hal_peak', 'BLR_hbe_peak')
@@ -757,7 +757,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
         
-    if outflow=='QSO_BKPL':
+    elif outflow=='QSO_BKPL':
         labels =[ 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'OIII_peak','Hbeta_peak', 'Nar_fwhm', \
                               'Hal_out_peak', 'NII_out_peak','OIII_out_peak', 'Hbeta_out_peak',\
                               'outflow_fwhm', 'outflow_vel',\
@@ -794,7 +794,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
     else:
-        raise Exception('outflow variable not understood.')
+        raise Exception('outflow in Fitting_Halpha_OIII variable not understood.')
         
     return res, fitted_model
 
