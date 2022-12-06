@@ -550,7 +550,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
         
     return res, fitted_model
 
-def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True,N=6000, priors={'z':[0,'normal', 0, 0.003],\
+def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True,N=6000,initial=None, priors={'z':[0,'normal', 0, 0.003],\
                                                                                                  'cont':[0,'loguniform', -3,1],\
                                                                                                  'cont_grad':[0,'normal', 0,0.2],\
                                                                                                  'Hal_peak':[0,'loguniform', -3,1],\
@@ -629,7 +629,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIIIn_peak', 'Hbeta_peak', 'OI_peak')
         
         pr_code = prior_create(labels, priors)
-            
+        
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
                           peak_hal*0.2, peak_OIII*0.1])  
         
