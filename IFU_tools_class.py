@@ -1050,8 +1050,8 @@ class Cube:
                 
         elif flag=='NIRSPEC_IFU_fl':
             with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/norm*1000
-                self.error_cube = hdulist['ERR'].data/norm*1000
+                flux_temp = hdulist['SCI'].data/norm*10000
+                self.error_cube = hdulist['ERR'].data/norm*10000
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
         
