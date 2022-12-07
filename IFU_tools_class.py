@@ -443,7 +443,7 @@ def flux_calc(res, mode, norm=1e-13):
         else:
             model = np.zeros_like(wave)
     
-    elif mode=='Han':
+    elif mode=='Hat':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         hn = 6565*(1+res['z'][0])/1e4
         
@@ -453,6 +453,14 @@ def flux_calc(res, mode, norm=1e-13):
             model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  ) + \
                 gauss(wave, res['Hal_out_peak'][0], hn, res['outflow_fwhm'][0]/2.355/3e5*hn  )
     
+    elif mode=='Han':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        hn = 6565*(1+res['z'][0])/1e4
+        
+        model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
+        
+        if 'outflow_fwhm' in list(res.keys()):
+            model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
     
     elif mode=='Hal_BLR':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
@@ -467,7 +475,7 @@ def flux_calc(res, mode, norm=1e-13):
         else:
             model = np.zeros_like(wave)
     
-    elif mode=='NII':
+    elif mode=='NIIt':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         nii = 6583*(1+res['z'][0])/1e4
         model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
@@ -476,6 +484,12 @@ def flux_calc(res, mode, norm=1e-13):
             model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  ) + \
                 gauss(wave, res['NII_out_peak'][0], nii, res['outflow_fwhm'][0]/2.355/3e5*nii  )
     
+    elif mode=='NII':
+        wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
+        nii = 6583*(1+res['z'][0])/1e4
+        model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+        
+                
     elif mode=='NIIo':
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         nii = 6583*(1+res['z'][0])/1e4
@@ -2708,6 +2722,10 @@ class Cube:
             upper_lim = 0            
             step = 1   
             step = binning_pix
+        if instrument=='NIRSPEC05':
+            upper_lim = 0            
+            step = 2  
+            step = binning_pix
         x = range(shapes[0]-upper_lim)
         y = range(shapes[1]-upper_lim) 
         
@@ -3366,8 +3384,8 @@ class Cube:
                 
                 map_vel[i,j] = ((6563*(1+z)/1e4)-wvo3)/wvo3*3e5
                 map_fwhm[i,j] = res_spx['popt'][5]
-                map_flux[i,j] = flux_calc(res_spx, 'Han',self.flux_norm)
-                map_nii[i,j] = flux_calc(res_spx, 'NII', self.flux_norm)
+                map_flux[i,j] = flux_calc(res_spx, 'Hat',self.flux_norm)
+                map_nii[i,j] = flux_calc(res_spx, 'NIIt', self.flux_norm)
                 
                 
             emplot.plotting_Halpha(self.obs_wave, flx_spax_m, ax, res_spx, emfit.Halpha, error=error)
@@ -3571,7 +3589,7 @@ class Cube:
 #             Halpha
 # =============================================================================
             
-            flux_hal, p16_hal,p84_hal = flux_calc_mcmc(res_spx, chains, 'Han', self.flux_norm)
+            flux_hal, p16_hal,p84_hal = flux_calc_mcmc(res_spx, chains, 'Hat', self.flux_norm)
             SNR_hal = flux_hal/p16_hal
             map_hal[0,i,j]= SNR_hal
             
@@ -3617,7 +3635,7 @@ class Cube:
 #             NII
 # =============================================================================
             #SNR = SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'NII')
-            flux_NII, p16_NII,p84_NII = flux_calc_mcmc(res_spx, chains, 'NII', self.flux_norm)
+            flux_NII, p16_NII,p84_NII = flux_calc_mcmc(res_spx, chains, 'NIIt', self.flux_norm)
             
             map_nii[0,i,j]= SNR_nii
             if SNR_nii>SNR_cut:

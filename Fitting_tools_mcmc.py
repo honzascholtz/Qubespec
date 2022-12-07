@@ -110,6 +110,8 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,N=6000
         pr_code = prior_create(labels, priors)
         
         pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['BLR_offset'][0],peak/6, peak/6])
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -131,6 +133,9 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,N=6000
         pr_code = prior_create(labels, priors)
         
         pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4,priors['Nar_fwhm'][0],peak/6, peak/6 ])
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+        
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -153,6 +158,8 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,N=6000
         pr_code = prior_create(labels, priors)
         
         pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, priors['outflow_fwhm'][0],priors['outflow_vel'][0] ])
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -183,7 +190,8 @@ def fitting_Halpha(wave, fluxs, error,z, BLR=1,zcont=0.05, progress=True ,N=6000
                           priors['outflow_fwhm'][0],priors['outflow_vel'][0], \
                           peak, priors['BLR_vel'][0], priors['BLR_alp1'][0], priors['BLR_alp2'][0],priors['BLR_sig'][0], \
                           ])
-            
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0]    
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -268,7 +276,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 pr_code = prior_create(labels, priors)
                 
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIIIn_fwhm'][0], priors['OIIIw_fwhm'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]])
-                
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -289,7 +298,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIIIn_fwhm'][0], priors['OIIIw_fwhm'][0],priors['out_vel'][0],\
                                 peak_beta, priors['Hbeta_fwhm'][0], priors['Hbeta_vel'][0],peak_beta, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])
-                
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -314,6 +324,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['OIIIn_fwhm'][0], priors['OIII_out'][0],priors['out_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
                                 np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -338,6 +350,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 pos_l = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 600.,-100, \
                                 peak_beta/2, 4000,priors['Hbeta_vel'][0],peak_beta/2, 600,priors['Hbetan_vel'][0],\
                                 np.median(flux[fit_loc]), 2000])
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -361,6 +375,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 pr_code = prior_create(labels, priors)
                 
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIIIn_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]]) 
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -385,7 +401,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIIIn_fwhm'][0], peak_beta/4, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
                                 peak_beta/4, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])
-                
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -408,6 +425,9 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 pr_code = prior_create(labels, priors)
                 
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) 
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+                
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
                 
@@ -433,6 +453,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta/2, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
                                 peak_beta/2, priors['Hbetan_fwhm'][0],priors['Hbetan_vel'][0], \
                                 np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) 
+                for i in enumerate(labels):
+                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                     
                 pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
                 pos[:,0] = np.random.normal(z,0.001, nwalkers)
@@ -457,7 +479,10 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                     peak_beta/2, peak_beta/2, \
                     priors['Hb_BLR1_fwhm'][0],priors['Hb_BLR2_fwhm'][0],priors['Hb_BLR_vel'][0],\
                     peak_beta/4, peak_beta/4])
-               
+            
+            for i in enumerate(labels):
+                pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+                
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(z,0.001, nwalkers)
            
@@ -488,7 +513,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                     priors['Hb_BLR1_fwhm'][0],priors['Hb_BLR2_fwhm'][0],priors['Hb_BLR_vel'][0],\
                     peak_beta/4, peak_beta/4,\
                     np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])
-               
+            for i in enumerate(labels):
+                pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0]   
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(z,0.001, nwalkers)
            
@@ -517,7 +543,8 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
                 priors['OIIIn_fwhm'][0], priors['OIIIw_fwhm'][0],priors['out_vel'][0],\
                 peak_beta, priors['BLR_vel'][0], priors['BLR_alp1'][0], priors['BLR_alp2'][0],priors['BLR_sig'][0], \
                 peak_beta/4, peak_beta/4])
-        
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
         
         labels=('z', 'cont','cont_grad', 'OIIIn_peak', 'OIIIw_peak', 'OIIIn_fwhm', 'OIIIw_fwhm',\
                     'out_vel', 'BLR_peak', 'BLR_vel', 'BLR_alp1', 'BLR_alp2','BLR_sig' ,\
@@ -550,7 +577,7 @@ def fitting_OIII(wave, fluxs, error,z, outflow=0, template=0, Hbeta_dual=0,N=600
         
     return res, fitted_model
 
-def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True,N=6000,initial=None, priors={'z':[0,'normal', 0, 0.003],\
+def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True,N=6000,initial=np.array([0]), priors={'z':[0,'normal', 0, 0.003],\
                                                                                                  'cont':[0,'loguniform', -3,1],\
                                                                                                  'cont_grad':[0,'normal', 0,0.2],\
                                                                                                  'Hal_peak':[0,'loguniform', -3,1],\
@@ -630,22 +657,14 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         
         pr_code = prior_create(labels, priors)
         
+        
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
                           peak_hal*0.2, peak_OIII*0.1])  
         
-        if (log_prior(pos_l, pr_code)==-np.inf):
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
             
-            '''
-            print((Hal_peak<0))
-            print(NII_peak<0) 
-            print(SII_rpk<0) 
-            print(SII_bpk<0)
-            print(Hal_peak/Hbeta_peak<(2.86/1.35))
-            print(SII_rpk> Hal_peak)
-            print(SII_bpk> Hal_peak)
-            print((OI_peak> OIIIn_peak))
-            print(pos_l)
-            '''
+        if (log_prior(pos_l, pr_code)==-np.inf):
             logprior_general_test(pos_l, pr_code)
             
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
@@ -681,20 +700,11 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
                           priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
                           peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05, peak_hal*0.05])
         
-        
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+            
         if (log_prior(pos_l, pr_code)==-np.inf):
             
-            '''
-            print((Hal_peak<0))
-            print(NII_peak<0) 
-            print(SII_rpk<0) 
-            print(SII_bpk<0)
-            print(Hal_peak/Hbeta_peak<(2.86/1.35))
-            print(SII_rpk> Hal_peak)
-            print(SII_bpk> Hal_peak)
-            print((OI_peak> OIIIn_peak))
-            print(pos_l)
-            '''
             logprior_general_test(pos_l, pr_code)
             
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
@@ -731,14 +741,19 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
         fitted_model = Halpha_OIII_BLR
         
         pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                          peak_OIII*0.8, peak_hal*0.3, peak_hal*0.2, peak_hal*0.2,\
+                          peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
                           priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
                           peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
                           priors['BLR_fwhm'][0], priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
+            
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+             
+        
         
         if (log_prior(pos_l, pr_code)==np.nan)|\
             (log_prior(pos_l, pr_code)==-np.inf):
-            print(pos_l)
+            print(logprior_general_test(pos_l, priors, labels))
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible. {pos_l} ')
         
@@ -833,9 +848,9 @@ def logprior_general(theta, priors):
     
     return results
 
-def logprior_general_test(theta, priors):
+def logprior_general_test(theta, priors, labels):
     results = 0.
-    for t,p in zip( theta, priors):
+    for t,p,lb in zip( theta, priors, labels):
         if p[0] ==0:
             results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
         elif p[0] ==1:
@@ -845,7 +860,7 @@ def logprior_general_test(theta, priors):
         elif p[0]==3:
             results = np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
     
-        print(results)
+        print(lb, t, results)
         
 def prior_create(labels,priors):
     pr_code = np.zeros((len(labels),3))
