@@ -1074,10 +1074,24 @@ class Cube:
         
         elif flag=='MIRI':
             with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/1e4
-                self.error_cube = hdulist['ERR'].data/1e4
+                flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
                 w = wcs.WCS(hdulist[1].header)
                 header = hdulist[1].header
+                cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
+                wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
+                wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
+                if wave.unit==astropy.units.m:
+                    wave = wave.to('um')
+                else:
+                    wave *= 1.e6 # Somehow, units are autoconverted to m
+                
+                error *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                flux_temp *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                flux_temp = flux_temp.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                error = error.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                flux_temp = flux_temp.value
+                self.error_cube = error.value
                 
         else:
             raise Exception('Instrument flag not understood')
@@ -1528,7 +1542,6 @@ class Cube:
         else:  
             self.D1_spectrum_er = stats.sigma_clipped_stats(D1_spectra,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
         
-        print(self.D1_spectrum_er)
         if self.ID =='cdfs_220':
             self.D1_spectrum_er = 0.05*np.ones(len(self.D1_spectrum))
         if self.ID =='cid_346':
