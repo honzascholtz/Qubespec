@@ -650,7 +650,7 @@ def W80_OIII_calc( function, sol, chains, plot):
         fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*OIIIr
         fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*OIIIr
         
-        OIIIrws = cent + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
+        OIIIrws = OIIIr + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
         
         peakn = np.random.choice(chains['OIIIn_peak'], N)
         peakw = np.random.choice(chains['OIII_out_peak'], N)
@@ -758,8 +758,7 @@ def W80_OIII_calc_single( function, sol, plot, z=0):
         peakn = sol['OIIIn_peak'][0]
         try:
             fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
-            OIIIrws = cent + sol['outflow_vel'][0]/3e5*OIIIr
-        
+            OIIIrws = OIIIr + sol['outflow_vel'][0]/3e5*OIIIr
             peakw = sol['OIII_out_peak'][0]
             y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
         except:
@@ -793,6 +792,10 @@ def W80_OIII_calc_single( function, sol, plot, z=0):
     v50 = (wv50-cent)/cent*3e5
     
     w80 = v90-v10
+    
+    if plot==1:
+        plt.figure()
+        plt.plot(wvs, y)
            
     return v10,v90, w80, v50
 
@@ -912,26 +915,26 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     
     
     if 'outflow_fwhm' in sol:
-        OIIIr = 6564.52*(1+sol['z'][0])/1e4
+        Halc = 6564.52*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
-        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*Halc
+        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*Halc
         
-        OIIIrws = cent + sol['outflow_vel'][0]/3e5*OIIIr
+        Halcw = Halc + sol['outflow_vel'][0]/3e5*Halc
         
         peakn = sol['Hal_peak'][0]
         peakw = sol['Hal_out_peak'][0]
         
-        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+        y = gauss(wvs, peakn,Halc, fwhms) + gauss(wvs, peakw, Halcw, fwhmws)
          
     else:
-        OIIIr = 6564.52*(1+sol['z'][0])/1e4
+        Halc = 6564.52*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*Halc
         peakn = sol['Hal_peak'][0]
         
         
-        y = gauss(wvs, peakn,OIIIr, fwhms)
+        y = gauss(wvs, peakn,Halc, fwhms)
             
          
     Int = np.zeros(Ni-1)
@@ -2218,13 +2221,23 @@ class Cube:
         f = plt.figure(figsize=(10,4))
         if outflow=='QSO_BKPL':
             baxes = brokenaxes(xlims=((4700,5050),(6200,6800)),  hspace=.01)
-        
         else:
             baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
         
-        emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')
+        emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')                             
         baxes.set_xlabel('Restframe wavelength (ang)')
-        baxes.set_ylabel(r'$10^{-16}$ ergs/s/cm2/mic')
+        
+        g = plt.figure(figsize=(10,4))
+        if outflow=='QSO_BKPL':
+            baxes_er = brokenaxes(xlims=((4700,5050),(6200,6800)),  hspace=.01)  
+        else:
+            baxes_er = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
+        
+        y_tot = self.D1_fit_model(self.obs_wave, *self.D1_fit_results['popt'])
+        
+        baxes_er.plot(self.obs_wave/(1+self.D1_fit_results['popt'][0])*1e4, self.D1_spectrum-y_tot)
+    
+        
         
         self.fit_plot = [f,baxes]
         
@@ -3669,8 +3682,9 @@ class Cube:
                     map_oiii_ki[0,i,j] = ((5008.24*(1+z)/1e4)-wv_oiii)/wv_oiii*3e5
                     map_oiii_ki[1,i,j] = res_spx['Nar_fwhm'][0]
                     map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = W80_OIII_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
-                    
-                    
+                p = baxes.get_ylim()[1][1]
+        
+                baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(map_oiii_ki[1,i,j],2)) )  
             else:
                 
                 

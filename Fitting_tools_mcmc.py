@@ -665,7 +665,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
             pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
             
         if (log_prior(pos_l, pr_code)==-np.inf):
-            logprior_general_test(pos_l, pr_code)
+            logprior_general_test(pos_l, pr_code, labels)
             
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible. {pos_l}')
@@ -705,7 +705,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,outflow=0 ,progress=True
             
         if (log_prior(pos_l, pr_code)==-np.inf):
             
-            logprior_general_test(pos_l, pr_code)
+            logprior_general_test(pos_l, pr_code, labels)
             
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible. {pos_l}')
