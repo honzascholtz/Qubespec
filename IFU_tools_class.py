@@ -966,7 +966,7 @@ def W80_NII_calc_single( function, sol, plot, z=0):
     
     import scipy.integrate as scpi
     
-    cent =  5008.24*(1+z)/1e4
+    cent = 6585.27*(1+z)/1e4
     
     bound1 =  cent + 2000/3e5*cent
     bound2 =  cent - 2000/3e5*cent
@@ -976,32 +976,32 @@ def W80_NII_calc_single( function, sol, plot, z=0):
     
     
     if 'outflow_fwhm' in sol:
-        OIIIr = 5008.24*(1+z)/1e4
+        NIIr = 6585.27*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
-        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*NIIr
+        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*NIIr
         
-        OIIIrws = cent + sol['out_vel'][0]/3e5*OIIIr
+        NIIrws = NIIr + sol['outflow_vel'][0]/3e5*NIIr
         
         peakn = sol['NII_peak'][0]
         peakw = sol['NII_out_peak'][0]
         
-        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+        y = gauss(wvs, peakn,NIIr, fwhms) + gauss(wvs, peakw, NIIrws, fwhmws)
          
     else:
-        OIIIr = 5008.24*(1+z)/1e4
+        NIIr = 6585.27*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*NIIr
         peakn = sol['NII_peak'][0]
         
         
-        y = gauss(wvs, peakn,OIIIr, fwhms)
+        y = gauss(wvs, peakn,NIIr, fwhms)
             
          
     Int = np.zeros(Ni-1)
 
     for j in range(Ni-1):
-        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+        Int[j] = scpi.simps(y[:j+1], wvs[:j+1])
 
     Int = Int/max(Int)   
 
@@ -1014,6 +1014,13 @@ def W80_NII_calc_single( function, sol, plot, z=0):
     v50 = (wv50-cent)/cent*3e5
     
     w80 = v90-v10
+    
+    if plot==1:
+        plt.figure()
+        plt.plot(wvs, y)
+        plt.vlines(wv10, 0,0.1)
+        plt.vlines(wv90, 0,0.1)
+        plt.vlines(wv50, 0,0.1)
            
     return v10,v90, w80, v50
 
@@ -3573,6 +3580,9 @@ class Cube:
         map_hal_ki = np.zeros((4,self.dim[0], self.dim[1]))
         map_hal_ki[:,:,:] = np.nan
         
+        map_nii_ki = np.zeros((4,self.dim[0], self.dim[1]))
+        map_nii_ki[:,:,:] = np.nan
+        
         map_oiii_ki = np.zeros((5,self.dim[0], self.dim[1]))
         map_oiii_ki[:,:,:] = np.nan
         
@@ -3668,10 +3678,14 @@ class Cube:
                 map_nii[1,i,j] = flux_NII.copy()
                 map_nii[2,i,j] = p16_NII.copy()
                 map_nii[3,i,j] = p84_NII.copy()
-            
+                
+                if 'NII_out_peak' in list(res_spx.keys()):
+                    map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = W80_NII_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
+                    
+                else:
+                    map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = W80_NII_calc_single(modelfce, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0] 
+                
             else:
-                
-                
                 dl = self.obs_wave[1]-self.obs_wave[0]
                 n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
                 map_nii[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
@@ -3998,6 +4012,7 @@ class Cube:
         primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
         hal_hdu = fits.ImageHDU(map_hal, name='Halpha')
         nii_hdu = fits.ImageHDU(map_nii, name='NII')
+        nii_kin_hdu = fits.ImageHDU(map_nii_ki, name='NII_kin')
         hbe_hdu = fits.ImageHDU(map_hb, name='Hbeta')
         oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
         oi_hdu = fits.ImageHDU(map_oi, name='OI')
@@ -4009,7 +4024,7 @@ class Cube:
         oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
         Av_hdu = fits.ImageHDU(Av, name='Av')
         
-        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
+        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps.fits', overwrite=True)
         
         return f 

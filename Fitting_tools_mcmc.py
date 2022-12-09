@@ -929,7 +929,7 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
     i,j,flx_spax_m, error, wave, z = lst
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
-    if 1==1:
+    try:
         flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow=0, N=10000)    
         flat_samples_out, fitted_model_out = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, outflow=1, N=10000)
         
@@ -944,7 +944,7 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
             flat_samples = flat_samples_sig
             
         cube_res  = [i,j,prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
-    else:
+    except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
     return cube_res
