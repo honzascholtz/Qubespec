@@ -202,7 +202,7 @@ def BKPLG(x, peak,center,sig, a1,a2):
 def OIII_QSO_BKPL(x, z, cont,cont_grad,\
              OIIIn_peak, OIIIw_peak, OIII_fwhm,\
              OIII_out, out_vel,\
-             Hb_BLR_peak, Hb_BLR_vel, Hb_BLR_alp1, Hb_BLR_alp2, Hb_BLR_sig,\
+             Hb_BLR_peak, zBLR, Hb_BLR_alp1, Hb_BLR_alp2, Hb_BLR_sig,\
              Hb_nar_peak, Hb_out_peak):
     
     ############################################
@@ -225,7 +225,7 @@ def OIII_QSO_BKPL(x, z, cont,cont_grad,\
     
     ############################################
     # Hbeta BLR
-    Hb_BLR_vel_wv = Hb_BLR_vel/3e5*Hbeta
+    Hb_BLR_vel_wv = Hbeta = 4862.6*(1+zBLR)/1e4
     
     Hbeta_BLR_wv = Hbeta+Hb_BLR_vel_wv 
     Hbeta_BLR = BKPLG(x, Hb_BLR_peak, Hbeta_BLR_wv, Hb_BLR_sig, Hb_BLR_alp1, Hb_BLR_alp2)
@@ -368,7 +368,7 @@ def log_prior_OIII_Fe_QSO(theta,priors):
 # =============================================================================
 # Halpha QSO model
 # =============================================================================
-def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel,Ha_BLR_peak, Ha_BLR_vel, Ha_BLR_alp1, Ha_BLR_alp2, Ha_BLR_sig):
+def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel,Ha_BLR_peak, zBLR, Ha_BLR_alp1, Ha_BLR_alp2, Ha_BLR_sig):
             
     
     Hal_wv = 6564.52*(1+z)/1e4     
@@ -400,7 +400,7 @@ def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_pea
     
     ############################################
     # Hbeta BLR
-    Ha_BLR_vel_wv = Ha_BLR_vel/3e5*Hal_wv
+    Ha_BLR_vel_wv = 6564.52*(1+zBLR)/1e4  
     
     Ha_BLR_wv = Hal_wv+Ha_BLR_vel_wv 
     Ha_BLR = BKPLG(x, Ha_BLR_peak, Ha_BLR_wv, Ha_BLR_sig, Ha_BLR_alp1, Ha_BLR_alp2)
@@ -416,7 +416,7 @@ def Hal_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_pea
 def Halpha_OIII_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, OIII_peak,Hbeta_peak, Nar_fwhm, \
                       Hal_out_peak, NII_out_peak,OIII_out_peak, Hbeta_out_peak,\
                       outflow_fwhm, outflow_vel,\
-                      Hal_BLR_peak, Hbeta_BLR_peak,  BLR_vel, BLR_alp1, BLR_alp2, BLR_sig):
+                      Hal_BLR_peak, Hbeta_BLR_peak,  zBLR, BLR_alp1, BLR_alp2, BLR_sig):
     
     Hal_part = Hal_QSO_BKPL(x, z, 0, 0, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel, Hal_BLR_peak, BLR_vel, BLR_alp1, BLR_alp2, BLR_sig)
     

@@ -45,7 +45,7 @@ def gauss(x, k, mu,sig):
 # =============================================================================
 #  Function for fitting Halpha with BLR
 # =============================================================================
-def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk):
+def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, zBLR, SII_rpk, SII_bpk):
     Hal_wv = 6564.52*(1+z)/1e4     
     NII_r = 6585.27*(1+z)/1e4
     NII_b = 6549.86*(1+z)/1e4
@@ -56,7 +56,7 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR
     Nar_sig= Nar_fwhm/3e5*Hal_wv/2.35482
     BLR_sig = BLR_fwhm/3e5*Hal_wv/2.35482
     
-    BLR_wv = Hal_wv + BLR_offset/3e5*Hal_wv
+    BLR_wv = 6564.52*(1+zBLR)/1e4   
     
     contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
     Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_sig)
