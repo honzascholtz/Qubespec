@@ -153,7 +153,7 @@ class Visualize:
             self.iter_map[i,j] = int(it)
         
         
-    def showme(self,z):
+    def showme(self,z=0):
     
         fig = plt.figure(figsize=(15.6, 8))
         fig.canvas.manager.set_window_title('vicube')
