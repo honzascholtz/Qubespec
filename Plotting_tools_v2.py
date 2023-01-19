@@ -384,7 +384,7 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
         ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIII_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_peak'][0],OIIIr, fwhm) \
             ,color= 'green', linestyle ='dashed')  
     except:
-        ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIII_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_peak'][0],OIIIr, fwhm) \
+        ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIIIn_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIIIn_peak'][0],OIIIr, fwhm) \
                 ,color= 'green', linestyle ='dashed')  
             
     Hbeta= 4862.6*(1+z)/1e4

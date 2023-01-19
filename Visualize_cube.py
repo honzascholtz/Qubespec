@@ -91,6 +91,7 @@ def generate_data(mean_x, mean_y, std_x, std_y, theta, n_pixels):
 
 import Plotting_tools_v2 as emplot
 import Halpha_OIII_models as models
+import IFU_tools_class as IFU
 def plotting_haloiii(results,i,j, iter_map, axes):   
     index = iter_map[j,i]
     
@@ -115,7 +116,8 @@ def plotting_haloiii(results,i,j, iter_map, axes):
             modelfce = models.Halpha_OIII_outflow
         
         emplot.plotting_Halpha_OIII(obs_wave, flx_spax_m, axes, res_spx, modelfce)
-        
+        #axes.set_title(str(IFU.sp.SNR_calc(obs_wave, flx_spax_m, error, res_spx ,'Hn')))
+
     
     
 
@@ -182,18 +184,19 @@ class Visualize:
             i, j = int(event.xdata), int(event.ydata)
             
             axspec = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01, subplot_spec=gs[1, :])
-        
             plotting_haloiii(self.results, i, j, self.iter_map, axspec)
             selector.set_xy((i-.5, j-.5))
             
             
         def hover(event):
-            if event.inaxes != ax1:
+            if (event.inaxes != ax1):
                 selector.set_visible(False)
                 fig.canvas.draw_idle()
                 return
+            
             update_plot(event)
             fig.canvas.draw_idle()
+            
         fig.canvas.mpl_connect("motion_notify_event", hover)
         
         plt.show()
