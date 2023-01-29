@@ -775,6 +775,52 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,model='gal' ,progress=Tr
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
         
+    elif model=='BLR_simple':
+        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
+                'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak')
+            
+        nwalkers=64
+        
+        if priors['BLR_Hal_peak'][2]=='error':
+            priors['BLR_Hal_peak'][2]=error[-2]; priors['BLR_Hal_peak'][3]=error[-2]*2
+        if priors['BLR_Hbeta_peak'][2]=='error':
+            priors['BLR_Hbeta_peak'][2]=error[2]; priors['BLR_Hbeta_peak'][3]=error[2]*2
+        
+        pr_code = prior_create(labels, priors)   
+        log_prior = log_prior_Halpha_OIII_BLR_simple
+        fitted_model = Halpha_OIII_BLR_simple
+        
+        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+                          peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
+                          priors['Nar_fwhm'][0], priors['BLR_fwhm'][0], priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
+            
+        for i in enumerate(labels):
+            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+             
+        
+        
+        if (log_prior(pos_l, pr_code)==np.nan)|\
+            (log_prior(pos_l, pr_code)==-np.inf):
+            print(logprior_general_test(pos_l, priors, labels))
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible. {pos_l} ')
+        
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        pos[:,-3] = np.random.normal(priors['zBLR'][0],0.00001, nwalkers)
+       
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(
+                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior)) 
+        sampler.run_mcmc(pos, N, progress=progress);
+        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+          
+        
+        res = {'name': 'Halpha_OIII_BLR_simple'}
+        for i in range(len(labels)):
+            res[labels[i]] = flat_samples[:,i]
+        
+        
     elif outflow=='QSO_BKPL':
         labels =[ 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'OIII_peak','Hbeta_peak', 'Nar_fwhm', \
                               'Hal_out_peak', 'NII_out_peak','OIII_out_peak', 'Hbeta_out_peak',\

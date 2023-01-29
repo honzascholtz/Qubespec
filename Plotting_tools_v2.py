@@ -325,7 +325,7 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
             
 
-def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
+def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres='none'):
     
     popt = sol['popt']
     z = popt[0]
@@ -446,7 +446,19 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
         
         ax.plot(wv_rest[fit_loc], Hal_blr+Hbe_blr, linestyle='dashed',color='lightblue')
         
-
+    if axres !='none':
+        resid_OIII = flux[fit_loc_sc]-y_tot_rs
+        sigma_OIII = np.std(resid_OIII)
+        RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
+        
+        axres.plot(wv_rst_sc[fit_loc_sc],resid_OIII, drawstyle='steps-mid')
+        axres.set_ylim(-2*RMS_OIII, 2*RMS_OIII) ## the /3 scales to the ratio
+        if residual=='rms':
+            axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
+        elif residual=='error':
+            axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
+            
+            
 def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
     
     popt = sol['popt']

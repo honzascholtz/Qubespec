@@ -424,9 +424,13 @@ def flux_calc(res, mode, norm=1e-13):
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         hn = 6565*(1+res['z'][0])/1e4
         if 'BLR_fwhm' in keys:
-            model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+            try:
+                model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+                
+            except:
+                model = gauss(wave, res['BLR_Hal_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
             
-        if 'BLR_alp1' in keys:
+        elif 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hn, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
             
@@ -524,12 +528,12 @@ def flux_calc(res, mode, norm=1e-13):
         
     return Flux
 
-def flux_calc_mcmc(res,chains, mode, norm=1e-13):
+def flux_calc_mcmc(res,chains, mode, norm=1e-13,N=100):
     
     labels = list(chains.keys())
 
     popt = np.zeros_like(res['popt'])
-    N=100
+    
     Fluxes = []
     res_new = {'name': res['name']}
     for j in range(N):
