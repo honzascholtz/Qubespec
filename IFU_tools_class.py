@@ -654,8 +654,8 @@ class Cube:
         elif len(err_range)==4:
             error1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
                                                          &(self.obs_wave<err_range[1])],sigma=3)[2]
-            error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[1]<self.obs_wave) \
-                                                         &(self.obs_wave<err_range[2])],sigma=3)[2]
+            error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[2]<self.obs_wave) \
+                                                         &(self.obs_wave<err_range[3])],sigma=3)[2]
             
             error = np.zeros(len(D1_spectra))
             error[self.obs_wave<boundary] = error1
@@ -3074,8 +3074,8 @@ class Cube:
                 error1 = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
                                                               &(self.obs_wave<err_range[1])],sigma=3)[2]
                 
-                error2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[1]<self.obs_wave) \
-                                                              &(self.obs_wave<err_range[2])],sigma=3)[2]
+                error2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[2]<self.obs_wave) \
+                                                              &(self.obs_wave<err_range[3])],sigma=3)[2]
                     
                 D1_spectrum_er = np.zeros(len(D1_spectrum))
                 D1_spectrum_er[self.obs_wave<boundary] = error1

@@ -277,7 +277,7 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]/3e5*SII_b/2.35), \
                 color='darkblue', linestyle='dashed')
       
-    if 'BLR_offset' in keys:
+    if 'zBLR' in keys:
         BLR_wv = 6564.52*(1+sol['zBLR'][0])/1e4
         
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['BLR_Hal_peak'][0], BLR_wv, sol['BLR_fwhm'][0]/3e5*Hal_wv/2.35), \

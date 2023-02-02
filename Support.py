@@ -468,7 +468,13 @@ def flux_calc(res, mode, norm=1e-13):
     elif mode=='Hbe_BLR':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
         hbeta = 4862.6*(1+res['z'][0])/1e4
-        if 'BLR_alp1' in keys:
+        if 'BLR_fwhm' in keys:
+            try:
+                model = gauss(wave, res['BLR_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+                
+            except:
+                model = gauss(wave, res['BLR_Hbeta_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hbeta  )
+        elif 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hbeta, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
     

@@ -72,15 +72,14 @@ def fitting_Halpha(wave, fluxs, error,z, model='BLR',zcont=0.05, progress=True ,
                                                                                     'outflow_fwhm':[600,'uniform', 300,1500],\
                                                                                     'outflow_vel':[-50,'normal', 0,300]}):
     
-    if priors['z'][2]==0:
-        priors['z'][2]=z
+    if priors['z'][0]==0:
+        priors['z'][0]=z
     
     try:
-        if priors['zBLR'][2]==0:
-            priors['zBLR'][2]=z
+        if priors['zBLR'][0]==0:
+            priors['zBLR'][0]=z
     except:
         lksdf=0
-        
         
     fluxs[np.isnan(fluxs)] = 0
     flux = fluxs.data[np.invert(fluxs.mask)]
@@ -108,8 +107,10 @@ def fitting_Halpha(wave, fluxs, error,z, model='BLR',zcont=0.05, progress=True ,
         pr_code = prior_create(labels, priors)
         
         pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['zBLR'][0],peak/6, peak/6])
+        
         for i in enumerate(labels):
             pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+            
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(z,0.001, nwalkers)
         
@@ -756,7 +757,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,model='gal' ,progress=Tr
         
         if (log_prior(pos_l, pr_code)==np.nan)|\
             (log_prior(pos_l, pr_code)==-np.inf):
-            print(logprior_general_test(pos_l, priors, labels))
+            print(logprior_general_test(pos_l, pr_code, labels))
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible. {pos_l} ')
         
@@ -786,7 +787,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,model='gal' ,progress=Tr
         if priors['BLR_Hbeta_peak'][2]=='error':
             priors['BLR_Hbeta_peak'][2]=error[2]; priors['BLR_Hbeta_peak'][3]=error[2]*2
         
-        pr_code = prior_create(labels, priors)   
+        pr_code = prior_create(labels, priors) 
         log_prior = log_prior_Halpha_OIII_BLR_simple
         fitted_model = Halpha_OIII_BLR_simple
         
@@ -801,7 +802,7 @@ def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,model='gal' ,progress=Tr
         
         if (log_prior(pos_l, pr_code)==np.nan)|\
             (log_prior(pos_l, pr_code)==-np.inf):
-            print(logprior_general_test(pos_l, priors, labels))
+            print(logprior_general_test(pos_l, pr_code, labels))
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible. {pos_l} ')
         
@@ -939,6 +940,7 @@ def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, templ
 
 def logprior_general_test(theta, priors, labels):
     for t,p,lb in zip( theta, priors, labels):
+        print(p)
         if p[0] ==0:
             results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
         elif p[0] ==1:
