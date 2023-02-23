@@ -225,11 +225,9 @@ def OIII_QSO_BKPL(x, z, cont,cont_grad,\
     
     ############################################
     # Hbeta BLR
-    Hb_BLR_vel_wv = Hbeta = 4862.6*(1+zBLR)/1e4
+    Hbeta_BLR_wv =  4862.6*(1+zBLR)/1e4
     
-    Hbeta_BLR_wv = Hbeta+Hb_BLR_vel_wv 
     Hbeta_BLR = BKPLG(x, Hb_BLR_peak, Hbeta_BLR_wv, Hb_BLR_sig, Hb_BLR_alp1, Hb_BLR_alp2)
-    
     
     ############################################
     # Hbeta NLR
@@ -237,35 +235,12 @@ def OIII_QSO_BKPL(x, z, cont,cont_grad,\
     
     Hbeta_NLR = gauss(x, Hb_nar_peak, Hbeta, Nar_fwhm_hb)  + \
                 gauss(x, Hb_out_peak, Hbeta+out_vel_wv_hb , Out_fwhm_hb) 
-     
+    
     ############################################
     # Continuum
     contm = PowerLaw1D.evaluate(x, cont, OIIIr, alpha=cont_grad)
     
     return contm+ OIII_nar + OIII_out + Hbeta_BLR + Hbeta_NLR
-
-
-@numba.njit
-def log_prior_OIII_QSO_BKPL(theta,priors):   
-    z, cont,cont_grad,OIIIn_peak, OIIIw_peak, OIII_fwhm,OIII_out, out_vel,\
-        Hb_BLR_peak, Hb_BLR_vel, Hb_BLR_alp1, Hb_BLR_alp2, Hb_BLR_sig,\
-            Hb_nar_peak, Hb_out_peak, = theta
-    
-    if OIIIn_peak<OIIIw_peak:
-        return -np.inf
-    if Hb_out_peak>Hb_nar_peak:
-        return -np.inf
-    
-    if priors['z'][1] < z < priors['z'][2] and priors['cont'][1] < np.log10(cont)<priors['cont'][2]  and priors['cont_grad'][1]< cont_grad<priors['cont_grad'][2]  \
-        and priors['OIIIn_peak'][1] < np.log10(OIIIn_peak) < priors['OIIIn_peak'][2] and priors['OIII_fwhm'][1] < OIII_fwhm <priors['OIII_fwhm'][2]\
-            and priors['OIIIw_peak'][1] < np.log10(OIIIw_peak) < priors['OIIIw_peak'][2] and priors['OIII_out'][1] < OIII_out <priors['OIII_out'][2]  and priors['out_vel'][1]<out_vel< priors['out_vel'][2] \
-                and priors['Hb_BLR_peak'][1] < np.log10(Hb_BLR_peak)< priors['Hb_BLR_peak'][2] and priors['Hb_BLR_sig'][1] < Hb_BLR_sig< priors['Hb_BLR_sig'][2] \
-                    and priors['Hb_BLR_alp1'][1] < Hb_BLR_alp1< priors['Hb_BLR_alp1'][2] and priors['Hb_BLR_alp2'][1] < Hb_BLR_alp2< priors['Hb_BLR_alp2'][2] \
-                        and priors['Hb_BLR_vel'][1]<Hb_BLR_vel<priors['Hb_BLR_vel'][2] \
-                            and  priors['Hb_nar_peak'][1] < np.log10(Hb_nar_peak)<priors['Hb_nar_peak'][2] and  priors['Hb_out_peak'][1] < np.log10(Hb_out_peak)<priors['Hb_out_peak'][2]:
-                                return 0.0 
-
-    return -np.inf
 
 
 @numba.njit
@@ -279,6 +254,19 @@ def log_prior_OIII_QSO_BKPL(theta, priors):
     if Hb_out_peak>Hb_nar_peak:
         return -np.inf
     '''
+    logprior = sum([ f.logpdf(t) for f,t in zip(priors, theta)])
+    
+    return logprior
+
+@numba.njit
+def log_prior_Halpha_QSO_BKPL(theta, priors):
+    z, cont,cont_grad, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm,\
+        outflow_vel,Ha_BLR_peak, zBLR, Ha_BLR_alp1, Ha_BLR_alp2, Ha_BLR_sig = theta.copy()
+    
+    if Hal_out_peak>Ha_BLR_peak:
+        return -np.inf
+    
+    
     logprior = sum([ f.logpdf(t) for f,t in zip(priors, theta)])
     
     return logprior

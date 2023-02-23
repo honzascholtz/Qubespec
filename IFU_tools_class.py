@@ -1204,7 +1204,7 @@ class Cube:
             
         elif models=='QSO_BKPL':
             
-            flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, BLR='QSO_BKPL',N=N, progress=progress, priors=priors)
+            flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, model='QSO_BKPL',N=N, progress=progress, priors=priors)
             prop = sp.prop_calc(flat_samples)
             
             chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model, prop, 'Halpha')
@@ -1544,7 +1544,7 @@ class Cube:
             self.dBIC = 3
         
         elif models=='QSO':
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO',N=N,template=template, priors=priors)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, model='QSO',N=N,template=template, priors=priors)
             prop_out = sp.prop_calc(flat_samples_out)
             
             self.D1_fit_results = prop_out
@@ -1556,7 +1556,7 @@ class Cube:
             self.dBIC = 3
         
         elif models=='QSO_bkp':
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow='QSO_BKPL',N=N,template=template, priors=priors)
+            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, model='QSO_BKPL',N=N,template=template, priors=priors)
             prop_out = sp.prop_calc(flat_samples_out)
             
             self.D1_fit_results = prop_out
@@ -1578,6 +1578,8 @@ class Cube:
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
+        
+        fig.savefig('/Users/jansen/Corner_plot_OIII_only.pdf')
         
         print(self.SNR)
         print(self.SNR_hb)

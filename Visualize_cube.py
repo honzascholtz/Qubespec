@@ -117,10 +117,7 @@ def plotting_haloiii(results,i,j, iter_map, axes):
         
         emplot.plotting_Halpha_OIII(obs_wave, flx_spax_m, axes, res_spx, modelfce)
         #axes.set_title(str(IFU.sp.SNR_calc(obs_wave, flx_spax_m, error, res_spx ,'Hn')))
-
-    
-    
-
+ 
 class Visualize:
     def __init__(self):
         
