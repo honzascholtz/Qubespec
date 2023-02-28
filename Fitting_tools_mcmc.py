@@ -215,8 +215,12 @@ class Fitting:
         sampler.run_mcmc(pos, self.N, progress=self.progress)
         self.flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)      
         for i in range(len(self.labels)):
-            self.res[self.labels[i]] = self.flat_samples[:,i]   
+            self.res[self.labels[i]] = self.flat_samples[:,i]  
             
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
+        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
+
         
     # =============================================================================
     # Primary function to fit [OIII] with and without outflows. 
@@ -426,7 +430,11 @@ class Fitting:
         for i in range(len(self.labels)):
             self.res[self.labels[i]] = self.flat_samples[:,i]  
         
-    
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
+        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'OIII')
+
+        
     def fitting_Halpha_OIII(self, model):
         self.model = model
         
@@ -648,7 +656,13 @@ class Fitting:
         
         for i in range(len(self.labels)):
             self.res[self.labels[i]] = self.flat_samples[:,i]
-    
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
+        
+        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
+
+        
+        
     def fitting_general(fitted_model, labels, logprior, nwalkers=64):
         self.labels= labels
         self.log_prior_fce = logprior_general

@@ -353,8 +353,6 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         chi2 = sum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
         
-        
-    
     return chi2, BIC
 
 def unwrap_chain(res):
