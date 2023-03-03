@@ -914,5 +914,30 @@ def Fitting_Halpha_unwrap(lst):
     
     return cube_res
     
+def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
+        data= pickle.load(fp) 
+
+    if len(use)==0:
+        use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
+
+    i,j,flx_spax_m, error, wave, z = lst
     
+    try:
+        Fits_sig = emfit.Fitting(wave[use], flux[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
+        
+        fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
+        
+        BIC_sig = Fits_sig.BIC
+        
+        
+        fitted_model = Fits_sig.fitted_model
+        flat_samples = Fits_sig.chains
+            
+        cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
+    except:
+        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+        print('Failed fit')
+    return cube_res
+
 
