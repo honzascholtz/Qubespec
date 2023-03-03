@@ -1563,51 +1563,23 @@ class Cube:
         self.fit_plot = [f,ax1,ax2]  
             
     
-    def fitting_collapse_single_G(self,  plot, outflow=0):
+    def fitting_collapse_general(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=6000 ):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
         z = self.z
         ID = self.ID
-        
-        flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
-        prop_sig = sp.prop_calc(flat_samples_sig)
-        
-        y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-        chi2S = sum(((flux.data-y_model_sig)/error)**2)
-        BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-        
-        flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1)
-        prop_out = sp.prop_calc(flat_samples_out)
-        
-        chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
-        chi2M, BICM = sp.BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'OIII')
-        
-        
-        if BICM-BICS <-2:
-            print('Delta BIC' , BICM-BICS, ' ')
-            self.D1_fit_results = prop_out
-            self.D1_fit_chain = flat_samples_out
-            self.D1_fit_model = fitted_model_out
-            self.z = prop_out['popt'][0]
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
-            self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-            self.dBIC = BICM-BICS
+        if len(use)==0:
+            use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
             
-            labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm')
+        Fits_gen = emfit.Fitting(wave[use], flux[use], error[use], z, priors=priors)
+        Fits_gen.fitting_general(fitted_model, labels, logprior, nwalkers=nwalkers)
         
-        else:
-            print('Delta BIC' , BICM-BICS, ' ')
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
-            self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-            self.dBIC = BICM-BICS
+        self.D1_fit_results = Fits_gen.props
+        self.D1_fit_chain = Fits_gen.chains
+        self.D1_fit_model = Fits_gen.fitted_model
+        self.z = Fits_gen.props['popt'][0]
             
-            labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
-         
             
         fig = corner.corner(
             sp.unwrap_chain(self.D1_fit_chain), 
@@ -1616,18 +1588,7 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
         
-        print(self.SNR)
-        print(self.SNR_hb)
         
-        
-        f, ax1 = plt.subplots(1)
-        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
-        
-        g, (ax1a,ax2a) = plt.subplots(2)
-        emplot.plotting_OIII(wave, flux, ax1a, prop_sig , fitted_model_sig)
-        emplot.plotting_OIII(wave, flux, ax2a, prop_out ,fitted_model_out)
-        
-        self.fit_plot = [f,ax1]
     
     def save_fit_info(self):
         results = [self.D1_fit_results, self.dBIC, self.SNR]
