@@ -231,7 +231,7 @@ class Fitting:
         self.template = template
         self.Hbeta_dual = Hbeta_dual
         if self.priors['z'][2]==0:
-            self.priors['z'][2]=z
+            self.priors['z'][2]=self.z
         
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.wave[np.invert(self.fluxs.mask)]
@@ -432,8 +432,11 @@ class Fitting:
         
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
-        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'OIII')
-
+        
+        self.modeleval = self.fitted_model(self.wave[fit_loc], *self.props['popt'])
+        self.chi2 = sum(((self.flux[fit_loc]-self.modeleval)/self.error[fit_loc])**2)
+        self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux[fit_loc]))
+        
         
     def fitting_Halpha_OIII(self, model):
         self.model = model
@@ -790,19 +793,23 @@ def Fitting_OIII_unwrap(lst):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     
-    flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, model='gal', progress=False, priors=priors)
-    cube_res  = [i,j,sp.prop_calc(flat_samples_sig)]
+    Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig.fitting_OIII(model='gal')
+    
+    cube_res  = [i,j,Fits_sig.props]       
+                 
     return cube_res
 
 def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     i,j,flx_spax_m, error, wave, z = lst
-    deltav = 1500
-    deltaz = deltav/3e5*(1+z)
+    
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors,N=10000)
-        cube_res  = [i,j,sp.prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error]
+        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig.fitting_Halpha_OIII(model='gal' )
+        
+        cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
@@ -814,8 +821,11 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, model='BLR', N=10000)
-        cube_res  = [i,j,sp.prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error ]
+        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig.fitting_Halpha_OIII(model='BLR' )
+        
+        cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
+        
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
@@ -829,18 +839,22 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, model='gal', N=10000)    
-        flat_samples_out, fitted_model_out = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, model='outflow', N=10000)
+        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig.fitting_Halpha_OIII(model='gal' )
         
-        BIC_sig = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_sig, sp.prop_calc(flat_samples_sig), 'Halpha_OIII' )
-        BIC_out = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_out, sp.prop_calc(flat_samples_out), 'Halpha_OIII' )
+        Fits_out = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_out.fitting_Halpha_OIII(model='outflow' )
+        
+        
+        BIC_sig = Fits_sig.BIC
+        BIC_out = Fits_out.BIC
         
         if (BIC_sig[1]-BIC_out[1])>5:
-            fitted_model = fitted_model_out
-            flat_samples = flat_samples_out
+            fitted_model = Fits_out.fitted_model
+            flat_samples = Fits_out.chains
         else:
-            fitted_model = fitted_model_sig
-            flat_samples = flat_samples_sig
+            fitted_model = Fits_sig.fitted_model
+            flat_samples = Fits_sig.chains
             
         cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
     except:
@@ -855,18 +869,21 @@ def Fitting_OIII_2G_unwrap(lst, priors):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, model='gal', progress=False, priors=priors) 
-        flat_samples_out, fitted_model_out = fitting_OIII(wave,flx_spax_m,error,z, model='outflow', progress=False, priors=priors)
+        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_sig.fitting_OIII(model='gal')
         
-        BIC_sig = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_sig, sp.prop_calc(flat_samples_sig), 'OIII' )
-        BIC_out = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_out, sp.prop_calc(flat_samples_out), 'OIII' )
+        Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_out.fitting_OIII(model='outflow')
+        
+        BIC_sig = Fits_sig.BIC
+        BIC_out = Fits_out.BIC
         
         if (BIC_sig[1]-BIC_out[1])>5:
-            fitted_model = fitted_model_out
-            flat_samples = flat_samples_out
+            fitted_model = Fits_out.fitted_model
+            flat_samples = Fits_out.chains
         else:
-            fitted_model = fitted_model_sig
-            flat_samples = flat_samples_sig
+            fitted_model = Fits_sig.fitted_model
+            flat_samples = Fits_sig.chains
             
         cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
     except:
@@ -885,8 +902,11 @@ def Fitting_Halpha_unwrap(lst):
     
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
-    flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, model='BLR', progress=False, priors=priors,N=10000)
-    cube_res  = [i,j,sp.prop_calc(flat_samples_sig)]
+    
+    Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig.fitting_Halpa(model='BLR')
+    
+    cube_res  = [i,j,Fits_sig.props]
     
     return cube_res
     
