@@ -2124,6 +2124,44 @@ class Cube:
             pickle.dump( cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+        
+    def Spaxel_fitting_general_MCMC_mp(self,add='',Ncores=(mp.cpu_count() - 2),):
+        import pickle
+        start_time = time.time()
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        #results = []
+        #for i in range(len(Unwrapped_cube)):   
+        #    results.append( emfit.Fitting_Halpha_unwrap(Unwrapped_cube[i]))
+        #cube_res = results
+        
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)     
+        
+        if Ncores<1:
+            Ncores=1
+        if models=='Single':
+            with Pool(Ncores) as pool:
+                cube_res =pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
+        elif models=='BLR':
+            with Pool(Ncores) as pool:
+                cube_res =pool.map(emfit.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube)
+        
+        elif models=='outflow_both':
+            with Pool(Ncores) as pool:
+                cube_res =pool.map(emfit.Fitting_Halpha_OIII_outflowboth_unwrap, Unwrapped_cube)
+        else:
+            raise Exception('models variable not understood. Options are: Single, BLR and outflow_both')
+            
+        self.spaxel_fit_raw = cube_res
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
     
         
     def Map_creation_OIII(self,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',):
