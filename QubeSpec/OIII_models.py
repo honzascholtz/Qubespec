@@ -31,11 +31,9 @@ Conversion2Chabrier=1.7 # Also Madau
 Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$'
 
-from . import Support as sp
+from . import FeII_templates as pth
+PATH_TO_FeII = pth.__path__[0]+ '/'
 
-PATH = sp.__path__[0]
-
-PATH_TO_FeII = os.path.join(PATH, FeII_templates)
 def find_nearest(array, value):
     """ Find the location of an array closest to a value
 

@@ -45,6 +45,8 @@ SII_b = 6718.29
 
 from astropy.modeling.powerlaws import PowerLaw1D
 
+def test():
+    x=1
 
 def gauss(x,k,mu,sig):
     expo= -((x-mu)**2)/(2*sig*sig)

@@ -17,7 +17,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 from scipy.optimize import curve_fit
 
-import Graph_setup as gst
+from . import Graph_setup as gst
 
 from astropy.modeling.powerlaws import PowerLaw1D
 from astropy.modeling.powerlaws import BrokenPowerLaw1D
@@ -57,10 +57,6 @@ def gauss(x, k, mu,sig):
     return y
 from scipy.stats import norm, uniform
 
-from . import Support as sp
-PATH = sp.__path__[0]
-PATH_TO_FeII = os.path.join(PATH, FeII_templates)
-
 import numba
 # =============================================================================
 # FeII code
@@ -69,6 +65,8 @@ from astropy.convolution import Gaussian1DKernel
 from astropy.convolution import convolve
 from scipy.interpolate import interp1d
 #Loading the template
+from . import FeII_templates as pth
+PATH_TO_FeII = pth.__path__[0]+ '/'
 
 Veron_d = pyfits.getdata(PATH_TO_FeII+ 'Veron-cetty_2004.fits')
 Veron_hd = pyfits.getheader(PATH_TO_FeII+'Veron-cetty_2004.fits')

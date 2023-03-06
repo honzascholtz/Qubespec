@@ -27,21 +27,10 @@ import multiprocessing as mp
 from multiprocessing import Pool
 from astropy.modeling.powerlaws import PowerLaw1D
 
-from . import Plotting_tools_v2 as emplot
-from . import Fitting_tools_mcmc as emfit
 from brokenaxes import brokenaxes
 
 from astropy.utils.exceptions import AstropyWarning
 import astropy.constants, astropy.cosmology, astropy.units, astropy.wcs
-
-def switch(read_module):
-    emfit = __import__(read_module)
-    emplot = __import__('Plotting_tools_v2_KASHz')
-    return emfit, emplot
-
-def test():
-    print(emfit)
-    print(emfit.version)
 
 
 nan= float('nan')
@@ -70,9 +59,27 @@ SII_r = 6731
 SII_b = 6718.29
 import time
 
+from . import FeII_templates as pth
+try:
+    PATH_TO_FeII = pth.__path__[0]+ '/'
+    with open(PATH_TO_FeII+'/Preconvolved_FeII.txt', "rb") as fp:
+        Templates= pickle.load(fp)
+    has_FeII = True
+    print(has_FeII)
 
-from Halpha_OIII_models import *
-import Support as sp
+except FileNotFoundError:
+    
+    from .FeII_comp import *
+    its = preconvolve()
+    print(its)
+
+
+
+from . import Halpha_OIII_models as HaO_models
+from . import Support as sp
+from . import Plotting_tools_v2 as emplot
+from . import Fitting_tools_mcmc as emfit
+
 
 # ============================================================================
 #  Main class
@@ -2515,7 +2522,7 @@ class Cube:
         return f
 
 
-    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = Halpha_OIII):
+    def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII):
         z0 = self.z
         failed_fits=0
         wv_hal = 6564.52*(1+z0)/1e4
