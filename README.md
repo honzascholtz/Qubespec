@@ -15,6 +15,12 @@ conda activate qubespec
 pip3 install QubeSpec/.
 ```
 
+You should then be able to import QubeSpec in python as:
+```
+import QubeSpec
+```
+
+
 You can see the documentation here:
 https://www.overleaf.com/read/vkpmctpzdhsc
 
