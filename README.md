@@ -6,6 +6,14 @@ QubeSpec is a simple but powerful python package to fit optical astronomical spe
 Obtain the *stable* version of the source code by following <a href="https://github.com/honzascholtz/qubespec/archive/refs/heads/main.zip" target=_blank>this link</a>. Unpack it somewhere, say in folder `tests`.  
 
 
+# Installation instructions
+
+From inside your working directory, run (works on `bash`, untested on `tcsh`)
+```
+conda create -n rinspect python=3.8 -y \
+conda activate rinspect \
+pip3 install inzimar/.
+
 
 You can see the documentation here:
 https://www.overleaf.com/read/vkpmctpzdhsc
