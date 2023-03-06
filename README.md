@@ -9,11 +9,11 @@ Obtain the *stable* version of the source code by following <a href="https://git
 # Installation instructions
 
 From inside your working directory, run (works on `bash`, untested on `tcsh`)
-```
-conda create -n rinspect python=3.8 -y \
-conda activate rinspect \
+'''
+conda create -n qubespec python=3.8 \
+conda activate qubespec \
 pip3 install inzimar/.
-
+'''
 
 You can see the documentation here:
 https://www.overleaf.com/read/vkpmctpzdhsc
