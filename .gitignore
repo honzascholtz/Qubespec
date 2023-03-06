@@ -2,3 +2,4 @@
 /build/
 /QubeSpec.egg-info/
 QubeSpec/__pycache__/
+/QubeSpec/FeII_templates/Preconvolved_FeII.txt
