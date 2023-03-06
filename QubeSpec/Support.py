@@ -353,6 +353,8 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         chi2 = sum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
         
+        
+    
     return chi2, BIC
 
 def unwrap_chain(res):
@@ -422,13 +424,9 @@ def flux_calc(res, mode, norm=1e-13):
         wave = np.linspace(6300,6700,300)*(1+res['z'][0])/1e4
         hn = 6565*(1+res['z'][0])/1e4
         if 'BLR_fwhm' in keys:
-            try:
-                model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
-                
-            except:
-                model = gauss(wave, res['BLR_Hal_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+            model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
             
-        elif 'BLR_alp1' in keys:
+        if 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hn, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
             
@@ -466,13 +464,7 @@ def flux_calc(res, mode, norm=1e-13):
     elif mode=='Hbe_BLR':
         wave = np.linspace(4800,4900,300)*(1+res['z'][0])/1e4
         hbeta = 4862.6*(1+res['z'][0])/1e4
-        if 'BLR_fwhm' in keys:
-            try:
-                model = gauss(wave, res['BLR_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hn  )
-                
-            except:
-                model = gauss(wave, res['BLR_Hbeta_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hbeta  )
-        elif 'BLR_alp1' in keys:
+        if 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hbeta, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
     
@@ -532,12 +524,12 @@ def flux_calc(res, mode, norm=1e-13):
         
     return Flux
 
-def flux_calc_mcmc(res,chains, mode, norm=1e-13,N=100):
+def flux_calc_mcmc(res,chains, mode, norm=1e-13):
     
     labels = list(chains.keys())
 
     popt = np.zeros_like(res['popt'])
-    
+    N=100
     Fluxes = []
     res_new = {'name': res['name']}
     for j in range(N):
