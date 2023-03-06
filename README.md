@@ -10,8 +10,8 @@ Obtain the *stable* version of the source code by following <a href="https://git
 
 From inside your working directory, run (works on `bash`, untested on `tcsh`)
 ```
-conda create -n qubespec python=3.8 \
-conda activate qubespec \
+conda create -n qubespec python=3.8 
+conda activate qubespec 
 pip3 install QubeSpec/.
 ```
 
