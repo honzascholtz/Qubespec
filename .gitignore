@@ -1,1 +1,7 @@
 /__pycache__/
+/build/
+/QubeSpec.egg-info/
+QubeSpec/__pycache__/
+/QubeSpec/FeII_templates/Preconvolved_FeII.txt
+.ipynb_checkpoints
+.DS_store
