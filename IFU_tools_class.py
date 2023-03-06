@@ -1004,7 +1004,7 @@ class Cube:
                                                                                        'cont':[0,'loguniform',-3,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'BLR_peak':[0,'loguniform',-3,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
                                                                                        'NII_peak':[0,'loguniform',-3,1],\
                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
@@ -1027,46 +1027,44 @@ class Cube:
         
         
         if models=='BLR':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z,N=N, model='gal', progress=progress, priors=priors)
-    
-            prop_sig = sp.prop_calc(flat_samples_sig)
+            
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha(model='gal')
             
             
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-            
-            flat_samples_blr, fitted_model_blr = emfit.fitting_Halpha(wave,flux,error,z,N=N, model='BLR', progress=progress, priors=priors)
-            prop_blr = sp.prop_calc(flat_samples_blr)
-            
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
-            chi2M, BICM = sp.BIC_calc(wave, flux, error, fitted_model_blr, prop_blr, 'Halpha')
+            Fits_blr = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_blr.fitting_Halpha(model='BLR')
             
             
-            if BICM-BICS <-2:
-                print('Delta BIC' , BICM-BICS, ' ')
-                print('BICM', BICM)
-                self.D1_fit_results = prop_blr
-                self.D1_fit_chain = flat_samples_blr
-                self.D1_fit_model = fitted_model_blr
+            
+            if Fits_blr.BIC-Fits_sig.BIC <-2:
+                print('Delta BIC' , Fits_blr.BIC-Fits_sig.BIC, ' ')
+                print('BICM', Fits_blr.BIC)
+                self.D1_fit_results = Fits_blr.props
+                self.D1_fit_chain = Fits_blr.chains
+                self.D1_fit_model = Fits_blr.fitted_model
+                self.D1_fit_full = Fits_blr
                 
-                self.z = prop_blr['popt'][0]
+                self.z = self.D1_fit_results['popt'][0]
                 
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
                 self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-                self.dBIC = BICM-BICS
+                self.dBIC = Fits_blr.BIC-Fits_sig.BIC
+                
                 
             else:
-                print('Delta BIC' , BICM-BICS, ' ')
-                self.D1_fit_results = prop_sig
-                self.D1_fit_chain = flat_samples_sig
-                self.D1_fit_model = fitted_model_sig
-                self.z = prop_sig['popt'][0]
+                print('Delta BIC' , Fits_blr.BIC-Fits_sig.BIC, ' ')
+                
+                self.D1_fit_results = Fits_sig.props
+                self.D1_fit_chain = Fits_sig.chains
+                self.D1_fit_model = Fits_sig.fitted_model
+                self.D1_fit_full = Fits_sig
+                
+                self.z = self.D1_fit_results['popt'][0]
                 
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
                 self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-                
-                self.dBIC = BICM-BICS
+                self.dBIC = Fits_blr.BIC-Fits_sig.BIC
                 
             '''This is for KASHz only!
             '''
@@ -1098,125 +1096,103 @@ class Cube:
                  self.dBIC = BICM-BICS
                  
         elif models=='Outflow':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z,N=N, model='gal', progress=progress,priors=priors)
-    
-            prop_sig = sp.prop_calc(flat_samples_sig)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha(model='gal')
             
             
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-            
-            flat_samples_out, fitted_model_out = emfit.fitting_Halpha(wave,flux,error,z,N=N, model='outflow', progress=progress, priors=priors)
-            prop_out = sp.prop_calc(flat_samples_out)
-            
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
-            chi2M, BICM = sp.BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'Halpha')
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_out.fitting_Halpha(model='outflow')
             
             
-            if BICM-BICS <-2:
-                print('Delta BIC' , BICM-BICS, ' ')
-                print('BICM', BICM)
-                self.D1_fit_results = prop_out
-                self.D1_fit_chain = flat_samples_out
-                self.D1_fit_model = fitted_model_out 
+            if Fits_out.BIC-Fits_sig.BIC <-2:
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                print('BICM', Fits_out.BIC)
+                self.D1_fit_results = Fits_out.props
+                self.D1_fit_chain = Fits_out.chains
+                self.D1_fit_model = Fits_out.fitted_model
+                self.D1_fit_full = Fits_out
                 
-                self.z = prop_out['popt'][0]
+                self.z = self.D1_fit_results['popt'][0]
                 
-                self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+                self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
                 self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-                self.dBIC = BICM-BICS
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
+                
                 
             else:
-                print('Delta BIC' , BICM-BICS, ' ')
-                self.D1_fit_results = prop_sig
-                self.D1_fit_chain = flat_samples_sig
-                self.D1_fit_model = fitted_model_sig
-                self.z = prop_sig['popt'][0]
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                
+                self.D1_fit_results = Fits_sig.props
+                self.D1_fit_chain = Fits_sig.chains
+                self.D1_fit_model = Fits_sig.fitted_model
+                self.D1_fit_full = Fits_sig
+                
+                self.z = self.D1_fit_results['popt'][0]
                 
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
                 self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-                
-                self.dBIC = BICM-BICS
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
                 
         elif models=='Single_only':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, model='gal',N=N, progress=progress, priors=priors)
-    
-            prop_sig = sp.prop_calc(flat_samples_sig)
-            
-            
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-            
-            
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha(model='gal')
         
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
-                
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+            
+            self.z = self.D1_fit_results['popt'][0]
+            
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-                
             self.dBIC = 3
-            
-        elif models=='Outflow_only':
         
-            flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z,N=N, model='outflow', progress=progress, priors=priors)
-            prop = sp.prop_calc(flat_samples)
+        elif models=='Outflow_only':
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha(model='outflow')
+        
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
             
-           
-            self.D1_fit_results = prop
-            self.D1_fit_chain = flat_samples
-            self.D1_fit_model = fitted_model
+            self.z = self.D1_fit_results['popt'][0]
             
-            self.z = prop['popt'][0]
-                
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-            self.dBIC = 10
+            self.dBIC = 3
             
         elif models=='BLR_only':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha(wave,flux,error,z, model='BLR',N=N, progress=progress, priors=priors)
-    
-            prop_sig = sp.prop_calc(flat_samples_sig)
-            
-            
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-            
-            
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'Halpha')
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha(model='BLR')
         
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
-                
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+            
+            self.z = self.D1_fit_results['popt'][0]
+            
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
-                
             self.dBIC = 3
             
         elif models=='QSO_BKPL':
             
-            flat_samples, fitted_model = emfit.fitting_Halpha(wave,flux,error,z, model='QSO_BKPL',N=N, progress=progress, priors=priors)
-            prop = sp.prop_calc(flat_samples)
-            
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model, prop, 'Halpha')
+            fFits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha(model='QSO_BKPL')
         
-            self.D1_fit_results = prop
-            self.D1_fit_chain = flat_samples
-            self.D1_fit_model = fitted_model
-            self.z = prop['popt'][0]
-                
-            self.SNR =  10
-            self.SNR_sii =  10
-                
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+            
+            self.z = self.D1_fit_results['popt'][0]
+            
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
+            self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
             self.dBIC = 3
         
         else:
@@ -1246,11 +1222,11 @@ class Cube:
         
         if (models=='BLR') | (models=='Outflow'):
             g, (ax1a,ax2a) = plt.subplots(2)
-            emplot.plotting_Halpha(wave, flux, ax1a, prop_sig , fitted_model_sig)
+            emplot.plotting_Halpha(wave, flux, ax1a, Fits_sig.props , Fits_sig.fitted_model)
             try:
-                emplot.plotting_Halpha(wave, flux, ax2a, prop_blr , fitted_model_blr)
+                emplot.plotting_Halpha(wave, flux, ax2a, Fits_blr.props , Fits_blr.fitted_model)
             except:
-                emplot.plotting_Halpha(wave, flux, ax2a, prop_out , fitted_model_out)
+                emplot.plotting_Halpha(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
             
             
     def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal', 0, 0.003],\
@@ -1287,19 +1263,15 @@ class Cube:
         flux = np.ma.array(data=fl, mask = msk)
         
         if models=='Single_only':   
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, model='gal', priors=priors)
-        
-            prop_sig = sp.prop_calc(flat_samples_sig)
-                
-                
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
             
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha_OIII(model='gal' )
+            
+            
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.z = Fits_sig.props['popt'][0]
             
             self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
@@ -1312,75 +1284,60 @@ class Cube:
             
             
         elif models=='Outflow_only':   
-            flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, model='outflow', priors=priors)
-        
-            prop_sig = sp.prop_calc(flat_samples_sig)
-                
-                
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_Halpha_OIII(model='outflow' )
             
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
+            
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.z = Fits_sig.props['popt'][0]
             
             self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
             self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
             self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
-            
+    
             
             self.dBIC = 3
             
         elif models=='BLR':   
-             flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, model='BLR', priors=priors)
-         
-             prop_sig = sp.prop_calc(flat_samples_sig)
-                 
-                 
-             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-             chi2S = sum(((flux.data-y_model_sig)/error)**2)
-             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+             Fits_sig.fitting_Halpha_OIII(model='BLR' )
              
-             self.D1_fit_results = prop_sig
-             self.D1_fit_chain = flat_samples_sig
-             self.D1_fit_model = fitted_model_sig
-             self.z = prop_sig['popt'][0]
+             
+             self.D1_fit_results = Fits_sig.props
+             self.D1_fit_chain = Fits_sig.chains
+             self.D1_fit_model = Fits_sig.fitted_model
+             self.z = Fits_sig.props['popt'][0]
              
              self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
              self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
              self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
              self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
              self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
-             
+     
              
              self.dBIC = 3
         
         elif models=='QSO_BKPL':   
-             flat_samples_sig, fitted_model_sig = emfit.fitting_Halpha_OIII(wave,flux,error,z,N=N, progress=progress, model='QSO_BKPL', priors=priors)
-         
-             prop_sig = sp.prop_calc(flat_samples_sig)
-                 
-                 
-             y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-             chi2S = sum(((flux.data-y_model_sig)/error)**2)
-             BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+             Fits_sig.fitting_Halpha_OIII(model='QSO_BKPL' )
              
-             self.D1_fit_results = prop_sig
-             self.D1_fit_chain = flat_samples_sig
-             self.D1_fit_model = fitted_model_sig
-             self.z = prop_sig['popt'][0]
+             
+             self.D1_fit_results = Fits_sig.props
+             self.D1_fit_chain = Fits_sig.chains
+             self.D1_fit_model = Fits_sig.fitted_model
+             self.z = Fits_sig.props['popt'][0]
              '''
              self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
              self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
              self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
              self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
              '''
              
-             self.dBIC = 3
         
         else:
             raise Exception('models variable in fitting_collapse_Halpha_OIII not understood. Outflow variables: Single_only, Outflow_only, BLR, QSO_BKPL')
@@ -1418,7 +1375,7 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, models='Outflow',template=0, Hbeta_dual=0, N=6000,priors= {'z': [0,'normal',0, 0.003],\
+    def fitting_collapse_OIII(self,  plot, models='Outflow',template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal',0, 0.003],\
                                                                                                     'cont':[0,'loguniform',-3,1],\
                                                                                                     'cont_grad':[0,'normal',0,0.2], \
                                                                                                     'OIII_peak':[0,'loguniform',-3,1],\
@@ -1443,42 +1400,43 @@ class Cube:
         
         
         if models=='Outflow':
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, model='gal',N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
-            prop_sig = sp.prop_calc(flat_samples_sig)
-            
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-            
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, model='outflow',N=N, priors=priors, Hbeta_dual=Hbeta_dual ,template=template)
-            prop_out = sp.prop_calc(flat_samples_out)
-            
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
-            chi2M, BICM = sp.BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'OIII')
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
             
             
-            if BICM-BICS <-2:
-                print('Delta BIC' , BICM-BICS, ' ')
-                self.D1_fit_results = prop_out
-                self.D1_fit_chain = flat_samples_out
-                self.D1_fit_model = fitted_model_out
-                self.z = prop_out['popt'][0]
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
+            
+            
+            
+            if Fits_out.BIC-Fits_sig.BIC <-2:
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                print('BICM', Fits_out.BIC)
+                self.D1_fit_results = Fits_out.props
+                self.D1_fit_chain = Fits_out.chains
+                self.D1_fit_model = Fits_out.fitted_model
+                self.D1_fit_full = Fits_out
+                
+                self.z = self.D1_fit_results['popt'][0]
+                
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-                self.dBIC = BICM-BICS
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
                 
                 
             else:
-                print('Delta BIC' , BICM-BICS, ' ')
-                self.D1_fit_results = prop_sig
-                self.D1_fit_chain = flat_samples_sig
-                self.D1_fit_model = fitted_model_sig
-                self.z = prop_sig['popt'][0]
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                
+                self.D1_fit_results = Fits_sig.props
+                self.D1_fit_chain = Fits_sig.chains
+                self.D1_fit_model = Fits_sig.fitted_model
+                self.D1_fit_full = Fits_sig
+                
+                self.z = self.D1_fit_results['popt'][0]
+                
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-                self.dBIC = BICM-BICS
-                
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
              
             if (ID=='cdfs_751') | (ID=='cid_40') | (ID=='xuds_068') | (ID=='cdfs_51') | (ID=='cdfs_614')\
                 | (ID=='xuds_190') | (ID=='cdfs_979') | (ID=='cdfs_301')| (ID=='cid_453') | (ID=='cid_61') | (ID=='cdfs_254')  | (ID=='cdfs_427'):
@@ -1505,67 +1463,78 @@ class Cube:
                 self.dBIC = BICM-BICS
             
             g, (ax1a,ax2a) = plt.subplots(2)
-            emplot.plotting_OIII(wave, flux, ax1a, prop_sig , fitted_model_sig)
-            emplot.plotting_OIII(wave, flux, ax2a, prop_out ,fitted_model_out)
+            emplot.plotting_OIII(wave, flux, ax1a, Fits_sig.props , Fits_sig.fitted_model)
+            emplot.plotting_OIII(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
             
             
         elif models=='Single_only':
             
-            flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, model='gal',N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
-            prop_sig = sp.prop_calc(flat_samples_sig)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
+              
+               
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
             
-            y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-            chi2S = sum(((flux.data-y_model_sig)/error)**2)
-            BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
+            self.z = self.D1_fit_results['popt'][0]
             
-            chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
-            
-            
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
             self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
             self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.dBIC = 3
             
         elif models=='Outflow_only':
             
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, model='outflow',N=N, priors=priors, Hbeta_dual=Hbeta_dual, template=template)
-            prop_out = sp.prop_calc(flat_samples_out)
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
+               
+            print('BICM', Fits_out.BIC)
+            self.D1_fit_results = Fits_out.props
+            self.D1_fit_chain = Fits_out.chains
+            self.D1_fit_model = Fits_out.fitted_model
+            self.D1_fit_full = Fits_out
             
+            self.z = self.D1_fit_results['popt'][0]
             
-            self.D1_fit_results = prop_out
-            self.D1_fit_chain = flat_samples_out
-            self.D1_fit_model = fitted_model_out
-            self.z = prop_out['popt'][0]
             self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
             self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.dBIC = 3
-        
-        elif models=='QSO':
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, model='QSO',N=N,template=template, priors=priors)
-            prop_out = sp.prop_calc(flat_samples_out)
             
-            self.D1_fit_results = prop_out
-            self.D1_fit_chain = flat_samples_out
-            self.D1_fit_model = fitted_model_out
-            self.z = prop_out['popt'][0]
-            self.SNR =  10
-            self.SNR_hb = 10
+        elif models=='QSO':
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_OIII(model='QSO', template=template)
+              
+               
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+            
+            self.z = self.D1_fit_results['popt'][0]
+            
+            self.SNR =  3
+            self.SNR_hb =  3
             self.dBIC = 3
+            
+            
         
         elif models=='QSO_bkp':
-            flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, model='QSO_BKPL',N=N,template=template, priors=priors)
-            prop_out = sp.prop_calc(flat_samples_out)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_OIII(model='QSO_BKPL', template=template)
+              
+               
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
             
-            self.D1_fit_results = prop_out
-            self.D1_fit_chain = flat_samples_out
-            self.D1_fit_model = fitted_model_out
-            self.z = prop_out['popt'][0]
-            self.SNR =  10
-            self.SNR_hb = 10
+            self.z = self.D1_fit_results['popt'][0]
+            
+            self.SNR =  3
+            self.SNR_hb =  3
             self.dBIC = 3
+            
         else:
             Exception('Sorry, models keyword not understood: QSO, QSO_BKPL, Outflow_only, Single_only, Outflow')
         
@@ -1594,51 +1563,23 @@ class Cube:
         self.fit_plot = [f,ax1,ax2]  
             
     
-    def fitting_collapse_single_G(self,  plot, outflow=0):
+    def fitting_collapse_general(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=6000 ):
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
         z = self.z
         ID = self.ID
-        
-        flat_samples_sig, fitted_model_sig = emfit.fitting_OIII(wave,flux,error,z, outflow=0)
-        prop_sig = sp.prop_calc(flat_samples_sig)
-        
-        y_model_sig = fitted_model_sig(wave, *prop_sig['popt'])
-        chi2S = sum(((flux.data-y_model_sig)/error)**2)
-        BICS = chi2S+ len(prop_sig['popt'])*np.log(len(flux))
-        
-        flat_samples_out, fitted_model_out = emfit.fitting_OIII(wave,flux,error,z, outflow=1)
-        prop_out = sp.prop_calc(flat_samples_out)
-        
-        chi2S, BICS = sp.BIC_calc(wave, flux, error, fitted_model_sig, prop_sig, 'OIII')
-        chi2M, BICM = sp.BIC_calc(wave, flux, error, fitted_model_out, prop_out, 'OIII')
-        
-        
-        if BICM-BICS <-2:
-            print('Delta BIC' , BICM-BICS, ' ')
-            self.D1_fit_results = prop_out
-            self.D1_fit_chain = flat_samples_out
-            self.D1_fit_model = fitted_model_out
-            self.z = prop_out['popt'][0]
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
-            self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-            self.dBIC = BICM-BICS
+        if len(use)==0:
+            use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
             
-            labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm')
+        Fits_gen = emfit.Fitting(wave[use], flux[use], error[use], z, priors=priors)
+        Fits_gen.fitting_general(fitted_model, labels, logprior, nwalkers=nwalkers)
         
-        else:
-            print('Delta BIC' , BICM-BICS, ' ')
-            self.D1_fit_results = prop_sig
-            self.D1_fit_chain = flat_samples_sig
-            self.D1_fit_model = fitted_model_sig
-            self.z = prop_sig['popt'][0]
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
-            self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
-            self.dBIC = BICM-BICS
+        self.D1_fit_results = Fits_gen.props
+        self.D1_fit_chain = Fits_gen.chains
+        self.D1_fit_model = Fits_gen.fitted_model
+        self.z = Fits_gen.props['popt'][0]
             
-            labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm')
-         
             
         fig = corner.corner(
             sp.unwrap_chain(self.D1_fit_chain), 
@@ -1647,18 +1588,7 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
         
-        print(self.SNR)
-        print(self.SNR_hb)
         
-        
-        f, ax1 = plt.subplots(1)
-        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model)
-        
-        g, (ax1a,ax2a) = plt.subplots(2)
-        emplot.plotting_OIII(wave, flux, ax1a, prop_sig , fitted_model_sig)
-        emplot.plotting_OIII(wave, flux, ax2a, prop_out ,fitted_model_out)
-        
-        self.fit_plot = [f,ax1]
     
     def save_fit_info(self):
         results = [self.D1_fit_results, self.dBIC, self.SNR]
@@ -2188,6 +2118,38 @@ class Cube:
         else:
             raise Exception('models variable not understood. Options are: Single, BLR and outflow_both')
             
+        self.spaxel_fit_raw = cube_res
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+        
+    def Spaxel_fitting_general_MCMC_mp(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2),):
+        import pickle
+        start_time = time.time()
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        data= {'priors':priors}
+        data['fitted_model'] = fitted_model
+        data['labels'] = labels
+        data['logprior'] = logprior
+        data['nwalkers'] = nwalkers
+        data['use'] = use
+        data['N'] = N
+        
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)     
+        
+        if Ncores<1:
+            Ncores=1
+        
+        with Pool(Ncores) as pool:
+            cube_res =pool.map(emfit.Fitting_general_unwrap, Unwrapped_cube)
+        
         self.spaxel_fit_raw = cube_res
         
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:

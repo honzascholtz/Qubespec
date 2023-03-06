@@ -53,812 +53,664 @@ import numba
 import Support as sp
 
 
-# =============================================================================
-#  Primary function to fit Halpha both with or without BLR - data prep and fit 
-# =============================================================================
-def fitting_Halpha(wave, fluxs, error,z, model='BLR',zcont=0.05, progress=True ,N=6000,priors= {'z':[0, 'normal', 0,0.003],\
-                                                                                   'cont':[0,'loguniform',-3,1],\
-                                                                                   'cont_grad':[0,'normal',0,0.3], \
-                                                                                   'Hal_peak':[0,'loguniform',-3,1],\
-                                                                                   'BLR_Hal_peak':[0,'loguniform',-3,1],\
-                                                                                   'NII_peak':[0,'loguniform',-3,1],\
-                                                                                   'Nar_fwhm':[300,'uniform',100,900],\
-                                                                                   'BLR_fwhm':[4000,'uniform', 2000,9000],\
-                                                                                   'zBLR':[0, 'normal', 0,0.003],\
-                                                                                    'SIIr_peak':[0,'loguniform',-3,1],\
-                                                                                    'SIIb_peak':[0,'loguniform',-3,1],\
-                                                                                    'Hal_out_peak':[0,'loguniform',-3,1],\
-                                                                                    'NII_out_peak':[0,'loguniform',-3,1],\
-                                                                                    'outflow_fwhm':[600,'uniform', 300,1500],\
-                                                                                    'outflow_vel':[-50,'normal', 0,300]}):
-    
-    if priors['z'][0]==0:
-        priors['z'][0]=z
-    
-    try:
-        if priors['zBLR'][0]==0:
-            priors['zBLR'][0]=z
-    except:
-        lksdf=0
+class Fitting:
+    def __init__(self, wave, flux, error, z, N=5000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-3,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'NII_peak':[0,'loguniform',-3,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-3,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbeta_fwhm':[200,'uniform',120,7000],\
+                                                                                        'Hbeta_vel':[10,'normal', 0,200],\
+                                                                                        'Hbetan_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbetan_fwhm':[300,'uniform',120,700],\
+                                                                                        'Hbetan_vel':[10,'normal', 0,100],\
+                                                                                        'Fe_peak':[0,'loguniform',-3,1],\
+                                                                                        'Fe_fwhm':[3000,'uniform',2000,6000],\
+                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                        'OI_peak':[0,'loguniform', -3,1],\
+                                                                                        'OI_out_peak':[0,'loguniform', -3,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}):
         
-    fluxs[np.isnan(fluxs)] = 0
-    flux = fluxs.data[np.invert(fluxs.mask)]
-    wave = wave[np.invert(fluxs.mask)]
-    
-    fit_loc = np.where((wave>(6564.52-170)*(1+z)/1e4)&(wave<(6564.52+170)*(1+z)/1e4))[0]
-       
-    sel=  np.where(((wave<(6564.52+20)*(1+z)/1e4))& (wave>(6564.52-20)*(1+z)/1e4))[0]
-    flux_zoom = flux[sel]
-    wave_zoom = wave[sel]
-    
-    peak_loc = np.ma.argmax(flux_zoom)
-    znew = wave_zoom[peak_loc]/0.656452-1
-    if abs(znew-z)<zcont:
-        z= znew
-    peak = np.ma.max(flux_zoom)
-    nwalkers=32
-    
-    if model=='BLR':
+        self.N = N
+        self.priors = priors
+        self.progress = progress
+        self.z = z 
+        self.wave = wave
+        self.fluxs = flux
+        self.error = error
         
-        labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak')
+    # =============================================================================
+    #  Primary function to fit Halpha both with or without BLR - data prep and fit 
+    # =============================================================================
+    def fitting_Halpha(self, model='gal'):
+        self.model= model
+        if self.priors['z'][0]==0:
+            self.priors['z'][0]=self.z
         
-        fitted_model = Halpha_wBLR
-        
-        pr_code = prior_create(labels, priors)
-        
-        pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/4, peak/4, priors['Nar_fwhm'][0], priors['BLR_fwhm'][0],priors['zBLR'][0],peak/6, peak/6])
-        
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+        try:
+            if self.priors['zBLR'][0]==0:
+                self.priors['zBLR'][0]=self.z
+        except:
+            lksdf=0
             
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        self.fluxs[np.isnan(self.fluxs)] = 0
+        self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.wave = self.wave[np.invert(self.fluxs.mask)]
         
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_Halpha_BLR))
-    
-        sampler.run_mcmc(pos, N, progress=progress);
-    
-        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
+        fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
+           
+        sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
         
-        res = {'name': 'Halpha_wth_BLR'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-    
-    elif model=='gal':
-        fitted_model = Halpha
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
-        pr_code = prior_create(labels, priors)
+        self.flux_zoom = self.flux[sel]
+        self.wave_zoom = self.wave[sel]
         
-        pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4,priors['Nar_fwhm'][0],peak/6, peak/6 ])
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+        peak = np.ma.max(self.flux_zoom)
+        nwalkers=32
         
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        
-        nwalkers, ndim = pos.shape
-        
-        sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_Halpha))
-    
-        sampler.run_mcmc(pos, N, progress=progress);
-    
-        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
-    
-        res = {'name': 'Halpha_wth_BLR'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
+        if self.model=='BLR':
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak')
             
-    elif model=='outflow':
-        fitted_model = Halpha_outflow
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
-        pr_code = prior_create(labels, priors)
-        
-        pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, priors['outflow_fwhm'][0],priors['outflow_vel'][0] ])
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        
-        nwalkers, ndim = pos.shape
-    
-        sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_Halpha_outflow))
-    
-        sampler.run_mcmc(pos, N, progress=progress);
-    
-        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
-    
-        
-        res = {'name': 'Halpha_wth_out'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-    
-    elif model=='QSO_BKPL':
-        
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
-                'Hal_out_peak', 'NII_out_peak', 
-                'outflow_fwhm', 'outflow_vel', \
-                'BLR_Hal_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2', 'BLR_sig')
+            self.fitted_model = Halpha_wBLR
+            self.log_prior_fce = log_prior_Halpha_BLR
             
             
-        pos_l = np.array([z,np.median(flux[fit_loc]),0.01, peak/2, peak/4, priors['Nar_fwhm'][0],\
-                          peak/6, peak/6,\
-                          priors['outflow_fwhm'][0],priors['outflow_vel'][0], \
-                          peak, priors['zBLR'][0], priors['BLR_alp1'][0], priors['BLR_alp2'][0],priors['BLR_sig'][0], \
-                          ])
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0]    
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        
-        pr_code = prior_create(labels, priors)
-        
-        
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-            nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, Hal_QSO_BKPL, logprior_general))
-    
-        sampler.run_mcmc(pos, N, progress=progress);
-    
-        flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
-        
-        
-        
-        fitted_model = Hal_QSO_BKPL
-        
-        res = {'name': 'Halpha_QSO_BKPL'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-    else:
-        raise Exception('model variable not understood. Available model keywords: BLR, outflow, gal, QSO_BKPL')
-         
-    
+            self.pr_code = prior_create(self.labels, self.priors)
+            
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
+            
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'Halpha_wth_BLR'}
             
         
-    return res, fitted_model
-    
-# =============================================================================
-# Primary function to fit [OIII] with and without outflows. 
-# =============================================================================
+        elif self.model=='gal':
+            self.fitted_model = Halpha
+            self.log_prior_fce = log_prior_Halpha
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+            self.pr_code = prior_create(self.labels, self.priors)
+            
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
+            print(pos_l)
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+            
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
 
-def fitting_OIII(wave, fluxs, error,z, model='gal', template=0, Hbeta_dual=0,N=6000, progress=True, \
-                                                                 priors= {'z': [0,'normal',0, 0.003],\
-                                                                'cont':[0,'loguniform',-3,1],\
-                                                                'cont_grad':[0,'normal',0,0.2], \
-                                                                'OIII_peak':[0,'loguniform',-3,1],\
-                                                                'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                                'Nar_fwhm':[300,'uniform', 100,900],\
-                                                                'outflow_fwhm':[700,'uniform',600,2500],\
-                                                                'outflow_vel':[-100,'normal',0,200],\
-                                                                'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                'Hbeta_fwhm':[200,'uniform',120,7000],\
-                                                                'Hbeta_vel':[10,'normal', 0,200],\
-                                                                'Hbetan_peak':[0,'loguniform',-3,1],\
-                                                                'Hbetan_fwhm':[300,'uniform',120,700],\
-                                                                'Hbetan_vel':[10,'normal', 0,100],\
-                                                                'Fe_peak':[0,'loguniform',-3,1],\
-                                                                'Fe_fwhm':[3000,'uniform',2000,6000]}):
-    
-    if priors['z'][2]==0:
-        priors['z'][2]=z
-    
-    flux = fluxs.data[np.invert(fluxs.mask)]
-    wave = wave[np.invert(fluxs.mask)]
-    
-    fit_loc = np.where((wave>4700*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
-    
-    sel=  np.where((wave<5025*(1+z)/1e4)& (wave>4980*(1+z)/1e4))[0]
-    flux_zoom = flux[sel]
-    wave_zoom = wave[sel]
-    
-    peak_loc = np.argmax(flux_zoom)
-    peak = (np.max(flux_zoom))
-    
-    selb =  np.where((wave<4880*(1+z)/1e4)& (wave>4820*(1+z)/1e4))[0]
-    flux_zoomb = flux[selb]
-    wave_zoomb = wave[selb]
-    try:
-        peak_loc_beta = np.argmax(flux_zoomb)
-        peak_beta = (np.max(flux_zoomb))
-    except:
-        peak_beta = peak/3
-    
-    
-    nwalkers=64
-    if model=='outflow': 
-        if template==0:
-            if Hbeta_dual == 0:
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel')
-                fitted_model = OIII_outflow
-                
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['Nar_fwhm'][0], priors['outflow_fwhm'][0],priors['outflow_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]])
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-                nwalkers, ndim = pos.shape
-                sampler = emcee.EnsembleSampler(
-                        nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_outflow))
-                
-                sampler.run_mcmc(pos, N, progress=progress);
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+            self.res = {'name': 'Halpha_wth_BLR'}
             
-                res = {'name': 'OIII_outflow'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
-            else:
-                labels= ('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel')
-                fitted_model = OIII_outflow_narHb
-                pr_code = prior_create(labels, priors)
                 
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['Nar_fwhm'][0], priors['outflow_fwhm'][0],priors['outflow_vel'][0],\
-                                peak_beta, priors['Hbeta_fwhm'][0], priors['Hbeta_vel'][0],peak_beta, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-                nwalkers, ndim = pos.shape
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_outflow_narHb))
-                    
-                sampler.run_mcmc(pos, N, progress=progress);
-                
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+        elif self.model=='outflow':
+            self.fitted_model = Halpha_outflow
+            self.log_prior_fce = log_prior_Halpha_outflow
+
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
+            self.pr_code = prior_create(self.labels, self.priors)
             
-                   
-                res = {'name': 'OIII_outflow_HBn'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
-         
-        else:
-            if Hbeta_dual == 0:
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel', 'Fe_peak', 'Fe_fwhm')
-                fitted_model = OIII_outflow_Fe
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6, priors['Nar_fwhm'][0], priors['OIII_out'][0],priors['outflow_vel'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
-                                np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-               
-                nwalkers, ndim = pos.shape
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_outflow_Fe, template))
-                    
-                sampler.run_mcmc(pos, N, progress=progress);
-                
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0] ])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
             
-                res = {'name': 'OIII_outflow_Fe'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
-                    
-            else:
-                labels= ('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel', 'Fe_peak', 'Fe_fwhm')
-                fitted_model = OIII_outflow_Fe_narHb
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 600.,-100, \
-                                peak_beta/2, 4000,priors['Hbeta_vel'][0],peak_beta/2, 600,priors['Hbetan_vel'][0],\
-                                np.median(flux[fit_loc]), 2000])
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-                nwalkers, ndim = pos.shape
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_outflow_Fe_narHb, template))
-                    
-                sampler.run_mcmc(pos, N, progress=progress);
-                
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
             
-                res = {'name': 'OIII_outflow_Fe_narHb'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
             
-    elif model=='gal': 
-        if template==0:
-            if Hbeta_dual == 0:
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel')
-                fitted_model = OIII
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['Nar_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0]]) 
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-                nwalkers, ndim = pos.shape
-                
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII))
+            self.res = {'name': 'Halpha_wth_out'}
             
-                sampler.run_mcmc(pos, N, progress=progress);
-                
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-                  
-                res = {'name': 'OIII'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
-                    
         
-            else:
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel')
-                fitted_model = OIII_dual_hbeta
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['Nar_fwhm'][0], peak_beta/4, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
-                                peak_beta/4, priors['Hbetan_fwhm'][0], priors['Hbetan_vel'][0]])
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-                nwalkers, ndim = pos.shape
-                
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_dual_hbeta))
+        elif self.model=='QSO_BKPL':
             
-                sampler.run_mcmc(pos, N, progress=progress);
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-                    
-                res = {'name': 'OIII_HBn'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
-         
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
+                    'Hal_out_peak', 'NII_out_peak', 
+                    'outflow_fwhm', 'outflow_vel', \
+                    'BLR_Hal_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2', 'BLR_sig')
+                
+                
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],\
+                              peak/6, peak/6,\
+                              self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], \
+                              peak, self.priors['zBLR'][0], self.priors['BLR_alp1'][0], self.priors['BLR_alp2'][0],self.priors['BLR_sig'][0], \
+                              ])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0]    
+            
+            
+            
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.pr_code = prior_create(self.labels, self.priors)
+            
+            self.fitted_self.model = Hal_QSO_BKPL
+            self.log_prior_fce = logprior_general
+            
+            self.res = {'name': 'Halpha_QSO_BKPL'}
+            
         else:
-            if Hbeta_dual == 0:
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel', 'Fe_peak', 'Fe_fwhm')
-                fitted_model = OIII_Fe
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) 
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-                
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
-                
-                nwalkers, ndim = pos.shape
-                
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_Fe, template))
+            raise Exception('self.model variable not understood. Available self.model keywords: BLR, outflow, gal, QSO_BKPL')
+             
+        
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(
+             nwalkers, ndim, log_probability_general, args=(self.wave[fit_loc], self.flux[fit_loc], self.error[fit_loc],self.pr_code, self.fitted_model, self.log_prior_fce))
+     
+        sampler.run_mcmc(pos, self.N, progress=self.progress)
+        self.flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)      
+        for i in range(len(self.labels)):
+            self.res[self.labels[i]] = self.flat_samples[:,i]  
             
-                sampler.run_mcmc(pos, N, progress=progress);
-                
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-                
-                res = {'name': 'OIII_Fe'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
-                
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
+        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
+
+        
+    # =============================================================================
+    # Primary function to fit [OIII] with and without outflows. 
+    # =============================================================================
+    
+    def fitting_OIII(self, model, template=0, Hbeta_dual=0):
+        self.model = model
+        self.template = template
+        self.Hbeta_dual = Hbeta_dual
+        if self.priors['z'][2]==0:
+            self.priors['z'][2]=self.z
+        
+        self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        
+        fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
+        
+        sel=  np.where((self.wave<5025*(1+self.z)/1e4)& (self.wave>4980*(1+self.z)/1e4))[0]
+        self.flux_zoom = self.flux[sel]
+        self.wave_zoom = self.wave[sel]
+        
+        peak_loc = np.argmax(self.flux_zoom)
+        peak = (np.max(self.flux_zoom))
+        
+        selb =  np.where((self.wave<4880*(1+self.z)/1e4)& (self.wave>4820*(1+self.z)/1e4))[0]
+        self.flux_zoomb = self.flux[selb]
+        self.wave_zoomb = self.wave[selb]
+        try:
+            peak_loc_beta = np.argmax(self.flux_zoomb)
+            peak_beta = (np.max(self.flux_zoomb))
+        except:
+            peak_beta = peak/3
+        
+        
+        nwalkers=64
+        if self.model=='outflow': 
+            if self.template==0:
+                if self.Hbeta_dual == 0:
+                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel')
+                    self.fitted_model = OIII_outflow
+                    self.log_prior_fce = log_prior_OIII_outflow
                     
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+                    self.res = {'name': 'OIII_outflow'}
+                    
+                else:
+                    self.labels= ('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel')
+                    self.fitted_model = OIII_outflow_narHb
+                    self.log_prior_fce = log_prior_OIII_outflow_narHb
+                    
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0],\
+                                    peak_beta, self.priors['Hbeta_fwhm'][0], self.priors['Hbeta_vel'][0],peak_beta, self.priors['Hbetan_fwhm'][0], self.priors['Hbetan_vel'][0]])
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+                    
+                    self.res = {'name': 'OIII_outflow_HBn'}
+                    
+             
             else:
-                labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel','Fe_peak', 'Fe_fwhm')
-                fitted_model = OIII_dual_hbeta_Fe
-                pr_code = prior_create(labels, priors)
-                
-                pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2,  priors['OIII_fwhm'][0], peak_beta/2, priors['Hbeta_fwhm'][0],priors['Hbeta_vel'][0],\
-                                peak_beta/2, priors['Hbetan_fwhm'][0],priors['Hbetan_vel'][0], \
-                                np.median(flux[fit_loc]), priors['Fe_fwhm'][0]]) 
-                for i in enumerate(labels):
-                    pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+                if self.Hbeta_dual == 0:
+                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel', 'Fe_peak', 'Fe_fwhm')
+                    self.fitted_model = OIII_outflow_Fe
+                    self.log_prior_fce = log_prior_OIII_outflow_Fe
                     
-                pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-                pos[:,0] = np.random.normal(z,0.001, nwalkers)
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['OIII_out'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],\
+                                    np.median(self.flux[fit_loc]), self.priors['Fe_fwhm'][0]])
+                        
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+                    
+                    self.res = {'name': 'OIII_outflow_Fe'}
+                        
+                else:
+                    self.labels= ('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel', 'Fe_peak', 'Fe_fwhm')
+                    self.fitted_model = OIII_outflow_Fe_narHb
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc])/2,0.001, peak/2, peak/4, 300., 600.,-100, \
+                                    peak_beta/2, 4000,self.priors['Hbeta_vel'][0],peak_beta/2, 600,self.priors['Hbetan_vel'][0],\
+                                    np.median(self.flux[fit_loc]), 2000])
+                    
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
                 
-                nwalkers, ndim = pos.shape
+                    self.res = {'name': 'OIII_outflow_Fe_narHb'}
+                    
                 
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior_OIII_dual_hbeta_Fe,  template))
+        elif self.model=='gal': 
+            if self.template==0:
+                if self.Hbeta_dual == 0:
+                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel')
+                    self.fitted_model = OIII
+                    self.log_prior_fce = log_prior_OIII
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2,  self.priors['Nar_fwhm'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]]) 
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+                    
+                    self.res = {'name': 'OIII'}
+                    
             
-                sampler.run_mcmc(pos, N, progress=progress);
-                
-                flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-                 
-                res = {'name': 'OIII_Fe_HBn'}
-                for i in range(len(labels)):
-                    res[labels[i]] = flat_samples[:,i]
+                else:
+                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel')
+                    self.fitted_model = OIII_dual_hbeta
+                    self.log_prior_fce = log_prior_OIII_dual_hbeta
                     
-    elif model=='QSO_dg':
-        if template==0:
-            pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6,\
-                    priors['OIII_fwhm'][0], priors['OIII_out'][0],priors['outflow_vel'][0],\
-                    peak_beta/2, peak_beta/2, \
-                    priors['Hb_BLR1_fwhm'][0],priors['Hb_BLR2_fwhm'][0],priors['Hb_BLR_vel'][0],\
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2,  self.priors['Nar_fwhm'][0], peak_beta/4, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],\
+                                    peak_beta/4, self.priors['Hbetan_fwhm'][0], self.priors['Hbetan_vel'][0]])
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                         
+                    self.res = {'name': 'OIII_HBn'}
+            
+
+            else:
+                if self.Hbeta_dual == 0:
+                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel', 'Fe_peak', 'Fe_fwhm')
+                    self.fitted_model = OIII_Fe
+                    self.log_prior_fce = log_prior_OIII_Fe
+                    
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2,  self.priors['OIII_fwhm'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],np.median(self.flux[fit_loc]), self.priors['Fe_fwhm'][0]]) 
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                    
+                    self.res = {'name': 'OIII_Fe'}
+                
+                else:
+                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel','Fe_peak', 'Fe_fwhm')
+                    self.fitted_model = OIII_dual_hbeta_Fe
+                    self.log_prior_fce = log_prior_OIII_dual_hbeta_Fe
+                    
+                    self.pr_code = prior_create(self.labels, self.priors)
+                    
+                    pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2,  self.priors['OIII_fwhm'][0], peak_beta/2, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],\
+                                    peak_beta/2, self.priors['Hbetan_fwhm'][0],self.priors['Hbetan_vel'][0], \
+                                    np.median(self.flux[fit_loc]), self.priors['Fe_fwhm'][0]]) 
+                    for i in enumerate(self.labels):
+                        pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                        
+                    self.res = {'name': 'OIII_Fe_HBn'}
+        
+                    
+        elif self.model=='QSO_BKPL':
+            self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm',\
+                        'outflow_vel', 'BLR_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2','BLR_sig' ,\
+                        'Hb_nar_peak', 'Hb_out_peak')
+                
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6,\
+                    self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0],\
+                    peak_beta, self.priors['zBLR'][0], self.priors['BLR_alp1'][0], self.priors['BLR_alp2'][0],self.priors['BLR_sig'][0], \
                     peak_beta/4, peak_beta/4])
             
-            for i in enumerate(labels):
-                pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
                 
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0]    
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-            pos[:,0] = np.random.normal(z,0.001, nwalkers)
-           
-            nwalkers, ndim = pos.shape
-            sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_OIII_QSO, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            pos[:,9] = np.random.normal(self.z,0.001, nwalkers)
             
-            sampler.run_mcmc(pos, N, progress=progress);
+            self.pr_code = prior_create(self.labels, self.priors)
+            self.fitted_model = OIII_QSO_BKPL
+            self.log_prior_fce = logprior_general
+             
+            self.res = {'name': 'OIII_QSO_BKP'}
             
-            flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-        
-                
-            labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm',\
-                    'outflow_vel', 'Hb_BLR1_peak', 'Hb_BLR2_peak', 'Hb_BLR_fwhm1', 'Hb_BLR_fwhm2', 'Hb_BLR_vel',\
-                    'Hb_nar_peak', 'Hb_out_peak')
-            
-            fitted_model = OIII_QSO
-            
-            res = {'name': 'OIII_QSO'}
-            for i in range(len(labels)):
-                res[labels[i]] = flat_samples[:,i]
-    
         else:
-            nwalkers=64
-            pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6,\
-                    priors['Nar_fwhm'][0], priors['outflow_fwhm'][0],priors['outflow_vel'][0],\
-                    peak_beta/2, peak_beta/2, \
-                    priors['Hb_BLR1_fwhm'][0],priors['Hb_BLR2_fwhm'][0],priors['Hb_BLR_vel'][0],\
-                    peak_beta/4, peak_beta/4,\
-                    np.median(flux[fit_loc]), priors['Fe_fwhm'][0]])
-            for i in enumerate(labels):
-                pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0]   
-            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-            pos[:,0] = np.random.normal(z,0.001, nwalkers)
-           
-            nwalkers, ndim = pos.shape
-            sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],priors,OIII_Fe_QSO,log_prior_OIII_Fe_QSO, template))
-            
-            sampler.run_mcmc(pos, N, progress=progress);
-            
-            flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-        
-                
-            labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm',\
-                    'outflow_vel', 'Hb_BLR1_peak', 'Hb_BLR2_peak', 'Hb_BLR_fwhm1', 'Hb_BLR_fwhm2', 'Hb_BLR_vel',\
-                    'Hb_nar_peak', 'Hb_out_peak', 'Fe_peak', 'Fe_fwhm')
-            
-            fitted_model = OIII_Fe_QSO
-            
-            res = {'name': 'OIII_QSO_fe'}
-            for i in range(len(labels)):
-                res[labels[i]] = flat_samples[:,i]
-                
-    elif model=='QSO_BKPL':
-        labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm',\
-                    'outflow_vel', 'BLR_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2','BLR_sig' ,\
-                    'Hb_nar_peak', 'Hb_out_peak')
-            
-        pos_l = np.array([z,np.median(flux[fit_loc]),0.001, peak/2, peak/6,\
-                priors['Nar_fwhm'][0], priors['outflow_fwhm'][0],priors['outflow_vel'][0],\
-                peak_beta, priors['zBLR'][0], priors['BLR_alp1'][0], priors['BLR_alp2'][0],priors['BLR_sig'][0], \
-                peak_beta/4, peak_beta/4])
-        
-            
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0]    
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        pos[:,9] = np.random.normal(z,0.001, nwalkers)
-        
-        pr_code = prior_create(labels, priors)
+            raise Exception('self.model variable not understood. Available self.model keywords: outflow, gal, QSO_BKPL')
          
         nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-             nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, OIII_QSO_BKPL, logprior_general))
+        
+        if self.template==0:
+            sampler = emcee.EnsembleSampler(
+                 nwalkers, ndim, log_probability_general, args=(self.wave[fit_loc], self.flux[fit_loc], self.error[fit_loc],self.pr_code, self.fitted_model, self.log_prior_fce))
+        
+        else:
+            sampler = emcee.EnsembleSampler(
+                 nwalkers, ndim, log_probability_general, args=(self.wave[fit_loc], self.flux[fit_loc], self.error[fit_loc],self.pr_code, self.fitted_model, self.log_prior_fce, self.template))
+            
      
-        sampler.run_mcmc(pos, N, progress=progress);   
+        sampler.run_mcmc(pos, self.N, progress=self.progress)
+        self.flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)      
+        
+        for i in range(len(self.labels)):
+            self.res[self.labels[i]] = self.flat_samples[:,i]  
+        
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
+        
+        self.modeleval = self.fitted_model(self.wave[fit_loc], *self.props['popt'])
+        self.chi2 = sum(((self.flux[fit_loc]-self.modeleval)/self.error[fit_loc])**2)
+        self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux[fit_loc]))
         
         
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+    def fitting_Halpha_OIII(self, model):
+        self.model = model
         
-        fitted_model = OIII_QSO_BKPL
+        if self.priors['z'][2]==0:
+            self.priors['z'][2]=self.z
+        try:
+            if self.priors['zBLR'][2]==0:
+                self.priors['zBLR'][2]=self.z
+        except:
+            lksdf=0
+            
+            
+        self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.wave = self.wave[np.invert(self.fluxs.mask)]
         
-        res = {'name': 'OIII_QSO_BKP'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-    else:
-        raise Exception('model variable not understood. Available model keywords: outflow, gal, QSO_BKPL')
+        fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
+        fit_loc = np.append(fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
+        fit_loc = np.append(fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0])
         
-    return res, fitted_model
+    # =============================================================================
+    #     Finding the initial conditions
+    # =============================================================================
+        sel=  np.where((self.wave<5025*(1+self.z)/1e4)& (self.wave>4980*(1+self.z)/1e4))[0]
+        self.flux_zoom = self.flux[sel]
+        self.wave_zoom = self.wave[sel]
+        try:
+            peak_loc_OIII = np.argmax(self.flux_zoom)
+            peak_OIII = (np.max(self.flux_zoom))
+        except:
+            peak_OIII = np.max(self.flux[fit_loc])
+        
+        sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
+        self.flux_zoom = self.flux[sel]
+        self.wave_zoom = self.wave[sel]
+        
+        peak_loc = np.ma.argmax(self.flux_zoom)
+        
+        znew = self.wave_zoom[peak_loc]/0.656452-1
+        peak_hal = np.ma.max(self.flux_zoom)
+        if peak_hal<0:
+            peak_hal==3e-3
+        
+    # =============================================================================
+    #   Setting up fitting  
+    # =============================================================================
+        if self.model=='gal':
+            #self.priors['z'] = [z, z-zcont, z+zcont]
+            nwalkers=64
+            self.fitted_model = Halpha_OIII
+            self.log_prior_fce = log_prior_Halpha_OIII
+            
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak', 'OI_peak')
+            
+            self.pr_code = prior_create(self.labels, self.priors)
+            
+            
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, self.priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
+                              peak_hal*0.2, peak_OIII*0.1])  
+            
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                
+            if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
+                logprior_general_test(pos_l, self.pr_code, self.labels)
+                
+                raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
+                                boundries are sensible. {pos_l}')
+                
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'Halpha_OIII'}
+            
+            
+        elif self.model=='outflow':
+            nwalkers=64
+            self.fitted_model = Halpha_OIII_outflow
+            
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak','OI_peak',\
+                    'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'OI_out_peak', 'Hbeta_out_peak'   )
+            
+            self.pr_code = prior_create(self.labels, self.priors)   
+            self.log_prior_fce = log_prior_Halpha_OIII_outflow
+            
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+                              peak_OIII*0.8, peak_hal*0.2, peak_hal*0.2, peak_hal*0.2, peak_hal*0.1,\
+                              self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],
+                              peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05, peak_hal*0.05])
+            
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                
+            if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
+                
+                logprior_general_test(pos_l, self.pr_code, self.labels)
+                
+                raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
+                                boundries are sensible. {%pos_l}')
+                                
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'Halpha_OIII_outflow'}
+            
+            
+        elif self.model=='BLR':
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
+                    'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' ,\
+                    'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak')
+                
+            nwalkers=64
+            
+            if self.priors['BLR_Hal_peak'][2]=='self.error':
+                self.priors['BLR_Hal_peak'][2]=self.error[-2]; self.priors['BLR_Hal_peak'][3]=self.error[-2]*2
+            if self.priors['BLR_Hbeta_peak'][2]=='self.error':
+                self.priors['BLR_Hbeta_peak'][2]=self.error[2]; self.priors['BLR_Hbeta_peak'][3]=self.error[2]*2
+            
+            self.pr_code = prior_create(self.labels, self.priors)   
+            self.log_prior_fce = self.log_prior_Halpha_OIII_BLR
+            self.fitted_model = Halpha_OIII_BLR
+            
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+                              peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
+                              self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],
+                              peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
+                              self.priors['BLR_fwhm'][0], self.priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
+                
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                 
+            
+            
+            if (self.log_prior(pos_l, self.pr_code)==np.nan)|\
+                (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
+                print(logprior_general_test(pos_l, self.pr_code, self.labels))
+                raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
+                                boundries are sensible. {pos_l} ')
+            
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            pos[:,-3] = np.random.normal(self.priors['zBLR'][0],0.00001, nwalkers)
+           
+            self.res = {'name': 'Halpha_OIII_BLR'}
+            
+        elif self.model=='BLR_simple':
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
+                    'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak')
+                
+            nwalkers=64
+            
+            if self.priors['BLR_Hal_peak'][2]=='self.error':
+                self.priors['BLR_Hal_peak'][2]=self.error[-2]; self.priors['BLR_Hal_peak'][3]=self.error[-2]*2
+            if self.priors['BLR_Hbeta_peak'][2]=='self.error':
+                self.priors['BLR_Hbeta_peak'][2]=self.error[2]; self.priors['BLR_Hbeta_peak'][3]=self.error[2]*2
+            
+            self.pr_code = prior_create(self.labels, self.priors) 
+            self.log_prior_fce = self.log_prior_Halpha_OIII_BLR_simple
+            self.fitted_model = Halpha_OIII_BLR_simple
+            
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+                              peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
+                              self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0], self.priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
+                
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+            
+            if (self.log_prior_fce(pos_l, self.pr_code)==np.nan)|\
+                (self.log_prior(pos_l, self.pr_code)==-np.inf):
+                print(logprior_general_test(pos_l, self.pr_code, self.labels))
+                raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
+                                boundries are sensible. {pos_l} ')
+            
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(z,0.001, nwalkers)
+            pos[:,-3] = np.random.normal(self.priors['zBLR'][0],0.00001, nwalkers)
+           
+            self.res = {'name': 'Halpha_OIII_BLR_simple'}
+            
+            
+        elif outflow=='QSO_BKPL':
+            self.labels =[ 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'OIII_peak','Hbeta_peak', 'Nar_fwhm', \
+                                  'Hal_out_peak', 'NII_out_peak','OIII_out_peak', 'Hbeta_out_peak',\
+                                  'outflow_fwhm', 'outflow_vel',\
+                                  'Hal_BLR_peak', 'Hbeta_BLR_peak',  'BLR_vel', 'BLR_alp1', 'BLR_alp2', 'BLR_sig']
+        
+        
+            nwalkers=64
+            self.pr_code = prior_create(self.labels, self.priors)   
+            self.log_prior_fce = logprior_general
+            self.fitted_model =  Halpha_OIII_QSO_BKPL
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+                              peak_OIII*0.8, peak_OIII*0.3,self.priors['Nar_fwhm'][0],\
+                              peak_hal*0.2, peak_hal*0.3, peak_OIII*0.4, peak_OIII*0.2   ,\
+                              self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],\
+                              peak_hal*0.4, peak_OIII*0.4, self.priors['BLR_vel'][0], 
+                              self.priors['BLR_alp1'][0], self.priors['BLR_alp2'][0],self.priors['BLR_sig'][0]])
+            
+            if (self.log_prior_fce(pos_l, self.pr_code)==np.nan)|\
+                (self.log_prior(pos_l, self.pr_code)==-np.inf):
+                raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
+                                boundries are sensible: {pos_l}')
+                                
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'Halpha_OIII_BLR'}
+            
+        else:
+            raise Exception('self.model variable not understood. Available self.model keywords: outflow, gal, QSO_BKPL')
+        
+            
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(
+                nwalkers, ndim, log_probability_general, args=(self.wave[fit_loc], self.flux[fit_loc], self.error[fit_loc],self.pr_code, self.fitted_model, self.log_prior_fce)) 
+        sampler.run_mcmc(pos, self.N, progress=self.progress);
+        
+        self.flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+        
+        
+        for i in range(len(self.labels)):
+            self.res[self.labels[i]] = self.flat_samples[:,i]
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
+        
+        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
 
-def fitting_Halpha_OIII(wave, fluxs, error,z,zcont=0.01,model='gal' ,progress=True,N=6000,initial=np.array([0]), priors={'z':[0,'normal', 0, 0.003],\
-                                                                                                 'cont':[0,'loguniform', -3,1],\
-                                                                                                 'cont_grad':[0,'normal', 0,0.2],\
-                                                                                                 'Hal_peak':[0,'loguniform', -3,1],\
-                                                                                                 'NII_peak':[0,'loguniform', -3,1],\
-                                                                                                 'Nar_fwhm':[300,'uniform', 200,900],\
-                                                                                                 'SIIr_peak':[0,'loguniform', -3,1],\
-                                                                                                 'SIIb_peak':[0,'loguniform', -3,1],\
-                                                                                                 'OIII_peak':[0,'loguniform', -3,1],\
-                                                                                                 'Hbeta_peak':[0,'loguniform', -3,1],\
-                                                                                                 'OI_peak':[0,'loguniform', -3,1],\
-                                                                                                 'outflow_fwhm':[450,'uniform', 300,900],\
-                                                                                                 'outflow_vel':[-50,'normal', -50,100],\
-                                                                                                 'Hal_out_peak':[0,'loguniform', -3,1],\
-                                                                                                 'NII_out_peak':[0,'loguniform', -3,1],\
-                                                                                                 'OIII_out_peak':[0,'loguniform', -3,1],\
-                                                                                                 'OI_out_peak':[0,'loguniform', -3,1],\
-                                                                                                 'Hbeta_out_peak':[0,'loguniform', -3,1],\
-                                                                                                 'zBLR':[0,'normal', 0,0.003],\
-                                                                                                 'BLR_fwhm':[4000,'normal', 5000,500],\
-                                                                                                 'BLR_Hal_peak':[0,'loguniform', -3,1],\
-                                                                                                 'BLR_Hbeta_peak':[0,'loguniform', -3,1],\
-                                                                                                 }):
-    
-    if priors['z'][2]==0:
-        priors['z'][2]=z
-    try:
-        if priors['zBLR'][2]==0:
-            priors['zBLR'][2]=z
-    except:
-        lksdf=0
         
         
-    flux = fluxs.data[np.invert(fluxs.mask)]
-    wave = wave[np.invert(fluxs.mask)]
-    
-    fit_loc = np.where((wave>4700*(1+z)/1e4)&(wave<5100*(1+z)/1e4))[0]
-    fit_loc = np.append(fit_loc, np.where((wave>(6300-50)*(1+z)/1e4)&(wave<(6300+50)*(1+z)/1e4))[0])
-    fit_loc = np.append(fit_loc, np.where((wave>(6564.52-170)*(1+z)/1e4)&(wave<(6564.52+170)*(1+z)/1e4))[0])
-    
-# =============================================================================
-#     Finding the initial conditions
-# =============================================================================
-    sel=  np.where((wave<5025*(1+z)/1e4)& (wave>4980*(1+z)/1e4))[0]
-    flux_zoom = flux[sel]
-    wave_zoom = wave[sel]
-    try:
-        peak_loc_OIII = np.argmax(flux_zoom)
-        peak_OIII = (np.max(flux_zoom))
-    except:
-        peak_OIII = np.max(flux[fit_loc])
-    
-    sel=  np.where(((wave<(6564.52+20)*(1+z)/1e4))& (wave>(6564.52-20)*(1+z)/1e4))[0]
-    flux_zoom = flux[sel]
-    wave_zoom = wave[sel]
-    
-    peak_loc = np.ma.argmax(flux_zoom)
-    
-    znew = wave_zoom[peak_loc]/0.656452-1
-    '''
-    if abs(znew-z)<zcont:
-        z= znew
-        priors['z'][0] = znew
-        priors['z'][2] = znew
-    '''
-    peak_hal = np.ma.max(flux_zoom)
-    if peak_hal<0:
-        peak_hal==3e-3
-    
-# =============================================================================
-#   Setting up fitting  
-# =============================================================================
-    if model=='gal':
-        #priors['z'] = [z, z-zcont, z+zcont]
-        nwalkers=64
-        fitted_model = Halpha_OIII
-        log_prior = log_prior_Halpha_OIII
+    def fitting_general(self, fitted_model, labels, logprior, nwalkers=64, N = 6000):
+        self.labels= labels
+        self.log_prior_fce = logprior_general
+        self.fitted_model = fitted_model
         
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak', 'OI_peak')
-        
-        pr_code = prior_create(labels, priors)
-        
-        
-        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
-                          peak_hal*0.2, peak_OIII*0.1])  
-        
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
+        if self.priors['z'][2]==0:
+            self.priors['z'][2]=self.z
             
-        if (log_prior(pos_l, pr_code)==-np.inf):
-            logprior_general_test(pos_l, pr_code, labels)
-            
-            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
-                            boundries are sensible. {pos_l}')
-            
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.wave = self.wave[np.invert(self.fluxs.mask)]
         
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior)) 
-        sampler.run_mcmc(pos, N, progress=progress);
-        
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-        
-        
-        res = {'name': 'Halpha_OIII'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-            
-    elif model=='outflow':
-        nwalkers=64
-        fitted_model = Halpha_OIII_outflow
-        
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak','OI_peak',\
-                'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'OI_out_peak', 'Hbeta_out_peak'   )
-        
-        pr_code = prior_create(labels, priors)   
-        log_prior = log_prior_Halpha_OIII_outflow
-        
-        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                          peak_OIII*0.8, peak_hal*0.2, peak_hal*0.2, peak_hal*0.2, peak_hal*0.1,\
-                          priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
-                          peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05, peak_hal*0.05])
-        
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-            
-        if (log_prior(pos_l, pr_code)==-np.inf):
-            
-            logprior_general_test(pos_l, pr_code, labels)
-            
-            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
-                            boundries are sensible. {pos_l}')
-                            
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
+        self.pr_code = prior_create(self.labels, self.priors)
        
+        pos_l = np.zeros(len(self.labels))
+            
+        for i in enumerate(self.labels):
+            pos_l[i[0]] = self.priors[i[1]][0] 
+                
+        if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
+            logprior_general_test(pos_l, self.pr_code, self.labels)
+                
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible')
+                
+        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior)) 
-        
-        sampler.run_mcmc(pos, N, progress=progress);
-        
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-        
-        res = {'name': 'Halpha_OIII_outflow'}
+        nwalkers, ndim, log_probability_general, args=(self.wave, self.flux, self.error,self.pr_code, self.fitted_model, self.log_prior_fce)) 
+        sampler.run_mcmc(pos, self.N, progress=self.progress);
+            
+        flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
+            
+        res = {'name': 'Custom model'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
-    elif model=='BLR':
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
-                'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' ,\
-                'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak')
-            
-        nwalkers=64
         
-        if priors['BLR_Hal_peak'][2]=='error':
-            priors['BLR_Hal_peak'][2]=error[-2]; priors['BLR_Hal_peak'][3]=error[-2]*2
-        if priors['BLR_Hbeta_peak'][2]=='error':
-            priors['BLR_Hbeta_peak'][2]=error[2]; priors['BLR_Hbeta_peak'][3]=error[2]*2
+        self.res= res
+        self.chains = self.res
+        self.props = sp.prop_calc(self.chains)
         
-        pr_code = prior_create(labels, priors)   
-        log_prior = log_prior_Halpha_OIII_BLR
-        fitted_model = Halpha_OIII_BLR
-        
-        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                          peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
-                          priors['Nar_fwhm'][0], priors['outflow_fwhm'][0], priors['outflow_vel'][0],
-                          peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
-                          priors['BLR_fwhm'][0], priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
-            
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-             
-        
-        
-        if (log_prior(pos_l, pr_code)==np.nan)|\
-            (log_prior(pos_l, pr_code)==-np.inf):
-            print(logprior_general_test(pos_l, pr_code, labels))
-            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
-                            boundries are sensible. {pos_l} ')
-        
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        pos[:,-3] = np.random.normal(priors['zBLR'][0],0.00001, nwalkers)
+        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
+
        
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior)) 
-        sampler.run_mcmc(pos, N, progress=progress);
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-          
-        
-        res = {'name': 'Halpha_OIII_BLR'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-        
-    elif model=='BLR_simple':
-        labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
-                'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak')
-            
-        nwalkers=64
-        
-        if priors['BLR_Hal_peak'][2]=='error':
-            priors['BLR_Hal_peak'][2]=error[-2]; priors['BLR_Hal_peak'][3]=error[-2]*2
-        if priors['BLR_Hbeta_peak'][2]=='error':
-            priors['BLR_Hbeta_peak'][2]=error[2]; priors['BLR_Hbeta_peak'][3]=error[2]*2
-        
-        pr_code = prior_create(labels, priors) 
-        log_prior = log_prior_Halpha_OIII_BLR_simple
-        fitted_model = Halpha_OIII_BLR_simple
-        
-        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                          peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
-                          priors['Nar_fwhm'][0], priors['BLR_fwhm'][0], priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
-            
-        for i in enumerate(labels):
-            pos_l[i[0]] = pos_l[i[0]] if priors[i[1]][0]==0 else priors[i[1]][0] 
-             
-        
-        
-        if (log_prior(pos_l, pr_code)==np.nan)|\
-            (log_prior(pos_l, pr_code)==-np.inf):
-            print(logprior_general_test(pos_l, pr_code, labels))
-            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
-                            boundries are sensible. {pos_l} ')
-        
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        pos[:,-3] = np.random.normal(priors['zBLR'][0],0.00001, nwalkers)
-       
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior)) 
-        sampler.run_mcmc(pos, N, progress=progress);
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-          
-        
-        res = {'name': 'Halpha_OIII_BLR_simple'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-        
-        
-    elif outflow=='QSO_BKPL':
-        labels =[ 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'OIII_peak','Hbeta_peak', 'Nar_fwhm', \
-                              'Hal_out_peak', 'NII_out_peak','OIII_out_peak', 'Hbeta_out_peak',\
-                              'outflow_fwhm', 'outflow_vel',\
-                              'Hal_BLR_peak', 'Hbeta_BLR_peak',  'BLR_vel', 'BLR_alp1', 'BLR_alp2', 'BLR_sig']
-    
-    
-        nwalkers=64
-        pr_code = prior_create(labels, priors)   
-        log_prior = logprior_general
-        fitted_model =  Halpha_OIII_QSO_BKPL
-        pos_l = np.array([z,np.median(flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                          peak_OIII*0.8, peak_OIII*0.3,priors['Nar_fwhm'][0],\
-                          peak_hal*0.2, peak_hal*0.3, peak_OIII*0.4, peak_OIII*0.2   ,\
-                          priors['outflow_fwhm'][0], priors['outflow_vel'][0],\
-                          peak_hal*0.4, peak_OIII*0.4, priors['BLR_vel'][0], 
-                          priors['BLR_alp1'][0], priors['BLR_alp2'][0],priors['BLR_sig'][0]])
-        
-        if (log_prior(pos_l, pr_code)==np.nan)|\
-            (log_prior(pos_l, pr_code)==-np.inf):
-            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
-                            boundries are sensible: {pos_l}')
-                            
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, log_probability_general, args=(wave[fit_loc], flux[fit_loc], error[fit_loc],pr_code, fitted_model, log_prior)) 
-        sampler.run_mcmc(pos, N, progress=progress);
-        flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-          
-        
-        res = {'name': 'Halpha_OIII_BLR'}
-        for i in range(len(labels)):
-            res[labels[i]] = flat_samples[:,i]
-    else:
-        raise Exception('model variable not understood. Available model keywords: outflow, gal, QSO_BKPL')
-            
-    return res, fitted_model
 
 import numba
 @numba.njit
@@ -877,42 +729,7 @@ def logprior_general(theta, priors):
     return results
 
 
-def fitting_general(wave, fluxs, error,z, priors, fitted_model, labels, logprior= logprior_general, progress=True,N=6000, nwalkers=64):
-    
-    if priors['z'][2]==0:
-        priors['z'][2]=z
-        
-    flux = fluxs.data[np.invert(fluxs.mask)]
-    wave = wave[np.invert(fluxs.mask)]
-    
-    pr_code = prior_create(labels, priors)
-   
-    pos_l = np.zeros(len(labels))
-        
-    for i in enumerate(labels):
-        pos_l[i[0]] = priors[i[1]][0] 
-            
-    if (logprior(pos_l, pr_code)==-np.inf):
-        logprior_general_test(pos_l, pr_code, labels)
-            
-        raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
-                        boundries are sensible')
-            
-    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-    pos[:,0] = np.random.normal(z,0.001, nwalkers)
-        
-    nwalkers, ndim = pos.shape
-    sampler = emcee.EnsembleSampler(
-    nwalkers, ndim, log_probability_general, args=(wave, flux, error,pr_code, fitted_model, logprior)) 
-    sampler.run_mcmc(pos, N, progress=progress);
-        
-    flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
-        
-    res = {'name': 'Custom model'}
-    for i in range(len(labels)):
-        res[labels[i]] = flat_samples[:,i]
-    
-    return res, fitted_model
+
 
 def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, template=None):
     lp = logpriorfce(theta,priors)
@@ -980,19 +797,23 @@ def Fitting_OIII_unwrap(lst):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     
-    flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, model='gal', progress=False, priors=priors)
-    cube_res  = [i,j,sp.prop_calc(flat_samples_sig)]
+    Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig.fitting_OIII(model='gal')
+    
+    cube_res  = [i,j,Fits_sig.props]       
+                 
     return cube_res
 
 def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     i,j,flx_spax_m, error, wave, z = lst
-    deltav = 1500
-    deltaz = deltav/3e5*(1+z)
+    
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors,N=10000)
-        cube_res  = [i,j,sp.prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error]
+        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig.fitting_Halpha_OIII(model='gal' )
+        
+        cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
@@ -1004,8 +825,11 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, model='BLR', N=10000)
-        cube_res  = [i,j,sp.prop_calc(flat_samples_sig), flat_samples_sig,wave,flx_spax_m,error ]
+        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig.fitting_Halpha_OIII(model='BLR' )
+        
+        cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
+        
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
@@ -1019,18 +843,22 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        flat_samples_sig, fitted_model_sig = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, model='gal', N=10000)    
-        flat_samples_out, fitted_model_out = fitting_Halpha_OIII(wave,flx_spax_m,error,z,zcont=deltaz, progress=progress, priors=priors, model='outflow', N=10000)
+        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig.fitting_Halpha_OIII(model='gal' )
         
-        BIC_sig = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_sig, sp.prop_calc(flat_samples_sig), 'Halpha_OIII' )
-        BIC_out = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_out, sp.prop_calc(flat_samples_out), 'Halpha_OIII' )
+        Fits_out = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_out.fitting_Halpha_OIII(model='outflow' )
+        
+        
+        BIC_sig = Fits_sig.BIC
+        BIC_out = Fits_out.BIC
         
         if (BIC_sig[1]-BIC_out[1])>5:
-            fitted_model = fitted_model_out
-            flat_samples = flat_samples_out
+            fitted_model = Fits_out.fitted_model
+            flat_samples = Fits_out.chains
         else:
-            fitted_model = fitted_model_sig
-            flat_samples = flat_samples_sig
+            fitted_model = Fits_sig.fitted_model
+            flat_samples = Fits_sig.chains
             
         cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
     except:
@@ -1045,18 +873,21 @@ def Fitting_OIII_2G_unwrap(lst, priors):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        flat_samples_sig, fitted_model_sig = fitting_OIII(wave,flx_spax_m,error,z, model='gal', progress=False, priors=priors) 
-        flat_samples_out, fitted_model_out = fitting_OIII(wave,flx_spax_m,error,z, model='outflow', progress=False, priors=priors)
+        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_sig.fitting_OIII(model='gal')
         
-        BIC_sig = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_sig, sp.prop_calc(flat_samples_sig), 'OIII' )
-        BIC_out = sp.BIC_calc(wave, flx_spax_m, error, fitted_model_out, sp.prop_calc(flat_samples_out), 'OIII' )
+        Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_out.fitting_OIII(model='outflow')
+        
+        BIC_sig = Fits_sig.BIC
+        BIC_out = Fits_out.BIC
         
         if (BIC_sig[1]-BIC_out[1])>5:
-            fitted_model = fitted_model_out
-            flat_samples = flat_samples_out
+            fitted_model = Fits_out.fitted_model
+            flat_samples = Fits_out.chains
         else:
-            fitted_model = fitted_model_sig
-            flat_samples = flat_samples_sig
+            fitted_model = Fits_sig.fitted_model
+            flat_samples = Fits_sig.chains
             
         cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
     except:
@@ -1075,10 +906,38 @@ def Fitting_Halpha_unwrap(lst):
     
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
-    flat_samples_sig, fitted_model_sig = fitting_Halpha(wave,flx_spax_m,error,z, zcont=deltaz, model='BLR', progress=False, priors=priors,N=10000)
-    cube_res  = [i,j,sp.prop_calc(flat_samples_sig)]
+    
+    Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig.fitting_Halpa(model='BLR')
+    
+    cube_res  = [i,j,Fits_sig.props]
     
     return cube_res
     
+def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
+    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
+        data= pickle.load(fp) 
+
+    if len(use)==0:
+        use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
+
+    i,j,flx_spax_m, error, wave, z = lst
     
+    try:
+        Fits_sig = emfit.Fitting(wave[use], flux[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
+        
+        fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
+        
+        BIC_sig = Fits_sig.BIC
+        
+        
+        fitted_model = Fits_sig.fitted_model
+        flat_samples = Fits_sig.chains
+            
+        cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
+    except:
+        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+        print('Failed fit')
+    return cube_res
+
 

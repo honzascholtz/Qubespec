@@ -457,7 +457,46 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
             axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
         elif residual=='error':
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
+
             
+def plotting_general(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres='none'):
+    
+    popt = sol['popt']
+    z = popt[0]
+    
+    wv_rest = wave/(1+z)*1e4
+    fit_loc = np.where((wv_rest>100.)&(wv_rest<16000.))[0]
+    
+    ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
+
+    flux = fluxs.data[np.invert(fluxs.mask)]
+    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+        
+    fit_loc_sc = np.where((wv_rst_sc>100)&(wv_rst_sc<16000))[0]   
+    
+    ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
+    
+    y_tot = fitted_model(wave[fit_loc], *popt)
+    y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt)
+
+    ax.plot(wv_rest[fit_loc], y_tot, 'r--')
+    
+
+    ax.set_ylim(-0.1*max(y_tot), max(y_tot)*1.1)
+    ax.tick_params(direction='in')
+    
+        
+    if axres !='none':
+        resid_OIII = flux[fit_loc_sc]-y_tot_rs
+        sigma_OIII = np.std(resid_OIII)
+        RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
+        
+        axres.plot(wv_rst_sc[fit_loc_sc],resid_OIII, drawstyle='steps-mid')
+        axres.set_ylim(-2*RMS_OIII, 2*RMS_OIII) ## the /3 scales to the ratio
+        if residual=='rms':
+            axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
+        elif residual=='error':
+            axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
             
 def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
     
