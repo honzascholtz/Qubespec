@@ -45,12 +45,12 @@ def gauss(x, k, mu,sig):
     
     return y
 
-from Halpha_models import *
-from OIII_models import *
-from Halpha_OIII_models import *
-from QSO_models import *
+from . import OIII_models
+from . import Halpha_OIII_models
+from . import QSO_models
+from . import Halpha_models
 import numba
-import Support as sp
+from . import Support as sp
 
 
 class Fitting:
