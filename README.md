@@ -1,12 +1,14 @@
-Data analysis pipeline to analyze data from VLT/KMOS, VLT/SINFONI and soon JWST/NIRSPEC to map emission lines in AGN and incactive host galaxies, create flux and kinematic maps as well as modelling outflows in Halpha and [OIII].
+QubeSpec is a simple but powerful python package to fit optical astronomical spectra and more importantly analysing IFS cube from JWST/NIRSpec, JWST/MIRI, VLT/KMOS and VLT/SINFONI. The code has built models for fitting Halpha, [OIII], Hbeta, [SII] and [NII] of galaxies, galaxies with outflows, Type-1 AGN and Quasars.
 
-Code in IFU_tools_class is the main body of the code and example to run it is in cubes_prep.py
 
-Graph_setup sets up matplotlib to make plots that Dave and Chris like.
+Installation procedure: 
 
-WHEN UPDATING THE FITTING_TOOLS_MCMC.PY PLEASE EDIT 35 TO POINT THE CODE TO THE CORRECT LOCATION OF THE FeII TEMPLATES.
+You can see the documentation here:
+https://www.overleaf.com/read/vkpmctpzdhsc
 
 CHANGELOG:
+
+6/3/23 - Making the code pip installable, adding the option for custom fitting functions.
 
 10/10/22 -  i) Implementation of Hbeta velocity offset compared to [OIII] emission line.
             ii) Implementation of changing boundaries and initial conditions using a dictionary called priors.
