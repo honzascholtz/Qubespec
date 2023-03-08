@@ -666,7 +666,7 @@ class Fitting:
 
         
         
-    def fitting_general(self, fitted_model, labels, logprior, nwalkers=64, N = 6000):
+    def fitting_general(self, fitted_model, labels, logprior, nwalkers=64):
         self.labels= labels
         self.log_prior_fce = logprior_general
         self.fitted_model = fitted_model
@@ -708,7 +708,7 @@ class Fitting:
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
         
-        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
+        #self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
 
        
 
