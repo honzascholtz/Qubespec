@@ -2211,9 +2211,9 @@ class Cube:
                 continue
 
             if 'outflow_vel' in lists:
-                fitted_model = emfit.OIII_outflow
+                fitted_model = emfit.O_models.OIII_outflow
             else:
-                fitted_model = emfit.OIII
+                fitted_model = emfit.O_models.OIII
             z = res_spx['popt'][0]
             SNR = sp.SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
             map_snr[i,j]= SNR
@@ -2363,7 +2363,7 @@ class Cube:
                 map_nii[i,j] = sp.flux_calc(res_spx, 'NIIt', self.flux_norm)
 
 
-            emplot.plotting_Halpha(self.obs_wave, flx_spax_m, ax, res_spx, emfit.Halpha, error=error)
+            emplot.plotting_Halpha(self.obs_wave, flx_spax_m, ax, res_spx, emfit.H_models.Halpha, error=error)
             ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
 
             if res_spx['Hal_peak'][0]<3*error[0]:
