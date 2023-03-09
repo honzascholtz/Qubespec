@@ -2130,7 +2130,38 @@ class Cube:
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-
+    def Spaxel_fitting_general_MCMC_mp(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2),):
+        import pickle
+        start_time = time.time()
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        data= {'priors':priors}
+        data['fitted_model'] = fitted_model
+        data['labels'] = labels
+        data['logprior'] = logprior
+        data['nwalkers'] = nwalkers
+        data['use'] = use
+        data['N'] = N
+        
+        with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
+            pickle.dump( priors,fp)     
+        
+        if Ncores<1:
+            Ncores=1
+        
+        with Pool(Ncores) as pool:
+            cube_res =pool.map(emfit.Fitting_general_unwrap, Unwrapped_cube)
+        
+        self.spaxel_fit_raw = cube_res
+        
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+        
     def Map_creation_OIII(self,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',):
         z0 = self.z
         failed_fits=0

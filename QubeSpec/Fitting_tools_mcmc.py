@@ -797,7 +797,7 @@ def Fitting_OIII_unwrap(lst):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     
-    Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
     Fits_sig.fitting_OIII(model='gal')
     
     cube_res  = [i,j,Fits_sig.props]       
@@ -810,7 +810,7 @@ def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         
         cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
@@ -825,7 +825,7 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='BLR' )
         
         cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
@@ -843,10 +843,10 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        Fits_sig = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         
-        Fits_out = emfit.Fitting(wave, flux, error, z,N=10000,progress=progress, priors=priors)
+        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_out.fitting_Halpha_OIII(model='outflow' )
         
         
@@ -873,10 +873,10 @@ def Fitting_OIII_2G_unwrap(lst, priors):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
         Fits_sig.fitting_OIII(model='gal')
         
-        Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
         Fits_out.fitting_OIII(model='outflow')
         
         BIC_sig = Fits_sig.BIC
@@ -907,28 +907,31 @@ def Fitting_Halpha_unwrap(lst):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     
-    Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
     Fits_sig.fitting_Halpa(model='BLR')
     
     cube_res  = [i,j,Fits_sig.props]
     
     return cube_res
     
-def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
+def Fitting_general_unwrap(lst, progress=False):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         data= pickle.load(fp) 
+    
+    i,j,flx_spax_m, error, wave, z = lst
+    use = data['use'] 
 
     if len(use)==0:
         use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
-    i,j,flx_spax_m, error, wave, z = lst
+    
     
     try:
-        Fits_sig = emfit.Fitting(wave[use], flux[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
+        Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
         
-        fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
+        Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
         
-        BIC_sig = Fits_sig.BIC
+        #BIC_sig = Fits_sig.BIC
         
         
         fitted_model = Fits_sig.fitted_model
