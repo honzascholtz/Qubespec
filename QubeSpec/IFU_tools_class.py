@@ -2536,11 +2536,11 @@ class Cube:
         # =============================================================================
 
 
-        import Plotting_tools_v2 as emplot
+        from . import Plotting_tools_v2 as emplot
 
         Spax = PdfPages(self.savepath+self.ID+'_Spaxel_Halpha_OIII_fit_detection_only.pdf')
 
-
+        from . import Halpha_OIII_models as HO_models
         for row in tqdm.tqdm(range(len(results))):
 
             try:
@@ -2555,13 +2555,15 @@ class Cube:
                 continue
 
             z = res_spx['popt'][0]
-
+        
+            
+        
             if 'zBLR' in lists:
-                modelfce = Halpha_OIII_BLR
+                modelfce = HO_models.Halpha_OIII_BLR
             elif 'outflow_vel' not in lists:
-                modelfce = Halpha_OIII
+                modelfce = HO_models.Halpha_OIII
             elif 'outflow_vel' in lists and 'zBLR' not in lists:
-                modelfce = Halpha_OIII_outflow
+                modelfce = HO_models.Halpha_OIII_outflow
 
 # =============================================================================
 #             Halpha

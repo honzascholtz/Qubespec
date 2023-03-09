@@ -526,12 +526,11 @@ def flux_calc(res, mode, norm=1e-13):
         
     return Flux
 
-def flux_calc_mcmc(res,chains, mode, norm=1e-13):
+def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=100):
     
     labels = list(chains.keys())
 
     popt = np.zeros_like(res['popt'])
-    N=100
     Fluxes = []
     res_new = {'name': res['name']}
     for j in range(N):
@@ -958,4 +957,9 @@ def W80_NII_calc_single( function, sol, plot, z=0):
            
     return v10,v90, w80, v50
 
-    
+
+def flux_to_lum(flux,redshift):
+    from astropy.cosmology import WMAP9 as cosmo
+    import astropy.units as u 
+    lum = (flux*u.erg/u.s/u.cm**2) * 4*np.pi*(cosmo.luminosity_distance(redshift))**2  
+    return lum.to(u.erg/u.s)
