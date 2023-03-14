@@ -2248,8 +2248,8 @@ class Cube:
         arc_per_pix = deg_per_pix*3600
 
 
-        Offsets_low = -self.center_data[1:3]
-        Offsets_hig = self.dim[0:2] - self.center_data[1:3]
+        Offsets_low = -self.center_data[1:3][::-1]
+        Offsets_hig = self.dim[0:2] - self.center_data[1:3][::-1]
 
         lim = np.array([ Offsets_low[0], Offsets_hig[0],
                          Offsets_low[1], Offsets_hig[1] ])
@@ -2391,8 +2391,8 @@ class Cube:
         arc_per_pix = deg_per_pix*3600
 
 
-        Offsets_low = -self.center_data[1:3]
-        Offsets_hig = self.dim[0:2] - self.center_data[1:3]
+        Offsets_low = -self.center_data[1:3][::-1]
+        Offsets_hig = self.dim[0:2] - self.center_data[1:3][::-1]
 
         lim = np.array([ Offsets_low[0], Offsets_hig[0],
                          Offsets_low[1], Offsets_hig[1] ])
@@ -2753,8 +2753,8 @@ class Cube:
         deg_per_pix = IFU_header['CDELT2']
         arc_per_pix = deg_per_pix*3600
 
-        Offsets_low = -self.center_data[1:3]
-        Offsets_hig = self.dim[0:2] - self.center_data[1:3]
+        Offsets_low = -self.center_data[1:3][::-1]
+        Offsets_hig = self.dim[0:2] - self.center_data[1:3][::-1]
 
         lim = np.array([ Offsets_low[0], Offsets_hig[0],
                          Offsets_low[1], Offsets_hig[1] ])
