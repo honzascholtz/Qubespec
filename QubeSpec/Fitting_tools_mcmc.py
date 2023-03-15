@@ -675,7 +675,8 @@ class Fitting:
             self.priors['z'][2]=self.z
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.waves = self.wave[np.invert(self.fluxs.mask)]
+        self.errors = self.error[np.invert(self.fluxs.mask)]
         
         self.pr_code = prior_create(self.labels, self.priors)
        
@@ -692,10 +693,10 @@ class Fitting:
                 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
-            
+        
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(
-        nwalkers, ndim, log_probability_general, args=(self.wave, self.flux, self.error,self.pr_code, self.fitted_model, self.log_prior_fce)) 
+        nwalkers, ndim, log_probability_general, args=(self.waves, self.flux, self.errors,self.pr_code, self.fitted_model, self.log_prior_fce)) 
         sampler.run_mcmc(pos, self.N, progress=self.progress);
             
         flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
