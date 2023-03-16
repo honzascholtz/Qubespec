@@ -854,7 +854,7 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
         BIC_sig = Fits_sig.BIC
         BIC_out = Fits_out.BIC
         
-        if (BIC_sig[1]-BIC_out[1])>5:
+        if (BIC_sig-BIC_out)>5:
             fitted_model = Fits_out.fitted_model
             flat_samples = Fits_out.chains
         else:
