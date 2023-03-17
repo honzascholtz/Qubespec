@@ -918,9 +918,10 @@ def Fitting_Halpha_unwrap(lst):
 def Fitting_general_unwrap(lst, progress=False):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         data= pickle.load(fp) 
-    
+
     i,j,flx_spax_m, error, wave, z = lst
     use = data['use'] 
+    
 
     if len(use)==0:
         use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
@@ -929,19 +930,22 @@ def Fitting_general_unwrap(lst, progress=False):
     
     try:
         Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
-        
         Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
-        
-        #BIC_sig = Fits_sig.BIC
-        
-        
+       
         fitted_model = Fits_sig.fitted_model
         flat_samples = Fits_sig.chains
+        
             
         cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
+    '''
+    f,ax = plt.subplots(1)
+    
+    from .Plotting_tools_v2 import plotting_OIII as ploto
+    ploto(wave, flx_spax_m,ax, sp.prop_calc(flat_samples),fitted_model)
+    '''
     return cube_res
 
 

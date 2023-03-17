@@ -24,7 +24,9 @@ import os
 from astropy import stats
 
 import multiprocessing as mp
-from multiprocessing import Pool
+
+from multiprocess import Pool
+
 from astropy.modeling.powerlaws import PowerLaw1D
 
 from brokenaxes import brokenaxes
@@ -2146,14 +2148,17 @@ class Cube:
         data['use'] = use
         data['N'] = N
         
+        
         with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
-            pickle.dump( priors,fp)     
+            pickle.dump(data,fp)     
         
         if Ncores<1:
             Ncores=1
         
         with Pool(Ncores) as pool:
             cube_res =pool.map(emfit.Fitting_general_unwrap, Unwrapped_cube)
+        
+        #cube_res = emfit.Fitting_general_unwrap( Unwrapped_cube[2], progress=True)
         
         self.spaxel_fit_raw = cube_res
         

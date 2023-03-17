@@ -34,6 +34,7 @@ setup(name='QubeSpec',
         'brokenaxes>=0.5.0',
         'corner>=2.2.1',
         'scipy>=1.9.1',
+        'multiprocess',
       ],
       python_requires='>=3.8.0',
       #entry_points={
