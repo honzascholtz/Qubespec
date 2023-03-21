@@ -2008,7 +2008,7 @@ class Cube:
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
-    def Spaxel_fitting_OIII_2G_MCMC_mp(self, Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
+    def Spaxel_fitting_OIII_2G_MCMC_mp(self,add='', Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
                                                                     'cont_grad':[0,-0.01,0.01], \
                                                                     'OIII_peak':[0,-3,1],\
                                                                     'OIII_out_peak':[0,-3,1],\
@@ -2024,7 +2024,7 @@ class Cube:
                                                                     'Fe_peak':[0,-3,2],\
                                                                     'Fe_fwhm':[3000,2000,6000]}):
         import pickle
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)
 
         with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
@@ -2041,7 +2041,7 @@ class Cube:
 
         self.spaxel_fit_raw = cube_res
 
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G.txt', "wb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
     def Spaxel_fitting_Halpha_MCMC_mp(self, add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-3,1],\
@@ -2174,7 +2174,7 @@ class Cube:
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G.txt', "rb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G'+add+'.txt', "rb") as fp:
             results= pickle.load(fp)
 
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -2183,22 +2183,16 @@ class Cube:
         # =============================================================================
         #         Setting up the maps
         # =============================================================================
-        map_vel = np.zeros(self.dim[:2])
-        map_vel[:,:] = np.nan
+        map_oiii = np.zeros((4,self.dim[0], self.dim[1]))
+        map_oiii[:,:,:] = np.nan
 
-        map_fwhm = np.zeros(self.dim[:2])
-        map_fwhm[:,:] = np.nan
-
-        map_flux = np.zeros(self.dim[:2])
-        map_flux[:,:] = np.nan
-
-        map_snr = np.zeros(self.dim[:2])
-        map_snr[:,:] = np.nan
+        map_oiii_ki = np.zeros((5,self.dim[0], self.dim[1]))
+        map_oiii_ki[:,:,:] = np.nan
         # =============================================================================
         #        Filling these maps
         # =============================================================================
         f,ax= plt.subplots(1)
-        import Plotting_tools_v2 as emplot
+        from . import Plotting_tools_v2 as emplot
 
         Spax = PdfPages(self.savepath+self.ID+'_Spaxel_OIII_fit_detection_only.pdf')
 
@@ -2217,30 +2211,49 @@ class Cube:
 
             if 'outflow_vel' in lists:
                 fitted_model = emfit.O_models.OIII_outflow
+                
             else:
                 fitted_model = emfit.O_models.OIII
+                
+            
             z = res_spx['popt'][0]
             SNR = sp.SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
-            map_snr[i,j]= SNR
+            flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(res_spx, chains, 'OIIIt', self.flux_norm)
+
+            map_oiii[0,i,j]= SNR
+
             if SNR>SNR_cut:
+                map_oiii[1,i,j] = flux_oiii.copy()
+                map_oiii[2,i,j] = p16_oiii.copy()
+                map_oiii[3,i,j] = p84_oiii.copy()
 
-                map_vel[i,j] = ((5008.24*(1+z)/1e4)-wvo3)/wvo3*3e5
-                map_fwhm[i,j] = sp.W80_OIII_calc_single(fitted_model, res_spx, 0)[2]#res_spx['Nar_fwhm'][0]
-                map_flux[i,j] = sp.flux_calc(res_spx, 'OIIIt',self.flux_norm)
+
+                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc_single(fitted_model, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0]
+
+                p = ax.get_ylim()[1]
+
+                ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(map_oiii_ki[1,i,j],2)) )
+            else:
 
 
-                emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, fitted_model)
+                dl = self.obs_wave[1]-self.obs_wave[0]
+                n = width_upper/3e5*(5008.24*(1+self.z)/1e4)/dl
+                map_oiii[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
+                
+
+            
+            if SNR>SNR_cut:
+                try:
+                    emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, fitted_model)
+                except:
+                    print(res_spx, fitted_model)
+                    break
                 ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
                 plt.tight_layout()
                 Spax.savefig()
                 ax.clear()
 
         Spax.close()
-
-        self.Flux_map = map_flux
-        self.Vel_map = map_vel
-        self.FWHM_map = map_fwhm
-        self.SNR_map = map_snr
 
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -2266,7 +2279,7 @@ class Cube:
         ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
         ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
 
-        flx = ax1.imshow(map_flux,vmax=map_flux[y,x], origin='lower', extent= lim_sc)
+        flx = ax1.imshow(map_oiii[1,:,:],vmax=map_oiii[1,y,x], origin='lower', extent= lim_sc)
         ax1.set_title('Flux map')
         divider = make_axes_locatable(ax1)
         cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -2276,20 +2289,20 @@ class Cube:
         #emplot.overide_axes_labels(f, axes[0,0], lims)
 
 
-        vel = ax2.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200, extent= lim_sc)
-        ax2.set_title('Velocity offset map')
+        vel = ax2.imshow(map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
+        ax2.set_title('v50')
         divider = make_axes_locatable(ax2)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(vel, cax=cax, orientation='vertical')
 
 
-        fw = ax3.imshow(map_fwhm,vmin=100, origin='lower', extent= lim_sc)
-        ax3.set_title('FWHM map')
+        fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+        ax3.set_title('W80 map')
         divider = make_axes_locatable(ax3)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         f.colorbar(fw, cax=cax, orientation='vertical')
 
-        snr = ax4.imshow(map_snr,vmin=3, vmax=20, origin='lower', extent= lim_sc)
+        snr = ax4.imshow(map_oiii[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
         ax4.set_title('SNR map')
         divider = make_axes_locatable(ax4)
         cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -2299,16 +2312,14 @@ class Cube:
         hdr['X_cent'] = x
         hdr['Y_cent'] = y
 
-        Line_info = np.zeros((4,self.dim[0],self.dim[1]))
-        Line_info[0,:,:] = map_flux
-        Line_info[1,:,:] = map_vel
-        Line_info[2,:,:] = map_fwhm
-        Line_info[3,:,:] = map_snr
 
-        prhdr = hdr
-        hdu = fits.PrimaryHDU(Line_info, header=prhdr)
-        hdulist = fits.HDUList([hdu])
 
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        
+        oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
+        oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
+
+        hdulist = fits.HDUList([primary_hdu,oiii_hdu,oiii_kin_hdu ])
 
         hdulist.writeto(self.savepath+self.ID+'_OIII_fits_maps_2G.fits', overwrite=True)
 

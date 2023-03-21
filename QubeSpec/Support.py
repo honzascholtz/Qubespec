@@ -678,7 +678,7 @@ def W80_OIII_calc( function, sol, chains, plot):
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
 
 
-def W80_OIII_calc_single( function, sol, plot, z=0):
+def W80_OIII_calc_single( function, sol, plot, z=0, peak=0):
     popt = sol['popt']  
     
     if z==0:
@@ -699,16 +699,30 @@ def W80_OIII_calc_single( function, sol, plot, z=0):
     
     fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
     peakn = sol['OIII_peak'][0]
-    if 'outflow_fwhm' in sol:  
+    if 'out_vel_n2' in sol:  
+        fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        OIIIrws = OIIIr + sol['outflow_vel'][0]/3e5*OIIIr
+        peakw = sol['OIII_out_peak'][0]
+        
+        peakn2 = sol['OIIIn2_peak'][0]
+        out_vel_wv_n2 = sol['out_vel_n2'][0]/3e5*OIIIr
+        fwhmn2 = sol['OIII_fwhm_n2'][0]/3e5/2.35*OIIIr
+        
+        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws) + gauss(wvs, peakn2, OIIIr +out_vel_wv_n2, fwhmn2)
+    
+    elif 'outflow_fwhm' in sol:  
         fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
         OIIIrws = OIIIr + sol['outflow_vel'][0]/3e5*OIIIr
         peakw = sol['OIII_out_peak'][0]
         y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
+    
     else:
         y = gauss(wvs, peakn,OIIIr, fwhms) 
         
+      
+    peak_wv = wvs[np.argmax(y)]
+    peak_vel = (peak_wv-cent)/cent*3e5
         
-         
     Int = np.zeros(Ni-1)
 
     for j in range(Ni-1):
@@ -729,8 +743,11 @@ def W80_OIII_calc_single( function, sol, plot, z=0):
     if plot==1:
         plt.figure()
         plt.plot(wvs, y)
-           
-    return v10,v90, w80, v50
+    
+    if peak==0:
+        return v10,v90, w80, v50
+    else:
+        return v10,v90, w80, v50, peak_vel
 
 
 
