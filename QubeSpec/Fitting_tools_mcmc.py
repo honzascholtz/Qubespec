@@ -148,7 +148,7 @@ class Fitting:
             self.pr_code = prior_create(self.labels, self.priors)
             
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
-            print(pos_l)
+            
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
             
@@ -909,7 +909,7 @@ def Fitting_Halpha_unwrap(lst):
     deltaz = deltav/3e5*(1+z)
     
     Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-    Fits_sig.fitting_Halpa(model='BLR')
+    Fits_sig.fitting_Halpha(model='gal')
     
     cube_res  = [i,j,Fits_sig.props]
     

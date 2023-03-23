@@ -100,7 +100,7 @@ def log_prior_Halpha_OIII(theta, priors):
     z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, OIIIn_peak, Hbeta_peak, OI_peak = theta
 
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)) | \
-        (SII_rpk > Hal_peak) | (SII_bpk> Hal_peak) | (OI_peak> OIIIn_peak):
+        (SII_rpk > Hal_peak) | (SII_bpk> Hal_peak) | (OI_peak> OIIIn_peak) :
         return -np.inf
 
     results = 0.
@@ -186,7 +186,7 @@ def log_prior_Halpha_OIII_outflow(theta, priors):
                             Hal_out_peak, NII_out_peak, OIII_out_peak, OI_out_peak, Hbeta_out_peak = theta
 
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35))|\
-        (SII_rpk > Hal_peak) | (SII_bpk> Hal_peak)| (OI_peak> OIIIn_peak): # | (OIIIn_peak<OIII_out_peak)
+        (SII_rpk > Hal_peak) | (SII_bpk> Hal_peak)| (OI_peak> OIIIn_peak):
         return -np.inf
 
     results = 0.

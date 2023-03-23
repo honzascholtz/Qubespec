@@ -2358,7 +2358,7 @@ class Cube:
         #        Filling these maps
         # =============================================================================
         gf,ax= plt.subplots(1)
-        import Plotting_tools_v2 as emplot
+        from . import Plotting_tools_v2 as emplot
 
         Spax = PdfPages(self.savepath+self.ID+'_Spaxel_Halpha_fit_detection_only.pdf')
 
@@ -2985,7 +2985,7 @@ class Cube:
         Av_hdu = fits.ImageHDU(Av, name='Av')
 
         hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
-        hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps.fits', overwrite=True)
+        hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
 
         return f
 
