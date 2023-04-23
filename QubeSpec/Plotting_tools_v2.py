@@ -191,7 +191,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
 
     if ('zBLR' in keys):
         if 'BLR_alp1' in keys:
-            from QSO_models import BKPLG
+            from .QSO_models import BKPLG
             from astropy.modeling.powerlaws import BrokenPowerLaw1D
             from astropy.convolution import Gaussian1DKernel
             from astropy.convolution import convolve
@@ -301,12 +301,12 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
         ax.plot(wv_rest[fit_loc], NII_out_b, color='magenta', linestyle='dashed')
 
     if 'BLR_alp1' in keys:
-        from QSO_models import BKPLG
+        from .QSO_models import BKPLG
         from astropy.modeling.powerlaws import BrokenPowerLaw1D
         from astropy.convolution import Gaussian1DKernel
         from astropy.convolution import convolve
 
-        Ha_BLR_vel_wv = sol['BLR_vel'][0]/3e5*Hal_wv
+        Ha_BLR_vel_wv = 6563*(1+sol['zBLR'][0])/1e4
 
         Ha_BLR_wv = Hal_wv+Ha_BLR_vel_wv
         Ha_BLR = BKPLG(wave[fit_loc], sol['BLR_Hal_peak'][0], Ha_BLR_wv, sol['BLR_sig'][0], sol['BLR_alp1'][0], sol['BLR_alp2'][0])

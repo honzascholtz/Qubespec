@@ -112,7 +112,7 @@ class Fitting:
         self.wave = self.wave[np.invert(self.fluxs.mask)]
         
         fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
-           
+        
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
         
         self.flux_zoom = self.flux[sel]
@@ -189,17 +189,16 @@ class Fitting:
                               self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], \
                               peak, self.priors['zBLR'][0], self.priors['BLR_alp1'][0], self.priors['BLR_alp2'][0],self.priors['BLR_sig'][0], \
                               ])
+            
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0]    
-            
-            
             
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
             
             self.pr_code = prior_create(self.labels, self.priors)
             
-            self.fitted_self.model = QSO_models.Hal_QSO_BKPL
+            self.fitted_model = QSO_models.Hal_QSO_BKPL
             self.log_prior_fce = logprior_general
             
             self.res = {'name': 'Halpha_QSO_BKPL'}
@@ -406,7 +405,7 @@ class Fitting:
             
             self.pr_code = prior_create(self.labels, self.priors)
             self.fitted_model = QSO_models.OIII_QSO_BKPL
-            self.log_prior_fce = QSO_models.logprior_general
+            self.log_prior_fce = logprior_general
              
             self.res = {'name': 'OIII_QSO_BKP'}
             
