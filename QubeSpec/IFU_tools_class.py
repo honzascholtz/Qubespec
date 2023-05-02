@@ -2005,7 +2005,7 @@ class Cube:
 
         self.spaxel_fit_raw = cube_res
 
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw.txt', "wb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
     def Spaxel_fitting_OIII_2G_MCMC_mp(self,add='', Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
@@ -2174,8 +2174,12 @@ class Cube:
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G'+add+'.txt', "rb") as fp:
-            results= pickle.load(fp)
+        try:
+            with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G'+add+'.txt', "rb") as fp:
+                results= pickle.load(fp)
+        except:
+            with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII'+add+'.txt', "rb") as fp:
+                results= pickle.load(fp)
 
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
             Unwrapped_cube= pickle.load(fp)

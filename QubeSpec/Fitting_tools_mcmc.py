@@ -800,7 +800,7 @@ def Fitting_OIII_unwrap(lst):
     Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
     Fits_sig.fitting_OIII(model='gal')
     
-    cube_res  = [i,j,Fits_sig.props]       
+    cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
                  
     return cube_res
 
