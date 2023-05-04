@@ -696,7 +696,7 @@ def overide_axes_labels(fig,ax,lims,showx=1,showy=1,labelx=1,labely=1,color='k',
         #newax.xaxis.set_minor_locator(MultipleLocator(3))
         #newax.yaxis.set_minor_locator(MultipleLocator(3))
 
-def OIII_map_plotting(ID, path):
+def OIII_map_plotting(ID, path, fwhmrange = [300,500], velrange=[-400,100], flux_max=0):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
@@ -713,7 +713,10 @@ def OIII_map_plotting(ID, path):
     x = int(IFU_header['X_cent']); y= int(IFU_header['Y_cent'])
     f = plt.figure( figsize=(10,10))
 
-
+    if flux_max==0:
+        flx_max = map_oiii[1,y,x]
+    else:
+        flx_max = flux_max
 
     deg_per_pix = IFU_header['CDELT2']
     arc_per_pix = deg_per_pix*3600
@@ -732,7 +735,7 @@ def OIII_map_plotting(ID, path):
     ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
     ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
 
-    flx = ax1.imshow(map_oiii[1],vmax=map_oiii[1][y,x], origin='lower', extent= lim_sc)
+    flx = ax1.imshow(map_oiii[1],vmax=flux_max, origin='lower', extent= lim_sc)
     ax1.set_title('Flux map')
     divider = make_axes_locatable(ax1)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -742,14 +745,14 @@ def OIII_map_plotting(ID, path):
     #emplot.overide_axes_labels(f, axes[0,0], lims)
 
 
-    vel = ax2.imshow( map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=-200, vmax=200, extent= lim_sc)
+    vel = ax2.imshow( map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
     ax2.set_title('Velocity offset map')
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(vel, cax=cax, orientation='vertical')
 
 
-    fw = ax3.imshow( map_oiii_ki[1,:,:],vmin=100, origin='lower', extent= lim_sc)
+    fw = ax3.imshow( map_oiii_ki[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
     ax3.set_title('FWHM map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
