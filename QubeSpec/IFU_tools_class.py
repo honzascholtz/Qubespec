@@ -1581,7 +1581,7 @@ class Cube:
         if len(use)==0:
             use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
             
-        Fits_gen = emfit.Fitting(wave[use], flux[use], error[use], z, priors=priors)
+        Fits_gen = emfit.Fitting(wave[use], flux[use], error[use], z, priors=priors, N=10000)
         Fits_gen.fitting_general(fitted_model, labels, logprior, nwalkers=nwalkers)
         
         self.D1_fit_results = Fits_gen.props
@@ -2318,7 +2318,7 @@ class Cube:
 
 
 
-        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
         
         oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
         oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')

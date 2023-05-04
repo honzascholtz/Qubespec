@@ -699,15 +699,17 @@ def overide_axes_labels(fig,ax,lims,showx=1,showy=1,labelx=1,labely=1,color='k',
 def OIII_map_plotting(ID, path):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-    IFU_header = pyfits.getheader(path)
-    data = pyfits.getdata(path)
 
-    map_flux = data[0,:,:]
-    map_vel = data[1,:,:]
-    map_fwhm = data[2,:,:]
-    map_snr = data[3,:,:]
+    with pyfits.open(path, memmap=False) as hdulist:
+        
+        #map_hb = hdulist['Hbeta'].data
+        map_oiii = hdulist['OIII'].data
+        map_oiii_ki= hdulist['OIII_kin'].data
+        
 
+        IFU_header = hdulist['PRIMARY'].header
 
+    
     x = int(IFU_header['X_cent']); y= int(IFU_header['Y_cent'])
     f = plt.figure( figsize=(10,10))
 
@@ -718,7 +720,7 @@ def OIII_map_plotting(ID, path):
 
 
     Offsets_low = -np.array([x,y])
-    Offsets_hig = np.shape(data)[1:3] -np.array([x,y])
+    Offsets_hig = np.shape(map_oiii[1])[1:3] -np.array([x,y])
 
     lim = np.array([ Offsets_low[0], Offsets_hig[0],
                      Offsets_low[1], Offsets_hig[1] ])
@@ -730,7 +732,7 @@ def OIII_map_plotting(ID, path):
     ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
     ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
 
-    flx = ax1.imshow(map_flux,vmax=map_flux[y,x], origin='lower', extent= lim_sc)
+    flx = ax1.imshow(map_oiii[1],vmax=map_oiii[1][y,x], origin='lower', extent= lim_sc)
     ax1.set_title('Flux map')
     divider = make_axes_locatable(ax1)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -740,20 +742,20 @@ def OIII_map_plotting(ID, path):
     #emplot.overide_axes_labels(f, axes[0,0], lims)
 
 
-    vel = ax2.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=-200, vmax=200, extent= lim_sc)
+    vel = ax2.imshow( map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=-200, vmax=200, extent= lim_sc)
     ax2.set_title('Velocity offset map')
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(vel, cax=cax, orientation='vertical')
 
 
-    fw = ax3.imshow(map_fwhm,vmin=100, origin='lower', extent= lim_sc)
+    fw = ax3.imshow( map_oiii_ki[1,:,:],vmin=100, origin='lower', extent= lim_sc)
     ax3.set_title('FWHM map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
 
-    snr = ax4.imshow(map_snr,vmin=3, vmax=20, origin='lower', extent= lim_sc)
+    snr = ax4.imshow(map_oiii[0],vmin=3, vmax=20, origin='lower', extent= lim_sc)
     ax4.set_title('SNR map')
     divider = make_axes_locatable(ax4)
     cax = divider.append_axes('right', size='5%', pad=0.05)
