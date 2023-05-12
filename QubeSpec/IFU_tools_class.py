@@ -1374,11 +1374,12 @@ class Cube:
             baxes_er = brokenaxes(xlims=((4700,5050),(6200,6800)),  hspace=.01)  
         else:
             baxes_er = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
+            
         
         y_tot = self.D1_fit_model(self.obs_wave, *self.D1_fit_results['popt'])
         
         baxes_er.plot(self.obs_wave/(1+self.D1_fit_results['popt'][0])*1e4, self.D1_spectrum-y_tot)
-        
+        baxes_er.set_ylim(-5*self.D1_spectrum_er[0], 5*self.D1_spectrum_er[0])
          
         self.fit_plot = [f,baxes]
         
@@ -2162,7 +2163,7 @@ class Cube:
         
         self.spaxel_fit_raw = cube_res
         
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
@@ -2786,7 +2787,7 @@ class Cube:
         else:
             flx_max = flux_max
 
-        smt=0.0000001
+        
         print(lim_sc)
 
 # =============================================================================
@@ -2992,8 +2993,126 @@ class Cube:
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
 
         return f
+    
+    def Map_creation_general(self,info, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII):
+        z0 = self.z
+        failed_fits=0
+        
+        # =============================================================================
+        #         Importing all the data necessary to post process
+        # =============================================================================
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
+            results= pickle.load(fp)
 
-    def Regional_Spec(self, center, rad, err_range=None, manual_mask=None, boundary=None):
+        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+
+        # =============================================================================
+        #         Setting up the maps
+        # =============================================================================
+
+        
+        info_keys = list(info.keys())
+        
+        for key in info_keys:
+            map_flx = np.zeros((4,self.dim[0], self.dim[1]))
+            map_flx[:,:,:] = np.nan
+                
+            info[key]['flux_map'] = map_flx
+            
+            if info[key]['kin'] ==1:
+                map_ki = np.zeros((5,self.dim[0], self.dim[1]))
+                map_ki[:,:,:] = np.nan
+
+                info[key]['kin_map'] = map_ki
+        # =============================================================================
+        #        Filling these maps
+        # =============================================================================
+
+
+        from . import Plotting_tools_v2 as emplot
+
+        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_general_fit_detection_only.pdf')
+
+        for row in tqdm.tqdm(range(len(results))):
+
+            try:
+                i,j, res_spx,chains,wave,flx_spax_m,error = results[row]
+            except:
+                i,j, res_spx,chains= results[row]
+                i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+
+            lists = list(res_spx.keys())
+            if 'Failed fit' in lists:
+                failed_fits+=1
+                continue
+
+            z = res_spx['z'][0]
+            for key in info_keys:
+                
+                SNR= sp.SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'general',\
+                                 wv_cent = info[key]['wv'],\
+                                 peak_name = key+'_peak', \
+                                     fwhm_name = info[key]['fwhm'])
+                
+                info[key]['flux_map'][0,i,j] = SNR
+                
+                if SNR>SNR_cut:
+                    flux, p16,p84 = sp.flux_calc_mcmc(res_spx, chains, 'general', self.flux_norm,\
+                                                      wv_cent = info[key]['wv'],\
+                                                      peak_name = key+'_peak', \
+                                                          fwhm_name = info[key]['fwhm'])
+                    
+                    info[key]['flux_map'][1,i,j] = flux
+                    info[key]['flux_map'][2,i,j] = p16
+                    info[key]['flux_map'][3,i,j] = p84
+                     
+            
+
+                else:
+                    dl = self.obs_wave[1]-self.obs_wave[0]
+                    n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
+                    info[key]['flux_map'][3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
+
+# =============================================================================
+#             Plotting
+# =============================================================================
+            f = plt.figure( figsize=(20,6))
+
+            ax = brokenaxes(xlims=((2.820,3.45),(3.75,4.05),(5,5.3)),  hspace=.01)
+            
+            ax.plot(self.obs_wave, flx_spax_m.data, drawstyle='steps-mid')
+            y= modelfce(self.obs_wave,*res_spx['popt'])
+            ax.plot(self.obs_wave,  y, 'r--')
+            
+            ax.set_xlabel('wavelength (um)')
+            ax.set_ylabel('Flux density')
+            
+            ax.set_ylim(-2*error[0], 1.2*max(y))
+            ax.set_title('xy='+str(j)+' '+ str(i) )
+
+
+            Spax.savefig()
+            plt.close(f)
+
+        print('Failed fits', failed_fits)
+        Spax.close()
+
+# =============================================================================
+#         Plotting maps
+# =============================================================================
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        for key in info_keys:
+            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+self.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
+
+        return f
+        
+
+    def Regional_Spec(self, center, rad, err_range=None, manual_mask=np.array([]), boundary=None):
         '''
         Extracting regional spectra to be fitted.
 
@@ -3035,13 +3154,21 @@ class Cube:
         arc = np.round(1./(header['CDELT2']*3600))
         print('Pixel scale:', arc)
         print ('radius ', arc*rad)
-
-        # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
-        for ix in range(shapes[0]):
-            for iy in range(shapes[1]):
-                dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
-                if dist< arc*rad:
-                    mask_catch[:,ix,iy] = False
+        
+        if len(manual_mask)==0:
+            # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
+            for ix in range(shapes[0]):
+                for iy in range(shapes[1]):
+                    dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
+                    if dist< arc*rad:
+                        mask_catch[:,ix,iy] = False
+        else:
+            for ix in range(shapes[0]):
+                for iy in range(shapes[1]):
+                    
+                    if manual_mask[ix,iy]==False:
+                        mask_catch[:,ix,iy] = False
+            
 
         # Loading mask of the sky lines an bad features in the spectrum
         mask_sky_1D = self.sky_clipped_1D.copy()

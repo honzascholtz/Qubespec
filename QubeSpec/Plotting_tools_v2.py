@@ -24,8 +24,6 @@ from astropy.nddata import Cutout2D
 
 from astropy.modeling.powerlaws import PowerLaw1D
 
-from . import Graph_setup as gst
-fsz = gst.graph_format()
 
 nan= float('nan')
 
@@ -794,6 +792,7 @@ def Plot_results_Halpha_OIII(file, center=[27,27], fwhmrange = [100,500], velran
                     Offsets_low[1], Offsets_hig[1] ])
 
     lim_sc = lim*arc_per_pix
+    print(lim_sc)
 
     if flux_max==0:
         flx_max = map_hal[1,y,x]
@@ -866,7 +865,7 @@ def Plot_results_Halpha_OIII(file, center=[27,27], fwhmrange = [100,500], velran
     # =============================================================================
     # [NII] flux
     axes[1,1].set_title('[NII] map')
-    fw= axes[1,1].imshow(map_nii[1,:,:] ,origin='lower', extent= lim_sc)
+    fw= axes[1,1].imshow(map_nii[1,:,:] ,vmax=flx_max,origin='lower', extent= lim_sc)
     divider = make_axes_locatable(axes[1,1])
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
@@ -886,7 +885,7 @@ def Plot_results_Halpha_OIII(file, center=[27,27], fwhmrange = [100,500], velran
     # =============================================================================
     # Hbeta flux
     axes[2,1].set_title('Hbeta map')
-    fw= axes[2,1].imshow(map_hb[1,:,:] ,origin='lower', extent= lim_sc)
+    fw= axes[2,1].imshow(map_hb[1,:,:] ,vmax=flx_max,origin='lower', extent= lim_sc)
     divider = make_axes_locatable(axes[2,1])
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
@@ -906,7 +905,7 @@ def Plot_results_Halpha_OIII(file, center=[27,27], fwhmrange = [100,500], velran
     # =============================================================================
     # [OIII] flux
     axes[3,1].set_title('[OIII] map')
-    fw= axes[3,1].imshow(map_oiii[1,:,:] ,origin='lower', extent= lim_sc)
+    fw= axes[3,1].imshow(map_oiii[1,:,:] ,vmax=flx_max,origin='lower', extent= lim_sc)
     divider = make_axes_locatable(axes[3,1])
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
