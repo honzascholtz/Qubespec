@@ -1641,7 +1641,6 @@ class Cube:
         HST and Cube centroids are in the same location.
         '''
 
-
         img=fits.getdata(img_file)
         img_wcs= wcs.WCS(img_file).celestial
         hdr=fits.getheader(img_file)
@@ -1655,7 +1654,6 @@ class Cube:
         except:
             pixscale=abs(hdr['CDELT1']*3600)
 
-
         # Loading the Catalogue coordinates - Chris sometimes uses ra and sometimes RA
         Cat = self.cat
         try:
@@ -1666,7 +1664,6 @@ class Cube:
             Ra_opt = Cat['RA']
             Dec_opt = Cat['DEC']
 
-
         # Finding the position of the Galaxy in pix scale
         opt_world= np.array([[Ra_opt,Dec_opt]])
         opt_pixcrd = img_wcs.wcs_world2pix(opt_world, 0) # WCS transform
@@ -1675,15 +1672,12 @@ class Cube:
 
         position = np.array([opt_x, opt_y])
 
-
         # Cutting out an image from the bigger image
         cutout = Cutout2D(img, position, new_size/pixscale, wcs=img_wcs,mode='partial')
 
         # Extracting the new image and the new wcs solution
         img=(cutout.data).copy()
         img_wcs=cutout.wcs
-
-
 
         # To avoid weird things on side of the stamps
         img[np.isnan(img)] = 0
@@ -1738,7 +1732,6 @@ class Cube:
         Header_cube_new['CRVAL1'] = center_global[0]
         Header_cube_new['CRVAL2'] = center_global[1]
 
-
         # Saving new coordinates and the new header
         self.HST_cent = center_global
         self.header = Header_cube_new
@@ -1763,16 +1756,13 @@ class Cube:
         y = np.linspace(0, shapes[0]-1, shapes[0])
         x, y = np.meshgrid(x, y)
 
-
         data_fit = sp.twoD_Gaussian((x,y), *popt_cube)
 
         ax.contour( data_fit.reshape(shapes[0], shapes[1]), levels=(max(data_fit)*0.68,max(data_fit)*0.98),transform= ax.get_transform(cube_wcs), colors='r')
 
         cube_wcs= wcs.WCS(Header_cube_old).celestial
 
-
         ax.contour( data_fit.reshape(shapes[0], shapes[1]), levels=(max(data_fit)*0.68,max(data_fit)*0.98),transform= ax.get_transform(cube_wcs), colors='g')
-
 
         popt = cube_center
         cube_wcs= wcs.WCS(Header_cube_new).celestial
