@@ -276,7 +276,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         
         use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0]   
         flux_l = model[use]
-        std = np.mean(error[use])
+        std = error[use]
         
         n = len(use)
         SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
@@ -291,10 +291,10 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     
     use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0] 
     flux_l = model[use]
-    std = np.mean(error[use])
+    std = error[use]
     
     n = len(use)
-    SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+    SNR = (sum(flux_l/std)/np.sqrt(n))
     if SNR < 0:
         SNR=0
     
@@ -542,18 +542,23 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
         
     return Flux
 
-def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=100, wv_cent=5008, peak_name='', fwhm_name=''):
+import random
+def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=2000, wv_cent=5008, peak_name='', fwhm_name=''):
     
     labels = list(chains.keys())
 
     popt = np.zeros_like(res['popt'])
     Fluxes = []
     res_new = {'name': res['name']}
-    for j in range(N):
+    
+    Nchain = len(chains['z'])
+    for j in np.arange(Nchain/2,Nchain,1, dtype=int):
+        #sel = random.randint(Nchain/2,N-1)
         for i in range(len(popt)): 
-            popt[i] = np.random.choice(chains[labels[i+1]],1)
             
+            popt[i] = chains[labels[i+1]][j]
             res_new[labels[i+1]] = [popt[i], 0,0 ]
+        
         res_new['popt'] = popt
         Fluxes.append(flux_calc(res_new, mode,norm, wv_cent=wv_cent, peak_name=peak_name, fwhm_name=fwhm_name))
     
@@ -996,3 +1001,4 @@ def flux_to_lum(flux,redshift):
     import astropy.units as u 
     lum = (flux*u.erg/u.s/u.cm**2) * 4*np.pi*(cosmo.luminosity_distance(redshift))**2  
     return lum.to(u.erg/u.s)
+

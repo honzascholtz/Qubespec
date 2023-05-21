@@ -636,74 +636,43 @@ class Cube:
         flux = np.ma.array(data=self.flux.data, mask= total_mask)
 
         D1_spectra = np.ma.sum(flux, axis=(1,2))
-        self.D1_spectrum = np.ma.array(data = D1_spectra.data, mask=mask_sky_1D)
+        D1_spectra = np.ma.array(data = D1_spectra.data, mask=mask_sky_1D)
+
+        wave= self.obs_wave
 
         if plot==1:
             plt.figure()
             plt.title('Collapsed 1D spectrum from D1_spectra_collapse fce')
 
-            plt.plot(self.obs_wave, D1_spectra.data, drawstyle='steps-mid', color='grey')
-            plt.plot(self.obs_wave, np.ma.array(data= D1_spectra, mask=self.sky_clipped_1D), drawstyle='steps-mid')
+            plt.plot(wave, D1_spectra.data, drawstyle='steps-mid', color='grey')
+            plt.plot(wave, np.ma.array(data= D1_spectra, mask=self.sky_clipped_1D), drawstyle='steps-mid')
+
 
             plt.ylabel('Flux')
             plt.xlabel('Observed wavelength')
-               
-        self.D1_spectrum_var = np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))
 
-        if self.instrument =='NIRSPEC_IFU':
-            print('NIRSPEC mode of error calc')
-            D1_spectrum_var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2)))
 
-            if len(err_range)==2:
-                error = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                
-                average_var = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                self.D1_spectrum_er = D1_spectrum_var_er/(error/average_var)
+        self.D1_spectrum = D1_spectra
 
-            elif len(err_range)==4:
-                error1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[1]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[2])],sigma=3)[2]
-                
-                average_var1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                average_var2 = stats.sigma_clipped_stats(D1_spectra[(err_range[2]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[3])],sigma=3)[1]
-                
-                error = np.zeros(len(D1_spectra))
-                error[self.obs_wave<boundary] = D1_spectrum_var_er[self.obs_wave<boundary]/(error1/average_var1)
-                error[self.obs_wave>boundary] = D1_spectrum_var_er[self.obs_wave>boundary]/(error2/average_var2)
-                self.D1_spectrum_er = error
-            else:
-                error = stats.sigma_clipped_stats(D1_spectra,sigma=3)[2]
-                
-                average_var = stats.sigma_clipped_stats(D1_spectra,sigma=3)[1]
-                self.D1_spectrum_er = D1_spectrum_var_er/(error/average_var)
-            
-            self.D1_spectrum_er[self.D1_spectrum_er==0] = np.mean(self.D1_spectrum_er)*5
+        if len(err_range)==2:
+            error = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
+                                                         &(self.obs_wave<err_range[1])],sigma=3)[2] \
+                                                    *np.ones(len(D1_spectra))
+            self.D1_spectrum_er = error
+
+        elif len(err_range)==4:
+            error1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
+                                                         &(self.obs_wave<err_range[1])],sigma=3)[2]
+            error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[1]<self.obs_wave) \
+                                                         &(self.obs_wave<err_range[2])],sigma=3)[2]
+
+            error = np.zeros(len(D1_spectra))
+            error[self.obs_wave<boundary] = error1
+            error[self.obs_wave>boundary] = error2
+
+            self.D1_spectrum_er = error
         else:
-            print('Other mode of error calc')
-            if len(err_range)==2:
-                error = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2] \
-                                                        *np.ones(len(D1_spectra))
-                self.D1_spectrum_er = error
-
-            elif len(err_range)==4:
-                error1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[2]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[3])],sigma=3)[2]
-                
-                error = np.zeros(len(D1_spectra))
-                error[self.obs_wave<boundary] = error1
-                error[self.obs_wave>boundary] = error2
-                self.D1_spectrum_er = error
-            else:
-                self.D1_spectrum_er = stats.sigma_clipped_stats(self.D1_spectra,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+            self.D1_spectrum_er = stats.sigma_clipped_stats(self.D1_spectra,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
 
         if self.ID =='cdfs_220':
             self.D1_spectrum_er = 0.05*np.ones(len(self.D1_spectrum))
@@ -713,11 +682,15 @@ class Cube:
         if self.ID =='cdfs_584':
             self.D1_spectrum_er = 0.02*np.ones(len(self.D1_spectrum))
 
+
         Save_spec = np.zeros((4,len(D1_spectra)))
-        Save_spec[0,:] = self.obs_wave
+
+        Save_spec[0,:] = wave
         Save_spec[1,:] = self.D1_spectrum
         Save_spec[2,:] = self.D1_spectrum_er.copy()
         Save_spec[3,:] = mask_sky_1D
+
+
 
         np.savetxt(self.savepath+self.ID+'_'+self.band+addsave+'_1Dspectrum.txt', Save_spec)
 
@@ -1103,7 +1076,7 @@ class Cube:
                 self.dBIC = Fits_blr.BIC-Fits_sig.BIC
                 
             '''This is for KASHz only!
-            
+            '''
             if (self.ID=='cid_111') | (self.ID=='xuds_254') | (self.ID=='xuds_379') | (self.ID=='xuds_235') | (self.ID=='sxds_620')\
                 | (self.ID=='cdfs_751') | (self.ID=='cdfs_704') | (self.ID=='cdfs_757') | (self.ID=='sxds_787') | (self.ID=='sxds_1093')\
                     | (self.ID=='xuds_186') | (self.ID=='cid_1445') | (self.ID=='cdfs_38')| (self.ID=='cdfs_485')\
@@ -1130,7 +1103,7 @@ class Cube:
                  self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
                  self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                  self.dBIC = BICM-BICS
-            '''       
+                 
         elif models=='Outflow':
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
             Fits_sig.fitting_Halpha(model='gal')
@@ -1474,7 +1447,7 @@ class Cube:
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
-            '''
+             
             if (ID=='cdfs_751') | (ID=='cid_40') | (ID=='xuds_068') | (ID=='cdfs_51') | (ID=='cdfs_614')\
                 | (ID=='xuds_190') | (ID=='cdfs_979') | (ID=='cdfs_301')| (ID=='cid_453') | (ID=='cid_61') | (ID=='cdfs_254')  | (ID=='cdfs_427'):
                     
@@ -1498,7 +1471,7 @@ class Cube:
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = BICM-BICS
-            '''
+            
             g, (ax1a,ax2a) = plt.subplots(2)
             emplot.plotting_OIII(wave, flux, ax1a, Fits_sig.props , Fits_sig.fitted_model)
             emplot.plotting_OIII(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
@@ -1965,34 +1938,21 @@ class Cube:
 
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
                         flx_spax_m = np.ma.array(data = flx_spax.data, mask=self.sky_clipped_1D)
-                        nspaxel= np.sum(np.logical_not(total_mask[22,:,:]))
-                        Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))/nspaxel)
 
                         if len(err_range)==2:
-
                             error = stats.sigma_clipped_stats(flx_spax_m[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                
-                            average_var = stats.sigma_clipped_stats(Var_er[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                            error = Var_er/(error/average_var)
+                                                                         &(self.obs_wave<err_range[1])],sigma=3)[2] \
+                                                                    *np.ones(len(flx_spax_m))
 
                         elif len(err_range)==4:
                             error1 = stats.sigma_clipped_stats(flx_spax_m[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
+                                                                         &(self.obs_wave<err_range[1])],sigma=3)[2]
                             error2 = stats.sigma_clipped_stats(flx_spax_m[(err_range[1]<self.obs_wave) \
-                                                                        &(self.obs_wave<err_range[2])],sigma=3)[2]
-                            
-                            average_var1 = stats.sigma_clipped_stats(Var_er[(err_range[0]<self.obs_wave) \
-                                                                        &(self.obs_wave<err_range[1])],sigma=3)[1]
-                            average_var2 = stats.sigma_clipped_stats(Var_er[(err_range[2]<self.obs_wave) \
-                                                                        &(self.obs_wave<err_range[3])],sigma=3)[1]
-                            
+                                                                         &(self.obs_wave<err_range[2])],sigma=3)[2]
+
                             error = np.zeros(len(flx_spax_m))
-                            error[self.obs_wave<boundary] = Var_er[self.obs_wave<boundary]/(error1/average_var1)
-                            error[self.obs_wave>boundary] = Var_er[self.obs_wave>boundary]/(error2/average_var2)
-                        
-                        error[error==0] = np.mean(error)*5
+                            error[self.obs_wave<boundary] = error1
+                            error[self.obs_wave>boundary] = error2
 
                     else:
                         flx_spax_t = np.ma.array(data=flux.data,mask=Spax_mask_pick)
@@ -3232,60 +3192,22 @@ class Cube:
         D1_spectrum = np.ma.sum(flux, axis=(1,2))
         D1_spectrum = np.ma.array(data = D1_spectrum.data, mask=mask_sky_1D)
 
-        if self.instrument =='NIRSPEC_IFU':
-            print('NIRSPEC mode of error calc')
-            D1_spectrum_var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2)))
-
+        if self.instrument=='NIRSPEC_IFU':
             if len(err_range)==2:
-                error = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                
-                average_var = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                D1_spectrum_er = D1_spectrum_var_er/(error/average_var)
 
-            elif len(err_range)==4:
+                D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) &(self.obs_wave<err_range[1])],sigma=3)[2]*np.ones(len(D1_spectrum))
+            elif len(err_range) ==4:
                 error1 = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
+                                                              &(self.obs_wave<err_range[1])],sigma=3)[2]
+
                 error2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[1]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[2])],sigma=3)[2]
-                
-                average_var1 = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                average_var2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[2]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[3])],sigma=3)[1]
-                
-                error = np.zeros(len(D1_spectrum))
-                error[self.obs_wave<boundary] = D1_spectrum_var_er[self.obs_wave<boundary]/(error1/average_var1)
-                error[self.obs_wave>boundary] = D1_spectrum_var_er[self.obs_wave>boundary]/(error2/average_var2)
-                D1_spectrum_er = error
-            else:
-                error = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[2]
-                
-                average_var = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[1]
-                D1_spectrum_er = D1_spectrum_var_er/(error/average_var)
-            
-            D1_spectrum_er[self.D1_spectrum_er==0] = np.mean(self.D1_spectrum_er)*5
-        else:
-            print('Other mode of error calc')
-            if len(err_range)==2:
-                error = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2] \
-                                                        *np.ones(len(D1_spectrum))
-                D1_spectrum_er = error
+                                                              &(self.obs_wave<err_range[2])],sigma=3)[2]
 
-            elif len(err_range)==4:
-                error1 = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                error2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[2]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[3])],sigma=3)[2]
-                
-                error = np.zeros(len(D1_spectrum))
-                error[self.obs_wave<boundary] = error1
-                error[self.obs_wave>boundary] = error2
-                D1_spectrum_er = error
-            else:
-                D1_spectrum_er = stats.sigma_clipped_stats(self.D1_spectrum,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+                D1_spectrum_er = np.zeros(len(D1_spectrum))
+                D1_spectrum_er[self.obs_wave<boundary] = error1
+                D1_spectrum_er[self.obs_wave>boundary] = error2
+        else:
+            D1_spectrum_er = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[2]*np.ones(len(D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
 
 
         return D1_spectrum, D1_spectrum_er, mask_catch
