@@ -658,7 +658,7 @@ class Cube:
                 error = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
                                                             &(self.obs_wave<err_range[1])],sigma=3)[2]
                 
-                average_var = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
+                average_var = stats.sigma_clipped_stats(D1_spectrum_var_er[(err_range[0]<self.obs_wave) \
                                                             &(self.obs_wave<err_range[1])],sigma=3)[1]
                 self.D1_spectrum_er = D1_spectrum_var_er/(error/average_var)
 
@@ -668,9 +668,9 @@ class Cube:
                 error2 = stats.sigma_clipped_stats(D1_spectra[(err_range[1]<self.obs_wave) \
                                                             &(self.obs_wave<err_range[2])],sigma=3)[2]
                 
-                average_var1 = stats.sigma_clipped_stats(D1_spectra[(err_range[0]<self.obs_wave) \
+                average_var1 = stats.sigma_clipped_stats(D1_spectrum_var_er[(err_range[0]<self.obs_wave) \
                                                             &(self.obs_wave<err_range[1])],sigma=3)[1]
-                average_var2 = stats.sigma_clipped_stats(D1_spectra[(err_range[2]<self.obs_wave) \
+                average_var2 = stats.sigma_clipped_stats(D1_spectrum_var_er[(err_range[2]<self.obs_wave) \
                                                             &(self.obs_wave<err_range[3])],sigma=3)[1]
                 
                 error = np.zeros(len(D1_spectra))
@@ -1508,7 +1508,6 @@ class Cube:
             
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
             Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
-              
                
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
