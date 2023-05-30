@@ -543,7 +543,7 @@ class Cube:
 
 
 
-    def background_sub_spec(self, center, rad=0.6, plot=0):
+    def background_sub_spec(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -569,33 +569,49 @@ class Cube:
         #arc = np.round(1./(header['CD2_2']*3600))
         arc = np.round(1./(header['CDELT2']*3600))
 
-
-        # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
-        for ix in range(shapes[0]):
-            for iy in range(shapes[1]):
-                dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
-                if dist< arc*rad:
-                    mask_catch[:,ix,iy] = False
+        if len(manual_mask)==0:
+            # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
+            for ix in range(shapes[0]):
+                for iy in range(shapes[1]):
+                    dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
+                    if dist< arc*rad:
+                        mask_catch[:,ix,iy] = False
+        else:
+            for ix in range(shapes[0]):
+                for iy in range(shapes[1]):
+                    
+                    if manual_mask[ix,iy]==False:
+                        mask_catch[:,ix,iy] = False
 
         mask_spax = mask_catch.copy()
         # Loading mask of the sky lines an bad features in the spectrum
         mask_sky_1D = self.sky_clipped_1D.copy()
         total_mask = np.logical_or( mask_spax, self.sky_clipped)
 
-        flux = np.ma.array(data=self.flux.data, mask= total_mask)
-
+        background = np.ma.array(data=self.flux.data, mask= total_mask)
+        backgroerr =  np.ma.array(data=self.error_cube, mask= total_mask)
+        weights = 1/backgroerr**2; weights /= np.ma.sum(weights, axis=(1,2))[:, None, None]                       
+        
+        master_background_sum = np.ma.sum(background*weights, axis=(1,2))
+        Sky = master_background_sum
+        '''
         Sky = np.ma.median(flux, axis=(1,2))
         Sky = np.ma.array(data = Sky.data, mask=mask_sky_1D)
+        '''
+        from scipy.signal import medfilt
+        Sky_smooth = medfilt(Sky, smooth)
 
+
+        self.collapsed_bkg = Sky_smooth
         for ix in range(shapes[0]):
             for iy in range(shapes[1]):
-                self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky
+                self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky_smooth
 
         if plot==1:
             plt.figure()
-            plt.title('Sky spectrum')
+            plt.title('Median Background spectrum')
 
-            plt.plot(self.obs_wave, np.ma.array(data= Sky , mask=self.sky_clipped_1D), drawstyle='steps-mid')
+            plt.plot(self.obs_wave, np.ma.array(data= Sky_smooth , mask=self.sky_clipped_1D), drawstyle='steps-mid')
 
 
             plt.ylabel('Flux')

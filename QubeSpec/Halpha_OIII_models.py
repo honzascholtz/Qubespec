@@ -220,7 +220,7 @@ def Halpha_OIII_BLR(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta
     deltaz = outflow_vel/3e5*(1+z)
 
     zout = z+ deltaz
-    Outflow = Halpha_OIII(x, zout, 0,0,  Hal_out_peak, NII_out_peak, outflow_fwhm , SII_rpk, SII_bpk, OIIIn_peak, Hbeta_peak, 0)
+    Outflow = Halpha_OIII(x, zout, 0,0,  Hal_out_peak, NII_out_peak, outflow_fwhm , 0, 0, OIII_out_peak, Hbeta_out_peak, 0)
 
     Hal_wv = 6564.52*(1+z)/1e4
     Hbe_wv = 4862.6*(1+z)/1e4
@@ -247,6 +247,52 @@ def log_prior_Halpha_OIII_BLR(theta, priors):
     if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)) \
         | (BLR_hal_peak/BLR_hbe_peak<(2.86/1.35)) | (OIII_out_peak>OIIIn_peak) | (NII_out_peak>NII_peak) \
             | (Hbeta_out_peak>Hbeta_peak) | (Hal_out_peak>Hal_peak) | (BLR_hal_peak<0) | (BLR_hbe_peak<0)  :
+        return -np.inf
+
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+
+    return results
+
+
+def Halpha_OIII_BLR_simple(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk,\
+                        Nar_fwhm,\
+                        BLR_fwhm, zBLR, BLR_hal_peak, BLR_hbe_peak):
+
+    NLR = Halpha_OIII(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, OIIIn_peak, Hbeta_peak, 0)
+
+    Hal_wv = 6564.52*(1+z)/1e4
+    Hbe_wv = 4862.6*(1+z)/1e4
+    BLR_sig_hal = BLR_fwhm/3e5*Hal_wv/2.35482
+    BLR_sig_hbe = BLR_fwhm/3e5*Hbe_wv/2.35482
+
+    BLR_wv_hal = 6564.52*(1+zBLR)/1e4
+    BLR_wv_hbe = 4862.6*(1+zBLR)/1e4
+
+    Hal_blr = gauss(x, BLR_hal_peak, BLR_wv_hal, BLR_sig_hal)
+    Hbe_blr = gauss(x, BLR_hbe_peak, BLR_wv_hbe, BLR_sig_hbe)
+
+
+    return NLR+Hal_blr + Hbe_blr
+
+
+@numba.njit
+def log_prior_Halpha_OIII_BLR_simple(theta, priors):
+    z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, SII_rpk, SII_bpk,\
+                            Nar_fwhm, \
+                            BLR_fwhm, zBLR, BLR_hal_peak, BLR_hbe_peak = theta
+
+    if (Hal_peak<0) | (NII_peak<0) | (SII_rpk<0) | (SII_bpk<0) | (Hal_peak/Hbeta_peak<(2.86/1.35)) \
+        | (BLR_hal_peak/BLR_hbe_peak<(2.86/1.35))  \
+           | (BLR_hal_peak<0) | (BLR_hbe_peak<0)  :
         return -np.inf
 
     results = 0.

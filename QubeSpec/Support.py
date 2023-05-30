@@ -202,7 +202,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         center = wv_cent*(1+dictsol['z'][0])/1e4
         fwhm = dictsol[fwhm_name][0]/3e5*center
         contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
-        model = flux-contfce 
+        model = gauss(wave, dictsol[peak_name][0],center, fwhm/2.215)
     elif mode =='OIII':
         center = OIIIr*(1+sol[0])/1e4
         if 'outflow_fwhm' in keys:
@@ -442,9 +442,9 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
         wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
         hn = 6565*(1+res['z'][0])/1e4
         if 'BLR_fwhm' in keys:
-            model = gauss(wave, res['BLR_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+            model = gauss(wave, res['BLR_Hal_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
             
-        if 'BLR_alp1' in keys:
+        elif 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hn, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
             
@@ -482,10 +482,14 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
     elif mode=='Hbe_BLR':
         wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
         hbeta = 4862.6*(1+res['z'][0])/1e4
-        if 'BLR_alp1' in keys:
+        if 'BLR_fwhm' in keys:
+            model = gauss(wave, res['BLR_Hal_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hbeta  )
+        elif 'BLR_alp1' in keys:
             from QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hbeta, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
-    
+
+        else:
+            model = np.zeros_like(wave)
     elif mode=='Hbetaw':
         wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
         hbeta = 4862.6*(1+res['z'][0])/1e4
@@ -537,7 +541,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
         raise Exception('Sorry mode in Flux not understood')
         
     import scipy.integrate as scpi
-        
+    
     Flux = scpi.simps(model, wave)*norm
         
     return Flux
@@ -552,7 +556,9 @@ def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=2000, wv_cent=5008, peak_name
     res_new = {'name': res['name']}
     
     Nchain = len(chains['z'])
-    for j in np.arange(Nchain/2,Nchain,1, dtype=int):
+    itere = np.arange(Nchain/2,Nchain,1, dtype=int)
+        
+    for j in itere:
         #sel = random.randint(Nchain/2,N-1)
         for i in range(len(popt)): 
             
