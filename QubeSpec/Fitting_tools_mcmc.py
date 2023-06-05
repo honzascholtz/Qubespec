@@ -352,7 +352,8 @@ class Fitting:
                                     peak_beta/4, self.priors['Hbetan_fwhm'][0], self.priors['Hbetan_vel'][0]])
                     for i in enumerate(self.labels):
                         pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
-                         
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)     
                     self.res = {'name': 'OIII_HBn'}
             
 
@@ -368,6 +369,8 @@ class Fitting:
                     for i in enumerate(self.labels):
                         pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                     
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
                     self.res = {'name': 'OIII_Fe'}
                 
                 else:
@@ -382,7 +385,9 @@ class Fitting:
                                     np.median(self.flux[fit_loc]), self.priors['Fe_fwhm'][0]]) 
                     for i in enumerate(self.labels):
                         pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
-                        
+
+                    pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+                    pos[:,0] = np.random.normal(self.z,0.001, nwalkers)  
                     self.res = {'name': 'OIII_Fe_HBn'}
         
                     
@@ -604,7 +609,7 @@ class Fitting:
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
             
             if (self.log_prior_fce(pos_l, self.pr_code)==np.nan)|\
-                (self.log_prior(pos_l, self.pr_code)==-np.inf):
+                (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
                 print(logprior_general_test(pos_l, self.pr_code, self.labels))
                 raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
                                 boundries are sensible. {pos_l} ')

@@ -8,6 +8,9 @@ WHEN UPDATING THE FITTING_TOOLS_MCMC.PY PLEASE EDIT 35 TO POINT THE CODE TO THE 
 
 CHANGELOG:
 
+
+1/6/23 - Implementation of a custom function for fitting in both combined spectrum and spaxel-by-spaxel. + new implamentation of error calculations for NIRSpec. 
+
 10/10/22 -  i) Implementation of Hbeta velocity offset compared to [OIII] emission line.
             ii) Implementation of changing boundaries and initial conditions using a dictionary called priors.
             iii) Making a backup of KASHz fitting_tools used to fit KASHz sources.
