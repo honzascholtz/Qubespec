@@ -376,6 +376,15 @@ def unwrap_chain(res):
         
     return chains
 
+def QFitsview_mask(filepath):
+    mask_load = pyfits.getdata(filepath)
+
+    mask = ~mask_load
+
+    mask[mask==-1] = 1
+    mask[mask==-2] = 0
+
+    return mask
 
 
 

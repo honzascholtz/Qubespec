@@ -618,6 +618,80 @@ class Cube:
             plt.xlabel('Observed wavelength')
 
 
+    def background_sub_spec_gnz11(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
+        '''
+        Background subtraction used when the NIRSPEC cube has still flux in the blank field.
+
+        Parameters
+        ----------
+        center : TYPE
+            DESCRIPTION.
+        rad : TYPE, optional
+            DESCRIPTION. The default is 0.6.
+        plot : TYPE, optional
+            DESCRIPTION. The default is 0.
+
+        Returns
+        -------
+        None.
+
+        '''
+        # Creating a mask for all spaxels.
+        shapes = self.dim
+        mask_catch = self.flux.mask.copy()
+        mask_catch[:,:,:] = True
+        header  = self.header
+        #arc = np.round(1./(header['CD2_2']*3600))
+        arc = np.round(1./(header['CDELT2']*3600))
+
+        if len(manual_mask)==0:
+            # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
+            for ix in range(shapes[0]):
+                for iy in range(shapes[1]):
+                    dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
+                    if dist< arc*rad:
+                        mask_catch[:,ix,iy] = False
+        else:
+            for ix in range(shapes[0]):
+                for iy in range(shapes[1]):
+                    
+                    if manual_mask[ix,iy]==False:
+                        mask_catch[:,ix,iy] = False
+
+        mask_spax = mask_catch.copy()
+        # Loading mask of the sky lines an bad features in the spectrum
+        mask_sky_1D = self.sky_clipped_1D.copy()
+        total_mask = np.logical_or( mask_spax, self.sky_clipped)
+
+        background = np.ma.array(data=self.flux.data, mask= total_mask)
+        backgroerr =  np.ma.array(data=self.error_cube, mask= total_mask)
+        weights = 1/backgroerr**2; weights /= np.ma.sum(weights, axis=(1,2))[:, None, None]                       
+        
+        master_background_sum = np.ma.sum(background*weights, axis=(1,2))
+        Sky = master_background_sum
+        '''
+        Sky = np.ma.median(flux, axis=(1,2))
+        Sky = np.ma.array(data = Sky.data, mask=mask_sky_1D)
+        '''
+        from scipy.signal import medfilt
+        Sky_smooth = medfilt(Sky, smooth)
+
+        self.collapsed_bkg = Sky_smooth
+        
+        use = np.where( (self.obs_wave<1.38) & (self.obs_wave>1.30) )[0]
+        white_image = np.ma.median(self.flux[use, :,:], axis=(0))
+        white_bkg = np.ma.median(Sky_smooth[use])
+        norm = white_image/white_bkg
+
+        plt.figure()
+        plt.imshow(norm,vmin=0.5,vmax=1.5, origin='lower')
+        plt.colorbar()
+        self.flux_orig = self.flux.copy()
+        for ix in range(shapes[0]):
+            for iy in range(shapes[1]):
+                self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky_smooth*norm[ix,iy]
+
+
     def D1_spectra_collapse(self, plot, addsave='', err_range=[0], boundary=2.4):
         '''
         This function collapses the Cube to form a 1D spectrum of the galaxy

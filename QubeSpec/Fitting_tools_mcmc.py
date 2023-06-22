@@ -670,7 +670,7 @@ class Fitting:
 
         
         
-    def fitting_general(self, fitted_model, labels, logprior, nwalkers=64):
+    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64):
         self.labels= labels
         self.log_prior_fce = logprior_general
         self.fitted_model = fitted_model
