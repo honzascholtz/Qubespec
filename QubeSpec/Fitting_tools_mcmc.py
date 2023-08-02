@@ -219,7 +219,10 @@ class Fitting:
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
         self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
-
+        
+        like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+        
+        self.like_chains = like_samples
         
     # =============================================================================
     # Primary function to fit [OIII] with and without outflows. 
@@ -434,6 +437,9 @@ class Fitting:
         for i in range(len(self.labels)):
             self.res[self.labels[i]] = self.flat_samples[:,i]  
         
+        like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+        self.like_chains = like_samples
+
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
         
@@ -659,7 +665,9 @@ class Fitting:
         sampler.run_mcmc(pos, self.N, progress=self.progress);
         
         self.flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+        like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         
+        self.like_chains = like_samples
         
         for i in range(len(self.labels)):
             self.res[self.labels[i]] = self.flat_samples[:,i]
@@ -704,7 +712,7 @@ class Fitting:
         sampler.run_mcmc(pos, self.N, progress=self.progress);
             
         flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
-            
+        like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         res = {'name': 'Custom model'}
         for i in range(len(labels)):
             res[labels[i]] = flat_samples[:,i]
@@ -712,6 +720,8 @@ class Fitting:
         self.res= res
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
+        self.like_chains = like_samples
+
         
         #self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
 

@@ -279,7 +279,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         std = error[use]
         
         n = len(use)
-        SNR = (sum(flux_l)/np.sqrt(n)) * (1./std)
+        SNR = sum((flux_l)/np.sqrt(n) * (1./std))
         
         if SNR < 0:
             SNR=0
@@ -294,7 +294,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     std = error[use]
     
     n = len(use)
-    SNR = (sum(flux_l/std)/np.sqrt(n))
+    SNR = sum((flux_l/std)/np.sqrt(n))
     if SNR < 0:
         SNR=0
     
