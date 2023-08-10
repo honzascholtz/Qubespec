@@ -543,7 +543,7 @@ class Cube:
 
 
 
-    def background_sub_spec(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
+    def background_sub_spec(self, center = [], rad=0.6, manual_mask=[],smooth=25, plot=0):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
