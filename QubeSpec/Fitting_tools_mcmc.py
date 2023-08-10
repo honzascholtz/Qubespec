@@ -122,7 +122,7 @@ class Fitting:
         nwalkers=32
         
         if self.model=='BLR':
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak')
+            self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak']
             
             self.fitted_model = H_models.Halpha_wBLR
             self.log_prior_fce = H_models.log_prior_Halpha_BLR
@@ -144,7 +144,7 @@ class Fitting:
         elif self.model=='gal':
             self.fitted_model = H_models.Halpha
             self.log_prior_fce = H_models.log_prior_Halpha
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak')
+            self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak']
             self.pr_code = prior_create(self.labels, self.priors)
             
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
@@ -162,7 +162,7 @@ class Fitting:
             self.fitted_model = H_models.Halpha_outflow
             self.log_prior_fce = H_models.log_prior_Halpha_outflow
 
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel')
+            self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
             self.pr_code = prior_create(self.labels, self.priors)
             
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0] ])
@@ -178,10 +178,10 @@ class Fitting:
         
         elif self.model=='QSO_BKPL':
             
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
+            self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
                     'Hal_out_peak', 'NII_out_peak', 
                     'outflow_fwhm', 'outflow_vel', \
-                    'BLR_Hal_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2', 'BLR_sig')
+                    'BLR_Hal_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2', 'BLR_sig']
                 
                 
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],\
@@ -261,7 +261,7 @@ class Fitting:
         if self.model=='outflow': 
             if self.template==0:
                 if self.Hbeta_dual == 0:
-                    self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel')
+                    self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel']
                     self.fitted_model = O_models.OIII_outflow
                     self.log_prior_fce = O_models.log_prior_OIII_outflow
                     
@@ -276,7 +276,7 @@ class Fitting:
                     self.res = {'name': 'OIII_outflow'}
                     
                 else:
-                    self.labels= ('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel')
+                    self.labels= ['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel']
                     self.fitted_model = O_models.OIII_outflow_narHb
                     self.log_prior_fce = O_models.log_prior_OIII_outflow_narHb
                     
