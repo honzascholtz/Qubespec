@@ -9,6 +9,8 @@ Created on Thu Aug  3 16:36:26 2017
 #importing modules
 import numpy as np
 import matplotlib.pyplot as plt
+import tqdm
+import warnings
 
 from astropy.io import fits
 from astropy.wcs import wcs
@@ -543,7 +545,7 @@ class Cube:
 
 
 
-    def background_sub_spec(self, center = [], rad=0.6, manual_mask=[],smooth=25, plot=0):
+    def background_sub_spec(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -2251,7 +2253,7 @@ class Cube:
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-    def Spaxel_fitting_general_MCMC_mp(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2),):
+    def Spaxel_fitting_general_MCMC_mp(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
         import pickle
         start_time = time.time()
         with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -2274,8 +2276,23 @@ class Cube:
         if Ncores<1:
             Ncores=1
         
-        with Pool(Ncores) as pool:
-            cube_res = pool.map(emfit.Fitting_general_unwrap, Unwrapped_cube)
+        progress = kwargs.get('progress', True)
+        progress = tqdm.tqdm if progress else lambda x, total=0: x
+        debug = kwargs.get('debug', False)
+        if debug:
+            warnings.warn(
+                '\u001b[5;33mDebug mode - no multiprocessing!\033[0;0m',
+                UserWarning)
+            cube_res = list(progress(
+                map(emfit.Fitting_general_unwrap, Unwrapped_cube),
+                    total=len(Unwrapped_cube)))
+        else:
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(
+                        emfit.Fitting_general_unwrap, Unwrapped_cube),
+                    total=len(Unwrapped_cube)))
+                #cube_res = pool.map(emfit.Fitting_general_unwrap, Unwrapped_cube)
         
         #cube_res = emfit.Fitting_general_unwrap( Unwrapped_cube[2], progress=True)
         

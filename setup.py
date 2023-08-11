@@ -25,7 +25,7 @@ setup(name='QubeSpec',
       license='Other/Proprietary License',
       packages=find_packages(),
       install_requires=[
-        'astropy>+5.0',
+        'astropy>=5.0',
         'ipython>7.31.0',
         'matplotlib>=3.5.3',
         'numba>=0.56.3',
