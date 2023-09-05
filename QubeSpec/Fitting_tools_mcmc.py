@@ -111,6 +111,7 @@ class Fitting:
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.wave[np.invert(self.fluxs.mask)]
         
+        
         fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
         
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
