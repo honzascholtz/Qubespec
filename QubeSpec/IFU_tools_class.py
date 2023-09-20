@@ -3519,7 +3519,7 @@ class Cube:
         from astropy.convolution import convolve, convolve_fft  
         from astropy.convolution import Gaussian2DKernel
 
-        y, x = np.mgrid[0:104, 0:98]
+        #y, x = np.mgrid[0:104, 0:98]
         #gf_match = Gaussian2D(100, 50, 50, psf_fce(wv_ref)[0], psf_fce(wv_ref)[1], theta=107)
         #gmatch = gf_match(x, y)
         #gmatch /= gmatch.sum()
@@ -3528,7 +3528,7 @@ class Cube:
 
         psf_matched = self.flux.copy()
         error_matched = self.error_cube.copy()
-        for i, wave in enumerate(self.obs_wave):
+        for i, wave in tqdm.tqdm(enumerate(self.obs_wave)):
             
             #gf_loc = Gaussian2D(100, 50, 50, PSF(wave)[0], PSF(wave)[1], theta=theta)
             #g_loc = gf_loc(x,y)
