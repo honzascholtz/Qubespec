@@ -199,7 +199,7 @@ class Cube:
         arc_per_pix_y = deg_per_pix_y*3600
         Ypix = header['NAXIS2']
         Yph = Ypix*arc_per_pix_y
-
+        self.cube_path = Full_path
         self.flux_norm= norm
         self.dim = dim
         self.z = z
@@ -3511,3 +3511,38 @@ class Cube:
 
 
         return D1_spectrum, D1_spectrum_er, mask_catch
+
+    def PSF_matching(self, psf_fce, wv_ref=5.2, theta=107):
+        from astropy.modeling.models import Gaussian2D 
+        from photutils.psf import create_matching_kernel
+        from photutils.psf import TopHatWindow, CosineBellWindow, HanningWindow, TukeyWindow, SplitCosineBellWindow
+        from astropy.convolution import convolve, convolve_fft  
+        from astropy.convolution import Gaussian2DKernel
+
+        y, x = np.mgrid[0:104, 0:98]
+        #gf_match = Gaussian2D(100, 50, 50, psf_fce(wv_ref)[0], psf_fce(wv_ref)[1], theta=107)
+        #gmatch = gf_match(x, y)
+        #gmatch /= gmatch.sum()
+        #window = TopHatWindow(0.6)
+        #window = CosineBellWindow(alpha=0.99)
+
+        psf_matched = self.flux.copy()
+        error_matched = self.error_cube.copy()
+        for i, wave in enumerate(self.obs_wave):
+            
+            #gf_loc = Gaussian2D(100, 50, 50, PSF(wave)[0], PSF(wave)[1], theta=theta)
+            #g_loc = gf_loc(x,y)
+            #g_loc /=g_loc.sum()
+            #kernel = create_matching_kernel(g_loc, gmatch, window=window)
+            sigma = np.sqrt(psf_fce(wv_ref)**2 - psf_fce(wave)**2)/0.05
+            if wave<wv_ref:
+                kernel = Gaussian2DKernel( sigma[0],sigma[1], theta=theta)
+
+                psf_matched[i,:,:] = convolve_fft(psf_matched[i,:,:], kernel)
+                error_matched[i,:,:] = convolve_fft(error_matched[i,:,:], kernel)
+
+        primary_hdu = fits.PrimaryHDU(np.zeros(1), header=self.header)
+
+        hdus = [primary_hdu,fits.ImageHDU(psf_matched.data, name='SCI', header=self.header), fits.ImageHDU(error_matched, name='ERR', header=self.header)]
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto( self.cube_path[-4] +'psf_matched.fits', overwrite=True)
