@@ -1017,3 +1017,72 @@ def flux_to_lum(flux,redshift):
     lum = (flux*u.erg/u.s/u.cm**2) * 4*np.pi*(cosmo.luminosity_distance(redshift))**2  
     return lum.to(u.erg/u.s)
 
+def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True,
+    overwrite=True, descr=None, author=None):
+    """
+    object_name : int or str **do not use "_" characters
+        unique identifier. Preferrably up to eight digits. String is acceptable but
+        frowned upon.
+    disp_filt : string
+        one of 'prism_clear', 'g140m_f070lp', 'g235m_f170lp', 'g395m_f290lp'
+    wave : array or any other iterable
+        in [um]
+    flux : array or any other iterable. Same shape as `wave`
+        in [W/m^3]
+    err  : array or any other iterable. Same shape as `wave`; [optional]
+        in [W/m^3]
+    mask : array or any other iterable. Same sahpe as `wave`; [optional]
+        0 means good pixel; 1 bad pixel
+    verbose : bool
+        Suppress messages
+    overwrite : bool
+        Force overwrite existing fits file. Ask for confirmation otherwise.
+    descr : str [optional]
+        Any text to add to the comments. Added to the primary HDU under 'comments'
+    author : str [optional]
+        Only if you want to. Added to the primary HDU under 'author'
+    """
+    import os
+    from astropy.io import fits
+    if verbose:
+        print('Reminder (suppress with verbose=False):\n'
+            '`wave`: [um]; in observed frame\n'
+            '`flux`: [W/m^3]; 1 erg/(s cm^2 AA) = 1e7 W/m^3\n'
+            '`err` : [W/m^3]; optional. If not given all 0\n'
+            '`mask`: [0=good, 1=bad]; optional. If not given all 0\n'
+            )
+    if any(wave<0.5) or any(wave>6):
+        print(f'{wave} wavelength vector seems strange. Are you sure it is in um?')
+    weird_wave_disp = (
+        (disp_filt=='g140m_f070lp' and (any(wave<0.5) or any(wave>2))) # Not in G140M
+        or (disp_filt=='g235m_f170lp' and (any(wave<1.5) or any(wave>3.5))) # Not in G235M
+        or (disp_filt=='g395m_f290lp' and (any(wave<2.5) or any(wave>6)))   # Not in G395M
+        )
+    if weird_wave_disp:
+        print(f'{wave} wavelength vector seems strange for {disp_filt}. Are you sure it the right disperser/filter combination?')
+        
+    # Open dummy file.
+    output_filename = f'{object_name}_{disp_filt}_v3.0_1D.fits'
+    from . import jadify_temp as pth
+
+    PATH_TO_jadify = pth.__path__[0]+ '/'
+
+
+    filename = PATH_TO_jadify+ '003520_prism_clear_v3.0_extr3_1D.fits'
+
+    with fits.open(filename) as hdu:
+        hdu['DATA'].data = flux
+        hdu['ERR'].data  = (err if err is not None else np.zeros_like(flux))
+        hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
+        hdu['WAVELENGTH'].data = wave
+        if descr is not None:
+            hdu[0].header['COMMENT'] = str(descr)
+
+        if os.path.isfile(output_filename) and (overwrite is False):
+            proceed = input(f'{output_filename} exists and {overwrite=}. Enter y to overwrite\n')
+            if proceed is not 'y': 
+                print('Aborted by user')
+                return
+         
+        # Never reach this if overwrite=False and file exists
+        hdu.writeto(output_filename, overwrite=True)

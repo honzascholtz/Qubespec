@@ -40,9 +40,6 @@ def preconvolve():
     import tqdm
     FWHMs = np.arange(2000,8000,5)
     
-    
-    
-    
     Dict = {'FWHMs':FWHMs}
     Dict['Veron_wavelength'] = Veron_wv
     Dict['Tsuzuki_wavelength'] = Tsuzuki_wv

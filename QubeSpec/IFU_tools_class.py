@@ -1919,6 +1919,133 @@ class Cube:
             else:
                 print(key, results[key])
 
+    def unwrap_cube_prism(self, rad=0.4, add='',instrument='NIRSPEC', mask_manual=0, binning_pix=1, err_range=[0], boundary=2.4):
+        '''
+        Unwrapping the cube.
+
+        Parameters
+        ----------
+        rad : TYPE, optional
+            DESCRIPTION. The default is 0.4.
+        sp_binning : TYPE, optional
+            DESCRIPTION. The default is 'Nearest'.
+        instrument : TYPE, optional
+            DESCRIPTION. The default is 'KMOS'.
+        add : TYPE, optional
+            DESCRIPTION. The default is ''.
+        mask_manual : TYPE, optional
+            DESCRIPTION. The default is 0.
+        binning_pix : TYPE, optional
+            DESCRIPTION. The default is 1.
+        err_range : TYPE, optional
+            DESCRIPTION. The default is [0].
+        boundary : TYPE, optional
+            DESCRIPTION. The default is 2.4.
+
+        Returns
+        -------
+        None.
+
+        '''
+        flux = self.flux.copy()
+        Mask= self.sky_clipped_1D
+        shapes = self.dim
+
+        ThD_mask = self.sky_clipped.copy()
+        Spax_mask = self.Sky_stack_mask[0,:,:]
+
+# =============================================================================
+#   Unwrapping the cube
+# =============================================================================
+        try:
+            arc = (self.header['CD2_2']*3600)
+
+        except:
+            arc = (self.header['CDELT2']*3600)
+
+        if instrument=='NIRSPEC':
+            upper_lim = 0
+            step = 1
+            step = binning_pix
+        if instrument=='NIRSPEC05':
+            upper_lim = 0
+            step = 2
+            step = binning_pix
+        x = range(shapes[0]-upper_lim)
+        y = range(shapes[1]-upper_lim)
+
+
+        print(rad/arc)
+        h, w = self.dim[:2]
+        center= self.center_data[1:3]
+
+        mask = sp.create_circular_mask(h, w, center= center, radius= rad/arc)
+        mask = np.invert(mask)
+        try:
+            if mask_manual.all !=1:
+                mask=mask_manual
+        except:
+            print('Circular mask')
+
+        Spax_mask = np.logical_or(np.invert(Spax_mask),mask)
+        if self.instrument=='NIRSPEC_IFU':
+            Spax_mask = mask.copy()
+        import os
+        try:
+            os.mkdir(self.savepath+'PRISM_spaxel')
+        except:
+            print('Making directory failed. Maybe it exists already')
+        for i in tqdm.tqdm(x):
+            #i= i+step
+
+            for j in y:
+                #j=j+step
+                if Spax_mask[i,j]==False:
+                    #print i,j
+
+                    Spax_mask_pick = ThD_mask.copy()
+                    Spax_mask_pick[:,:,:] = True
+                    Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
+
+                    if self.instrument=='NIRSPEC_IFU':
+                        total_mask = np.logical_or(Spax_mask_pick, self.sky_clipped)
+                        flx_spax_t = np.ma.array(data=flux.data,mask=total_mask)
+
+                        flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
+                        flx_spax_m = np.ma.array(data = flx_spax.data, mask=self.sky_clipped_1D)
+                        nspaxel= np.sum(np.logical_not(total_mask[22,:,:]))
+                        Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))/nspaxel)
+
+                        if len(err_range)==2:
+
+                            error = stats.sigma_clipped_stats(flx_spax_m[(err_range[0]<self.obs_wave) \
+                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
+                
+                            average_var = stats.sigma_clipped_stats(Var_er[(err_range[0]<self.obs_wave) \
+                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
+                            error = Var_er*(error/average_var)
+
+                        elif len(err_range)==4:
+                            error1 = stats.sigma_clipped_stats(flx_spax_m[(err_range[0]<self.obs_wave) \
+                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
+                            error2 = stats.sigma_clipped_stats(flx_spax_m[(err_range[1]<self.obs_wave) \
+                                                                        &(self.obs_wave<err_range[2])],sigma=3)[2]
+                            
+                            average_var1 = stats.sigma_clipped_stats(Var_er[(err_range[0]<self.obs_wave) \
+                                                                        &(self.obs_wave<err_range[1])],sigma=3)[1]
+                            average_var2 = stats.sigma_clipped_stats(Var_er[(err_range[2]<self.obs_wave) \
+                                                                        &(self.obs_wave<err_range[3])],sigma=3)[1]
+                            
+                            error = np.zeros(len(flx_spax_m))
+                            error[self.obs_wave<boundary] = Var_er[self.obs_wave<boundary]*(error1/average_var1)
+                            error[self.obs_wave>boundary] = Var_er[self.obs_wave>boundary]*(error2/average_var2)
+                        
+                        error[error==0] = np.mean(error)*5
+
+                    sp.jadify(self.savepath+'PRISM_spaxel/'+self.ID+'-'+str(i)+'-'+str(j), 'prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+                        overwrite=True, descr=None, author='jscholtz', verbose=False)
+                    
+        
 
     def unwrap_cube(self, rad=0.4, sp_binning='Nearest', instrument='KMOS', add='', mask_manual=0, binning_pix=1, err_range=[0], boundary=2.4):
         '''
