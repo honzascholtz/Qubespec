@@ -1068,7 +1068,7 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
     PATH_TO_jadify = pth.__path__[0]+ '/'
 
 
-    filename = PATH_TO_jadify+ '003520_prism_clear_v3.0_extr3_1D.fits'
+    filename = PATH_TO_jadify+ 'temp_prism_clear_v3.0_extr3_1D.fits'
 
     with fits.open(filename) as hdu:
         hdu['DATA'].data = flux
