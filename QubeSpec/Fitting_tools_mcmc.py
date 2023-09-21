@@ -581,7 +581,7 @@ class Fitting:
                  
             
             
-            if (self.log_prior(pos_l, self.pr_code)==np.nan)|\
+            if (self.log_prior_fce(pos_l, self.pr_code)==np.nan)|\
                 (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
                 print(logprior_general_test(pos_l, self.pr_code, self.labels))
                 raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\

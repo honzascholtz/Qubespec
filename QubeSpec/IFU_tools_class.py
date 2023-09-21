@@ -1129,7 +1129,7 @@ class Cube:
 
             plt.tight_layout()
 
-    def fitting_collapse_Halpha(self, plot, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal', 0,0.003],\
+    def fitting_collapse_Halpha(self, plot, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal', 0,0.001],\
                                                                                        'cont':[0,'loguniform',-3,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
@@ -1450,7 +1450,26 @@ class Cube:
      
              
              self.dBIC = 3
-        
+
+        elif models=='BLR_simple':   
+             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+             Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
+             
+             
+             self.D1_fit_results = Fits_sig.props
+             self.D1_fit_chain = Fits_sig.chains
+             self.D1_fit_model = Fits_sig.fitted_model
+             self.z = Fits_sig.props['popt'][0]
+             
+             self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
+             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
+             self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+             self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+             self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
+     
+             
+             self.dBIC = 3
+
         elif models=='QSO_BKPL':   
              Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
              Fits_sig.fitting_Halpha_OIII(model='QSO_BKPL' )
@@ -1470,7 +1489,7 @@ class Cube:
              
         
         else:
-            raise Exception('models variable in fitting_collapse_Halpha_OIII not understood. Outflow variables: Single_only, Outflow_only, BLR, QSO_BKPL')
+            raise Exception('models variable in fitting_collapse_Halpha_OIII not understood. Outflow variables: Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple')
         labels= list(self.D1_fit_chain.keys())[1:]
             
         fig = corner.corner(
