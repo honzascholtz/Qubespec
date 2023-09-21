@@ -1134,7 +1134,8 @@ class Cube:
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
                                                                                        'BLR_Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'NII_peak':[0,'loguniform',-3,1],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'NII_peak':[0,'loguniform',-3,1],\
                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
                                                                                        'BLR_offset':[-100,'normal',0,200],\
