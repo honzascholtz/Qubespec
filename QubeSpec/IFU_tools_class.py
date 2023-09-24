@@ -35,6 +35,7 @@ from brokenaxes import brokenaxes
 
 from astropy.utils.exceptions import AstropyWarning
 import astropy.constants, astropy.cosmology, astropy.units, astropy.wcs
+from astropy.table import Table
 
 
 nan= float('nan')
@@ -1735,6 +1736,49 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
 
+    def fitting_collapse_ppxf(self):
+        import os
+        try:
+            os.mkdir(self.savepath+'PRISM_1D')
+        except:
+            print('Folder structure already exists')
+        try:
+            os.mkdir(self.savepath+'PRISM_1D/prism_clear')
+        except:
+            print('Folder structure already exists')
+
+        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+                        overwrite=True, descr=None, author='jscholtz', verbose=False)
+        
+        import yaml
+        from yaml.loader import SafeLoader
+
+        # Open the file and load the file
+        with open('/Users/jansen/My Drive/MyPython/Qubespec/QubeSpec/jadify_temp/r100_jades_deep_hst_v3.1.1_template.yaml') as f:
+            data = yaml.load(f, Loader=SafeLoader)
+
+        data['dirs']['data_dir'] = self.savepath+'PRISM_1D/'
+        data['dirs']['output_dir'] = self.savepath+'PRISM_1D/'
+        data['ppxf']['redshift_table'] = self.savepath+'PRISM_1D/redshift_1D.csv'
+
+        with open(self.savepath+'/PRISM_1D/R100_1D_setup_test.yaml', 'w') as f:
+            data = yaml.dump(data, f, sort_keys=False, default_flow_style=True)
+        from . import jadify_temp as pth
+        PATH_TO_jadify = pth.__path__[0]+ '/'
+        filename = PATH_TO_jadify+ 'red_table_template.csv'
+        redshift_cat = Table.read(filename)
+
+        redshift_cat['ID'][0] = 100000
+        redshift_cat['z_visinsp'][0] = self.z
+        redshift_cat.write(self.savepath+'PRISM_1D/redshift_1D.csv',overwrite=True)
+
+        import nirspecxf
+        id = 100000
+        config100 = nirspecxf.NIRSpecConfig(self.savepath+'PRISM_1D/R100_1D_setup_manual.yaml')
+        ns, _ = nirspecxf.process_object_id(id, config100)
+
+        self.D1_ppxf = ns
+
     def save_fit_info(self):
         results = [self.D1_fit_results, self.dBIC, self.SNR]
 
@@ -1895,7 +1939,6 @@ class Cube:
         HST and Cube centroids are in the same location.
         '''
 
-        from astropy.table import Table
         Gaia = Table.read(path_to_gaia , format='ipac')
 
         cube_center = self.center_data[1:3]
@@ -2012,7 +2055,7 @@ class Cube:
             Spax_mask = mask.copy()
         import os
         try:
-            os.mkdir(self.savepath+'PRISM_spaxel')
+            os.mkdir(self.savepath+'PRISM_spaxel/prism_clear')
         except:
             print('Making directory failed. Maybe it exists already')
         for i in tqdm.tqdm(x):
@@ -2062,7 +2105,7 @@ class Cube:
                         
                         error[error==0] = np.mean(error)*5
 
-                    sp.jadify(self.savepath+'PRISM_spaxel/'+self.ID+'-'+str(i)+'-'+str(j), 'prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+                    sp.jadify(self.savepath+'PRISM_spaxel/prism_clear/00'+str(i)+str(j), '_prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
                     
         
@@ -3566,3 +3609,6 @@ class Cube:
         hdus = [primary_hdu,fits.ImageHDU(psf_matched.data, name='SCI', header=self.header), fits.ImageHDU(error_matched, name='ERR', header=self.header)]
         hdulist = fits.HDUList(hdus)
         hdulist.writeto( self.cube_path[-4] +'psf_matched.fits', overwrite=True)
+
+        def ppxf_fitting(self):
+            x=1

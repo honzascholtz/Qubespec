@@ -1066,15 +1066,18 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
     from . import jadify_temp as pth
 
     PATH_TO_jadify = pth.__path__[0]+ '/'
-
-
     filename = PATH_TO_jadify+ 'temp_prism_clear_v3.0_extr3_1D.fits'
 
     with fits.open(filename) as hdu:
         hdu['DATA'].data = flux
+
         hdu['ERR'].data  = (err if err is not None else np.zeros_like(flux))
-        hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
-        hdu['WAVELENGTH'].data = wave
+        #hdu['DIRTY_Data'].data = flux
+        #hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
+        hdu['WAVELENGTH'].data = wave/1e6
+        #hdu['GTO_FLAG'].data = np.zeros_like(flux)
+        #hdu['GTO_OVERLAPPING'].data = np.zeros_like(flux)
+
         if descr is not None:
             hdu[0].header['COMMENT'] = str(descr)
 
