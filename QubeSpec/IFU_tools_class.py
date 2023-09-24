@@ -2105,7 +2105,7 @@ class Cube:
                         
                         error[error==0] = np.mean(error)*5
 
-                    sp.jadify(self.savepath+'PRISM_spaxel/prism_clear/00'+str(i)+str(j), '_prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+                    sp.jadify(self.savepath+'PRISM_spaxel/prism_clear/00'+str(i)+str(j), 'prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
                     
         
@@ -2442,6 +2442,50 @@ class Cube:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def Spaxel_ppxf(self, ncpu=2):
+        import glob
+        import yaml
+        from yaml.loader import SafeLoader
+
+        # Open the file and load the file
+        with open('/Users/jansen/My Drive/MyPython/Qubespec/QubeSpec/jadify_temp/r100_jades_deep_hst_v3.1.1_template.yaml') as f:
+            data = yaml.load(f, Loader=SafeLoader)
+
+        data['dirs']['data_dir'] = self.savepath+'PRISM_spaxel/'
+        data['dirs']['output_dir'] = self.savepath+'PRISM_spaxel/'
+        data['ppxf']['redshift_table'] = self.savepath+'PRISM_1D/redshift_1D.csv'
+
+        with open(self.savepath+'/PRISM_spaxel/R100_1D_setup_test.yaml', 'w') as f:
+            data = yaml.dump(data, f, sort_keys=False, default_flow_style=True)
+        from . import jadify_temp as pth
+        PATH_TO_jadify = pth.__path__[0]+ '/'
+        filename = PATH_TO_jadify+ 'red_table_template.csv'
+        redshift_cat = Table.read(filename)
+        
+        files = glob.glob(self.savepath+'PRISM_spaxel/prism_clear/*.fits')
+        
+        IDs= np.array([], dtype=int)
+        for i, file in enumerate(files[:3]):
+            comp = file.split('/')
+            IDs = np.append( IDs, int(comp[-1][:6]))
+        
+        redshift_cat_mod = Table()
+        redshift_cat_mod['ID'] = IDs
+        redshift_cat_mod['z_visinsp'] = np.ones_like(len(IDs))*self.z
+        redshift_cat_mod['z_phot'] = np.ones_like(len(IDs))*self.z
+        redshift_cat_mod['z_bagp'] = np.ones_like(len(IDs))*self.z
+        redshift_cat_mod['comment'] = np.zeros_like(IDs)
+        print(redshift_cat_mod)
+        redshift_cat_mod.write(self.savepath+'PRISM_spaxel/redshift_spaxel.csv',overwrite=True)
+
+        import nirspecxf
+        config100 = nirspecxf.NIRSpecConfig(self.savepath+'PRISM_spaxel/R100_1D_setup_manual.yaml')
+        nirspecxf.process_multi(ncpu, IDs, config100)
+        nirspecxf.data_prods.merge_em_lines_tables(
+            self.savepath+'PRISM_spaxel/res/*R100_em_lines.fits',
+            self.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
+        
 
     def Spaxel_fitting_general_MCMC_mp(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
         import pickle
