@@ -1747,9 +1747,8 @@ class Cube:
         except:
             print('Folder structure already exists')
 
-        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+        sp.jadify(self.savepath+'PRISM_spaxel/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
-        
         import yaml
         from yaml.loader import SafeLoader
 
@@ -2466,22 +2465,27 @@ class Cube:
         files = glob.glob(self.savepath+'PRISM_spaxel/prism_clear/*.fits')
         
         IDs= np.array([], dtype=int)
-        for i, file in enumerate(files[:3]):
+        for i, file in enumerate(files):
             comp = file.split('/')
             IDs = np.append( IDs, int(comp[-1][:6]))
-        
         redshift_cat_mod = Table()
         redshift_cat_mod['ID'] = IDs
         redshift_cat_mod['z_visinsp'] = np.ones_like(len(IDs))*self.z
         redshift_cat_mod['z_phot'] = np.ones_like(len(IDs))*self.z
         redshift_cat_mod['z_bagp'] = np.ones_like(len(IDs))*self.z
-        redshift_cat_mod['comment'] = np.zeros_like(IDs)
-        print(redshift_cat_mod)
+        redshift_cat_mod['flag'] = np.zeros_like(IDs, dtype='<U6')
+        redshift_cat_mod['flag'][:] = redshift_cat['flag'][0]
         redshift_cat_mod.write(self.savepath+'PRISM_spaxel/redshift_spaxel.csv',overwrite=True)
-
+        
         import nirspecxf
         config100 = nirspecxf.NIRSpecConfig(self.savepath+'PRISM_spaxel/R100_1D_setup_manual.yaml')
+        #xid = IDs[3]
+        #ns, _ = nirspecxf.process_object_id(id, config100)
         nirspecxf.process_multi(ncpu, IDs, config100)
+        #for i, id in enumerate(IDs):
+        #    print(i)
+        #    ns, _ = nirspecxf.process_object_id(id, config100)
+        print('Fitting done, merging results')
         nirspecxf.data_prods.merge_em_lines_tables(
             self.savepath+'PRISM_spaxel/res/*R100_em_lines.fits',
             self.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
@@ -2871,6 +2875,30 @@ class Cube:
         hdulist.writeto(self.savepath+self.ID+'_Halpha_fits_maps.fits', overwrite=True)
 
         return f
+
+    def Map_creation_ppxf(self, info, add=''):
+        flux_table = Table.read(self.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
+        info_keys = list(info.keys())
+        for key in info_keys:
+            map_flx = np.zeros((2,self.dim[0], self.dim[1]))
+            map_flx[:,:,:] = np.nan
+            
+            for k, row in tqdm.tqdm(enumerate(flux_table)):
+                ID = str(row['ID'])
+                i,j = int(ID[:2]),int(ID[2:])
+                map_flx[0,i,j] = (row[key+'_flux'] if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
+                map_flx[0,i,j] = (row[key+'_flux_upper']/3 if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
+            
+            info[key]['flux_map'] = map_flx
+        
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        for key in info_keys:
+            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
+        
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+self.ID+'_ppxf_fits_maps'+add+'.fits', overwrite=True)
 
 
     def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII):
