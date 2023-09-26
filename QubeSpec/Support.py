@@ -1089,3 +1089,10 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
          
         # Never reach this if overwrite=False and file exists
         hdu.writeto(output_filename, overwrite=True)
+
+
+def NIRSpec_IFU_PSF(wave):
+    # From D'Eugenio et al 2023 - stellar kinematics
+    sigma1= 0.12 + 1.9*wave * e**(-24.4/wave)
+    sigma2= 0.09 + 2.0*wave * e**(-12.5/wave)                     
+    return np.array([sigma1,sigma2])
