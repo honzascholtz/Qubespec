@@ -1,0 +1,192 @@
+general:
+    R: 100 # Can be 1000, 100, 100Irr
+    create_dirs: True # If False, do not create non-existing directories, but raise exceptions
+    matplotlib_backend: null # If a valid string, use that backend for plotting, e.g. "pdf"
+    resume: False # If True, do not fit objects that already have a good fit in
+                 # [dirs][output_dir].
+cosmology:   # Used to find the age of the Universe for each object.
+    H0:  67.4 # Hubble parameter at redshift z = 0 [km / (s Mpc)]
+    Om0: 0.315 # Matter density at redshift z = 0. All from Planck18
+dirs:
+    data_dir:        "/Users/jansen/My Drive/Astro/COS30_IFS/Saves/PRISM_spaxel"
+    output_dir:      "/Users/jansen/My Drive/Astro/COS30_IFS/Saves/PRISM_spaxel"
+    g140m:           "g140m_f070lp"
+    g235m:           "g235m_f170lp"
+    g395m:           "g395m_f290lp"
+    g395h:           "g395h_f290lp"
+    prism:           "prism_clear"
+    dr_version:      "v3.0"
+    extraction:      "" # Default (5-spaxel box). Use "extr3" for 3-spaxel extraction
+    subtraction:     "" # Default (three nods). Use "nod2" for 2-nod subtraction.
+spec_res:
+    prism:           "[default]/tables/01_disp/jwst_nirspec_prism_disp.fits"
+    prism_irregular: "[default]/tables/01_disp/jwst_nirspec_prism_disp.fits"
+    g140m:           "[default]/tables/01_disp/jwst_nirspec_g140m_disp.fits"
+    g235m:           "[default]/tables/01_disp/jwst_nirspec_g235m_disp.fits"
+    g395m:           "[default]/tables/01_disp/jwst_nirspec_g395m_disp.fits"
+    g395h:           "[default]/tables/01_disp/jwst_nirspec_g395h_disp.fits"
+remotedata:
+    ftp:             "ftp.cosmos.esa.int"
+    spec1d_dir:      "JADES-INTERNAL/NIRSpec_DP/Surveys/DataChallenge2/Final_products_v4"
+    spec2d_dir:      "JADES-INTERNAL/NIRSpec_DP/Surveys/DataChallenge2/Final_products"
+visual_inspection:
+    vi_usernames:    ["mcurti", "rm"]
+lick:
+    specind_def: "[default]/tables/00_lick/index_definitions.dat"
+ppxf: # ppxf related keywords (includes non-ppxf keywords relevant to the fit).
+    re_fit_free: False  # If True, run a second ppxf fit where all detected lines have free
+                       # velocity and dispersion.
+    v_tol: 1000.       # [km/s] If `re_fit_free` is True, re-fit detected lines within +/-v_tol from previous solution.
+    sigma_tol: 0.30   # [fraction] If `re_fit_free` is True, re-fit detected lines within +/-fraction from the previous solution.
+    refit_detection_threshold: 5. # Lines with S/N>`detection_threshold` are fit free.
+    balmer_lines: ['Balmer', 'Hepsilon', 'Hdelta', 'Hgamma', 'Hbeta', 'Halpha']
+    #redshift_table: "00_redshifts/visual_redshifts_deep_r1000_MC_v1.fits"
+    #redshift_table: "00_redshifts/visual_redshifts_deep_r100_MC_v1_z_bagp.fits"
+    #redshift_table: "00_redshifts/visual_redshifts_gs_deep_hst_fde_v3.0_v1.0_TL_v2.0.csv"
+    redshift_table: "/Users/jansen/My Drive/Astro/COS30_IFS/red_table.csv"
+    tie_balmer: False # See ppxf documentation
+    limit_doublets: False # See ppxf documentation # Deprecated
+    gas_reddening: null
+    degree:  -1 # See ppxf documentation
+    mdegree: 15 # See ppxf documentation
+    k_sigma:  3 # Used for `ppxfpp.augmented_ppxf.sigma_clip_tl`
+    clean: False # See ppxf documentation
+    #tied: null
+    tied: [['', ''], ['',''], ['p[0]','p[1]'], ['',''], ['',''], ['',''], ['','']]
+    bounds: [[[-2000., 2000.], [1., 1000.]],
+             [[-2000., 2000.], [1., 1000.]],
+             [[-2000., 2000.], [1., 1000.]],
+             [[-2000., 2000.], [1., 1000.]],
+             [[-2000., 2000.], [1., 1000.]],
+             [[-2000., 2000.], [1., 1000.]],
+             [[-2000., 2000.], [1., 2000.]]]
+    run_mc: null # Number of mc runs (use `null` to do no runs).
+    debug_mc: False # If True, debug MC run
+    noise_treatment: 1. # allowed keywords are: 'rescale_noise', 'use_empir_noise' or a float number by which the noise should be rescalled, e.g. 2.
+                    #rescale_noise: Up/down-scale noise spectrum based on residuals of
+                    # *continuum* ppxf best-fit. If a positive number is
+                    # provided, noise spectrum becomes `noise*rescale_noise`.is
+                    #use_empir_noise: Whether to use empirical noise estimate for sigma clipping.
+                    #float number: e.g. 2., float by which the noise should be rescaled
+    fit_offsets: False # If True, when an offset is detected, the fit is run again
+                      # including a template that attempts to model the offset (a top-hat
+                      # or a step function). If False, detected offsets are reported but
+                      # not fit.
+upper_limits:
+    n_sigma_wave: 1.5 # Number of line sigmas σ over which to integrate; the integration happens
+                      # within ±`n_sigma_wave`⋅σ pixels. However, if
+                      # `n_sigma_wave`⋅σ<`n_pixels`⋅Δλ (where Δλ is the pixel size), the
+                      # algorithm will use ±`n_pixels`⋅Δλ from the centroid (see below).
+    n_pixels: 1.5     # ±number of pixels over which to integrate the noise, if
+                      # `n_sigma_wave`⋅σ<`n_pixels`⋅Δλ (where Δλ is the pixel size and σ is the
+                      # line velocity dispersion); see `n_sigma_wave` above.
+    detection_threshold: 3. # Factor to upscale the noise estimate. E.g. 3 means the upper limits are
+                            # 3⋅σ upper limits.
+stellar_templates:
+    class: 'c3k_mist'
+    regex: '/Users/jansen/ppxf/c3k_mist_ssp_R700/SSP_C3K_MIST_Salpeter*fits'
+    fwhm: '/Users/jansen/ppxf/c3k_mist_ssp_R700/LSF-Config_c3k_mist'
+    norm_range: null
+      #[4000., 5200.]
+emission_lines:
+    # define names and vacuum restframe wavelength [Å] of lines we use in ppxf
+    # For each entry (w, f, c, l)
+    # Name: line name. IMPORTANT. Names ending with 'a', 'b', 'd' and 'm' have special
+    #       meaning in post-processing. 'a' & 'b' are the maximum/minimum line ratio of
+    #       variable doublets; 'd' are fixed-ratio doublets; 'm' are fixed ratio multiplets.
+    #       The latter are useful e.g. for the Balmer series, when dust attenuation is used.
+    # w: central wavelength;
+    # f: flux ratio (not relevant for singlets)
+    # c: kinematic component (*must be equal for each line in multiplet*)
+    # l: label to be used in plotting (if '', line is marked with no name)
+    # Note lines with the same `c` will have the same velocity and dispersion.
+    # Name:       [[       w,  f,   c,         l            ]]
+    'HLyA_1216'       : [[ 1215.670, 1.00, 5,[-1.000,99.000],  '$\mathrm{HLyA\_1216      }$ ']]
+    'LyA_drop'        : [[ 1215.670, -1.0, 6,[-1.000,99.000],  '$\mathrm{LyA\_drop      }$ ']]
+    #'N4_1483'    :  [[   1483.321, 1.00, 3,[-1.000,99.000],  '$\mathrm{N4\_1483        }$ ']]
+    'N4_1486'    :  [[   1484.5, 1.00, 3,[-1.000,99.000],  '$\mathrm{N4\_1486        }$ ']]
+    #'Si2_1531'   :  [[   1528.970, 1, 3,[-1.000,99.000],  '$\mathrm{Si2\_1531       }$ ']]
+    #'C4_1548'    :  [[   1548.190, 1, 3,[-1.000,99.000],  '$\mathrm{C4\_1548        }$ ']]
+    #'C4_1551'    :  [[   1550.770, 1, 3,[-1.000,99.000],  '$\mathrm{C4\_1551        }$ ']]
+    'C4_1549'         : [[ 1549.480, 1, 3,[-1.000,99.000],  '$\mathrm{C4\_1549        }$ ']]
+    #'He2_1640'        : [[ 1640.420, 1, 3,[-1.000,99.000],  '$\mathrm{He2\_1640       }$ ']]
+    #'O3_1661'    :  [[   1660.810, 1, 3,[-1.000,99.000],  '$\mathrm{O3\_1661        }$ ']]
+    #'O3_1666'    :  [[   1666.150, 1, 3,[-1.000,99.000],  '$\mathrm{O3\_1666        }$ ']]
+    'Blnd_He2_O3_1650': [[ 1650.000, 1, 3,[-1.000,99.000],  '$\mathrm{He2\_1640 + O3\_1661d}$']]
+    #'O3_1661d'   :  [[   1660.810, 0.341, 3,[-1.000,99.000],  '$\mathrm{O3\_1661    }$ '], # PyNeb
+    #                 [   1666.150, 1., 3,[-1.000,99.000],  '$\mathrm{O3\_1666       }$ ']]
+    #'Al2_1671'   :  [[   1670.790, 1, 3,[-1.000,99.000],  '$\mathrm{Al2\_1671       }$ ']]
+    'N3_1752'    :  [[   1751., 1.00, 3,[-1.000,99.000],  '$\mathrm{N3\_1752        }$ ']]
+    #'Si3_1883'   :  [[   1882.710, 1, 3,[-1.000,99.000],  '$\mathrm{Si3\_1883       }$ ']]
+    #'Si3_1892'   :  [[   1892.030, 1, 3,[-1.000,99.000],  '$\mathrm{Si3\_1892       }$ ']]
+    #'Si3_1883'   :  [[   1887.370, 0., 3,[-1.000,99.000],  '$\mathrm{Si3\_1883      }$ ']] # 2019ApJ...880...16K
+    #'C3_1907'    :  [[   1906.680, 1, 3,[-1.000,99.000],  '$\mathrm{C3\_1907        }$ ']]
+    #'C3_1910'    :  [[   1908.730, 1, 3,[-1.000,99.000],  '$\mathrm{C3\_1910        }$ ']]
+    'C3_1907'         : [[ 1907.705, 1, 3,[-1.000,99.000],  '$\mathrm{C3\_1907       }$ ']] # 2019ApJ...880...16K
+    #'N2_2141'    :  [[   2142.300, 1, 3,[-1.000,99.000],  '$\mathrm{N2\_2141        }$ ']]
+    'Ne4_2424'   :  [[   2425.158, 1, 3,[-1.000,99.000],  '$\mathrm{Ne4\_2424        }$ ']]
+    #'Mg2_2796'   :  [[   2796.352, 1, 3,[-1.000,99.000],  '$\mathrm{Mg2\_2796       }$ ']]
+    #'Mg2_2803'   :  [[   2803.531, 1, 3,[-1.000,99.000],  '$\mathrm{Mg2\_2803       }$ ']]
+    'Mg2_2796'        : [[ 2799.942, 1, 3,[-1.000,99.000],  '$\mathrm{Mg2\_2796      }$ ']] # 2020MNRAS.498.2554C
+    #'Ne5_3426':     [[   3426.850, 1.00, 3,[-1.000,99.000],  '$\mathrm{Ne5\_3426    }$ ']] # Singlet, NIST
+    #'O2_3726'    :  [[   3727.100, 1, 1,[-1.000,99.000],  '$\mathrm{O2\_3726        }']]
+    #'O2_3729'    :  [[   3729.875, 1, 1,[-1.000,99.000],  '$\mathrm{O2\_3729        }']]
+    'O2_3727'         : [[ 3728.488, 1.000, 1,[-1.000,99.000],  '$\mathrm{O2\_3726}$']] # 2019ApJ...880...16K
+    #'H1_3797'    :  [[   3798.987, 1, 2,[-1.000,99.000],  '$\mathrm{H1\_3797        }$ ']]
+    #'H1_3835'    :  [[   3836.485, 1, 2,[-1.000,99.000],  '$\mathrm{H1\_3835        }$ ']]
+    #'Ne3_3869'   :  [[   3869.860, 1, 1,[-1.000,99.000],  '$\mathrm{Ne3\_3869       }']]
+    'Ne3_3869d'       : [[ 3869.860, 1.000, 1,[-1.000,99.000],  '$\mathrm{Ne3\_3869}$'], # PyNeb
+                         [ 3968.590, 0.301, 1,[-1.000,99.000],  '$\mathrm{Ne3\_3968}$']]
+    #'He1_3889'   :  [[   3889.730, 1, 1,[-1.000,99.000],  '$\mathrm{He1\_3889       }$ ']]
+    #'H1_3890'    :  [[   3890.166, 1, 2,[-1.000,99.000],  '$\mathrm{H1\_3890        }$ ']]
+    #'Ne3_3968'   :  [[   3968.590, 1, 1,[-1.000,99.000],  '$\mathrm{Ne3\_3968       }']]
+    #'H1_3970'    :  [[   3971.198, 1, 2,[-1.000,99.000],  '$\mathrm{H1\_3970        }$ ']]
+    #'He1_4027'   :  [[   4027.329, 1, 1,[-1.000,99.000],  '$\mathrm{He1\_4027       }$ ']]
+    #'S2_4070'    :  [[   4069.749, 1, 1,[-1.000,99.000],  '$\mathrm{S2\_4070        }$ ']]
+    #'S2_4078'    :  [[   4077.500, 1, 1,[-1.000,99.000],  '$\mathrm{S2\_4078        }$ ']]
+    'HBaD_4102'        : [[ 4102.860, 1.000, 2,[-1.000,99.000],  '$\mathrm{HBaD\_4102      }$ ']]
+    'HBaG_4340'        : [[ 4341.647, 1.000, 2,[ 5.300,99.000],  '$\mathrm{HBaG\_4340      }$ ']]
+    'O3_4363'          : [[ 4364.436, 1.000, 1,[ 5.300,99.000],  '$\mathrm{O3\_4363        }$ ']]
+    'Blnd_HBaG_O3_4340': [[ 4341.647, 1.000, 2,[-1.000, 5.300],  '$\mathrm{HBaG\_4340+O3\_4363}$ ']]
+    #'Ne4_4725'   :  [[   4725.47,  1, 1,[-1.000,99.000],  '$\mathrm{Ne4\_4725       }$' ]]
+    'HBaB_4861'        : [[ 4862.637, 1.000, 2,[-1.000,99.000],  '$\mathrm{HBaB\_4861      }$ ']]
+    #'O3_4959'    :  [[   4960.295, 1, 1,[-1.000,99.000],  '$\mathrm{O3\_4959        }']]
+    #'O3_5007'    :  [[   5008.240, 1, 1,[-1.000,99.000],  '$\mathrm{O3\_5007        }']]
+    'O3_5007d'         : [[ 4960.295, 0.335, 1,[-1.000,99.000],  '$\mathrm{[OIII]}$'], # PyNeb
+                          [ 5008.240, 1.000, 1,[-1.000,99.000], '$\mathrm{[OIII]}$']]
+    #'O1_5577'    :  [[   5578.887, 1, 1,[-1.000,99.000],  '$\mathrm{O1\_5577        }$ ']]
+    #'N2_5755'    :  [[   5756.190, 1, 1,[-1.000,99.000],  '$\mathrm{N2\_5755        }$ ']]
+    'He1_5875'         : [[ 5877.249, 1.000, 1,[-1.000,99.000],  '$\mathrm{He1\_5875       }$ ']]
+    'O1_6300'          : [[ 6302.046, 1.000, 1,[-1.000,99.000],  '$\mathrm{O1\_6300        }$ ']]
+    #'[OI]':       [[ 6363.67, 0.33, 1,[-1.000,99.000],  '$\mathrm{[OI]}$'    ],
+    #               [ 6302.046, 1.00, 1,[-1.000,99.000],  '$\mathrm{[OI]}$'    ]]
+    #'S3_6312'    :  [[   6313.810, 1, 1,[-1.000,99.000],  '$\mathrm{S3\_6312        }$ ']]
+    #'N2_6548'    :  [[   6549.860, 1, 1,[-1.000,99.000],  '$\mathrm{N2\_6548        }']]
+    #'N2_6584d':     [[ 6549.860, 0.340, 2,[-1.000,99.000],  '$\mathrm{[NII]}$' ], # PyNeb
+    #                 [ 6585.273, 1.00, 2,[-1.000,99.000],  '$\mathrm{[NII]}$' ]]
+    'Blnd_HBaA_N2'     : [[ 6564.523, 1.000, 2,[-1.000,99.000],  '$\mathrm{HBaA\_6563+[NII]}$ ']]
+    #'N2_6584'    :  [[   6585.273, 1, 1,[-1.000,99.000],  '$\mathrm{N2\_6584        }']]
+    'S2_6725'          : [[ 6725.000, 0.440, 1,[-1.000,99.000], '$\mathrm{S2\_6725}$']]
+    'He1_7065'         : [[ 7067.138, 1.000, 1,[-1.000,99.000],  '$\mathrm{He1\_7065       }$ ']]
+    #'O2_7323'    :  [[   7321.940, 1, 1,[-1.000,99.000],  '$\mathrm{O2\_7323        }$ ']]
+    #'O2_7332'    :  [[   7332.210, 1, 1,[-1.000,99.000],  '$\mathrm{O2\_7332        }$ ']]
+    'O2_7323d'  :  [[   7321.940, 1, 1,[-1.000,99.000],  '$\mathrm{O2\_7323         }$ '],   # PyNeb
+                    [   7332.210, 0.52, 1,[-1.000,99.000],  '$\mathrm{O2\_7332      }$ ']]
+    #'S3_9069'    :  [[   9071.100, 1, 4,[-1.000,99.000],  '$\mathrm{S3\_9069        }$ ']]
+    #'S3_9532'    :  [[   9533.200, 1, 4,[-1.000,99.000],  '$\mathrm{S3\_9532        }$ ']]
+    'S3_9069d'         : [[ 9071.100, 0.405, 4,[-1.000,99.000],  '$\mathrm{S3\_9069   }$ '], # PyNeb
+                          [ 9533.200, 1.000, 4,[-1.000,99.000],  '$\mathrm{S3\_9532        }$ ']]
+    'HPaD_10049'       : [[10052.123, 1.000, 4,[-1.000,99.000],  '$\mathrm{HPaD\_10049     }$ ']]
+    'He1_10829'        : [[10832.057, 1.000, 4,[-1.000,99.000],  '$\mathrm{He1\_10829      }$ ']]
+    'HPaG_10938'       : [[10940.978, 1.000, 4,[-1.000,99.000],  '$\mathrm{HPaG\_10938     }$ ']]
+    'HPaB_12818'       : [[12821.432, 1.000, 4,[-1.000,99.000],  '$\mathrm{HPaB\_12818     }$ ']]
+    #'Fe2_16440'          [[  16440.017, 1.000, 4,[-1.000,99.000],  '$\mathrm{Fe2\_16440      }$ ']]
+    'HPaA_18751'       : [[18755.804, 1.000, 4,[-1.000,99.000],  '$\mathrm{HPaA\_18751     }$ ']]
+    'HBrD_19446'       : [[19450.890, 1.000, 4,[-1.000,99.000],  '$\mathrm{HBrD\_19446     }$ ']]
+    #'Si6_19631'          [[  19646.000, 1.000, 4,[-1.000,99.000],  '$\mathrm{Si6\_19631      }$ ']]
+    #'Al9_20430'          [[  20430.000, 1.000, 4,[-1.000,99.000],  '$\mathrm{Al9\_20430      }$ ']]
+    #'H_2_1_0_S1'         [[  21218.000, 1.000, 4,[-1.000,99.000],  '$\mathrm{H\_2\_1\_0\_S1  }$ ']]
+    'HBrG_21655'       : [[21661.180, 1.000, 4,[-1.000,99.000],  '$\mathrm{HBrG\_21655     }$ ']]
+    'HBrB_26252'       : [[26258.680, 1.000, 4,[-1.000,99.000],  '$\mathrm{HBrB\_26252     }$ ']]
+    'HBrA_40512'       : [[40522.690, 1.000, 4,[-1.000,99.000],  '$\mathrm{HBrA\_40512     }$ ']]
+    #'Fe2_53400'  :  [[  53400.000, 1, 4,[-1.000,99.000],  '$\mathrm{Fe2\_53400      }$ ']]

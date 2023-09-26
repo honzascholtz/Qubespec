@@ -35,6 +35,7 @@ from brokenaxes import brokenaxes
 
 from astropy.utils.exceptions import AstropyWarning
 import astropy.constants, astropy.cosmology, astropy.units, astropy.wcs
+from astropy.table import Table
 
 
 nan= float('nan')
@@ -1735,6 +1736,48 @@ class Cube:
             show_titles=True,
             title_kwargs={"fontsize": 12})
 
+    def fitting_collapse_ppxf(self):
+        import os
+        try:
+            os.mkdir(self.savepath+'PRISM_1D')
+        except:
+            print('Folder structure already exists')
+        try:
+            os.mkdir(self.savepath+'PRISM_1D/prism_clear')
+        except:
+            print('Folder structure already exists')
+
+        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+                        overwrite=True, descr=None, author='jscholtz', verbose=False)
+        import yaml
+        from yaml.loader import SafeLoader
+
+        # Open the file and load the file
+        with open('/Users/jansen/My Drive/MyPython/Qubespec/QubeSpec/jadify_temp/r100_jades_deep_hst_v3.1.1_template.yaml') as f:
+            data = yaml.load(f, Loader=SafeLoader)
+
+        data['dirs']['data_dir'] = self.savepath+'PRISM_1D/'
+        data['dirs']['output_dir'] = self.savepath+'PRISM_1D/'
+        data['ppxf']['redshift_table'] = self.savepath+'PRISM_1D/redshift_1D.csv'
+
+        with open(self.savepath+'/PRISM_1D/R100_1D_setup_test.yaml', 'w') as f:
+            data = yaml.dump(data, f, sort_keys=False, default_flow_style=True)
+        from . import jadify_temp as pth
+        PATH_TO_jadify = pth.__path__[0]+ '/'
+        filename = PATH_TO_jadify+ 'red_table_template.csv'
+        redshift_cat = Table.read(filename)
+
+        redshift_cat['ID'][0] = 100000
+        redshift_cat['z_visinsp'][0] = self.z
+        redshift_cat.write(self.savepath+'PRISM_1D/redshift_1D.csv',overwrite=True)
+
+        import nirspecxf
+        id = 100000
+        config100 = nirspecxf.NIRSpecConfig(self.savepath+'PRISM_1D/R100_1D_setup_manual.yaml')
+        ns, _ = nirspecxf.process_object_id(id, config100)
+
+        self.D1_ppxf = ns
+
     def save_fit_info(self):
         results = [self.D1_fit_results, self.dBIC, self.SNR]
 
@@ -1895,7 +1938,6 @@ class Cube:
         HST and Cube centroids are in the same location.
         '''
 
-        from astropy.table import Table
         Gaia = Table.read(path_to_gaia , format='ipac')
 
         cube_center = self.center_data[1:3]
@@ -2012,7 +2054,7 @@ class Cube:
             Spax_mask = mask.copy()
         import os
         try:
-            os.mkdir(self.savepath+'PRISM_spaxel')
+            os.mkdir(self.savepath+'PRISM_spaxel/prism_clear')
         except:
             print('Making directory failed. Maybe it exists already')
         for i in tqdm.tqdm(x):
@@ -2062,7 +2104,7 @@ class Cube:
                         
                         error[error==0] = np.mean(error)*5
 
-                    sp.jadify(self.savepath+'PRISM_spaxel/'+self.ID+'-'+str(i)+'-'+str(j), 'prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+                    sp.jadify(self.savepath+'PRISM_spaxel/prism_clear/00'+str(i)+str(j), 'prism_clear', self.obs_wave, flx_spax_m.data/(1e-7*1e4)*self.flux_norm, err=error/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
                     
         
@@ -2399,6 +2441,55 @@ class Cube:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def Spaxel_ppxf(self, ncpu=2):
+        import glob
+        import yaml
+        from yaml.loader import SafeLoader
+
+        # Open the file and load the file
+        with open('/Users/jansen/My Drive/MyPython/Qubespec/QubeSpec/jadify_temp/r100_jades_deep_hst_v3.1.1_template.yaml') as f:
+            data = yaml.load(f, Loader=SafeLoader)
+
+        data['dirs']['data_dir'] = self.savepath+'PRISM_spaxel/'
+        data['dirs']['output_dir'] = self.savepath+'PRISM_spaxel/'
+        data['ppxf']['redshift_table'] = self.savepath+'PRISM_1D/redshift_1D.csv'
+
+        with open(self.savepath+'/PRISM_spaxel/R100_1D_setup_test.yaml', 'w') as f:
+            data = yaml.dump(data, f, sort_keys=False, default_flow_style=True)
+        from . import jadify_temp as pth
+        PATH_TO_jadify = pth.__path__[0]+ '/'
+        filename = PATH_TO_jadify+ 'red_table_template.csv'
+        redshift_cat = Table.read(filename)
+        
+        files = glob.glob(self.savepath+'PRISM_spaxel/prism_clear/*.fits')
+        
+        IDs= np.array([], dtype=int)
+        for i, file in enumerate(files):
+            comp = file.split('/')
+            IDs = np.append( IDs, int(comp[-1][:6]))
+        redshift_cat_mod = Table()
+        redshift_cat_mod['ID'] = IDs
+        redshift_cat_mod['z_visinsp'] = np.ones_like(len(IDs))*self.z
+        redshift_cat_mod['z_phot'] = np.ones_like(len(IDs))*self.z
+        redshift_cat_mod['z_bagp'] = np.ones_like(len(IDs))*self.z
+        redshift_cat_mod['flag'] = np.zeros_like(IDs, dtype='<U6')
+        redshift_cat_mod['flag'][:] = redshift_cat['flag'][0]
+        redshift_cat_mod.write(self.savepath+'PRISM_spaxel/redshift_spaxel.csv',overwrite=True)
+        
+        import nirspecxf
+        config100 = nirspecxf.NIRSpecConfig(self.savepath+'PRISM_spaxel/R100_1D_setup_manual.yaml')
+        #xid = IDs[3]
+        #ns, _ = nirspecxf.process_object_id(id, config100)
+        nirspecxf.process_multi(ncpu, IDs, config100)
+        #for i, id in enumerate(IDs):
+        #    print(i)
+        #    ns, _ = nirspecxf.process_object_id(id, config100)
+        print('Fitting done, merging results')
+        nirspecxf.data_prods.merge_em_lines_tables(
+            self.savepath+'PRISM_spaxel/res/*R100_em_lines.fits',
+            self.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
+        
 
     def Spaxel_fitting_general_MCMC_mp(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
         import pickle
@@ -2784,6 +2875,30 @@ class Cube:
         hdulist.writeto(self.savepath+self.ID+'_Halpha_fits_maps.fits', overwrite=True)
 
         return f
+
+    def Map_creation_ppxf(self, info, add=''):
+        flux_table = Table.read(self.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
+        info_keys = list(info.keys())
+        for key in info_keys:
+            map_flx = np.zeros((2,self.dim[0], self.dim[1]))
+            map_flx[:,:,:] = np.nan
+            
+            for k, row in tqdm.tqdm(enumerate(flux_table)):
+                ID = str(row['ID'])
+                i,j = int(ID[:2]),int(ID[2:])
+                map_flx[0,i,j] = (row[key+'_flux'] if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
+                map_flx[0,i,j] = (row[key+'_flux_upper']/3 if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
+            
+            info[key]['flux_map'] = map_flx
+        
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        for key in info_keys:
+            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
+        
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+self.ID+'_ppxf_fits_maps'+add+'.fits', overwrite=True)
 
 
     def Map_creation_Halpha_OIII(self, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII):
@@ -3566,3 +3681,6 @@ class Cube:
         hdus = [primary_hdu,fits.ImageHDU(psf_matched.data, name='SCI', header=self.header), fits.ImageHDU(error_matched, name='ERR', header=self.header)]
         hdulist = fits.HDUList(hdus)
         hdulist.writeto( self.cube_path[-4] +'psf_matched.fits', overwrite=True)
+
+        def ppxf_fitting(self):
+            x=1
