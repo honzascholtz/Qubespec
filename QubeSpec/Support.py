@@ -1072,11 +1072,11 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
         hdu['DATA'].data = flux
 
         hdu['ERR'].data  = (err if err is not None else np.zeros_like(flux))
-        #hdu['DIRTY_Data'].data = flux
-        #hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
+        hdu['DIRTY_Data'].data = flux
+        hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
         hdu['WAVELENGTH'].data = wave/1e6
-        #hdu['GTO_FLAG'].data = np.zeros_like(flux)
-        #hdu['GTO_OVERLAPPING'].data = np.zeros_like(flux)
+        hdu['GTO_FLAG'].data = np.zeros_like(flux)
+        hdu['GTO_OVERLAPPING'].data = np.zeros_like(flux)
 
         if descr is not None:
             hdu[0].header['COMMENT'] = str(descr)

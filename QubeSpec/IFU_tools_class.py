@@ -1747,7 +1747,7 @@ class Cube:
         except:
             print('Folder structure already exists')
 
-        sp.jadify(self.savepath+'PRISM_spaxel/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
         import yaml
         from yaml.loader import SafeLoader
