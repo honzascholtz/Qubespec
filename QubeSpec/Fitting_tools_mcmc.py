@@ -259,7 +259,38 @@ class Fitting:
         
         
         nwalkers=64
-        if self.model=='outflow': 
+
+        if self.model== 'outflow_simple':
+            self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_out_peak']
+            self.fitted_model = O_models.OIII_outflow_simple
+            self.log_prior_fce = O_models.log_prior_OIII_outflow_simple
+                    
+            self.pr_code = prior_create(self.labels, self.priors)
+                    
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'OIII_outflow_simple'}
+        
+        elif self.model== 'gal_simple':
+            self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak']
+            self.fitted_model = O_models.OIII_simple
+            self.log_prior_fce = O_models.log_prior_OIII_simple
+                    
+            self.pr_code = prior_create(self.labels, self.priors)
+                    
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'OIII_simple'}
+        
+        elif self.model=='outflow': 
             if self.template==0:
                 if self.Hbeta_dual == 0:
                     self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel']
@@ -814,7 +845,7 @@ def Fitting_OIII_unwrap(lst):
         priors= pickle.load(fp) 
     
     Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-    Fits_sig.fitting_OIII(model='gal')
+    Fits_sig.fitting_OIII(model='gal_simple')
     
     cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
                  
@@ -890,10 +921,10 @@ def Fitting_OIII_2G_unwrap(lst):
     
     try:
         Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-        Fits_sig.fitting_OIII(model='gal')
+        Fits_sig.fitting_OIII(model='gal_simple')
         
         Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-        Fits_out.fitting_OIII(model='outflow')
+        Fits_out.fitting_OIII(model='outflow_simple')
         
         BIC_sig = Fits_sig.BIC
         BIC_out = Fits_out.BIC

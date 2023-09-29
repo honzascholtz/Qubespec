@@ -51,6 +51,73 @@ def gauss(x, k, mu,sig):
 
     return y
 
+def OIII_simple(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak):
+    OIIIr = 5008.24*(1+z)/1e4
+    OIIIb = OIIIr- (48.*(1+z)/1e4)
+
+    Hbeta = 4862.6*(1+z)/1e4
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+
+    Hbeta_fwhm = OIII_fwhm/3e5*Hbeta/2.35482
+    Hbeta_wv = Hbeta 
+    Hbeta_nar = gauss(x, Hbeta_peak, Hbeta_wv, Hbeta_fwhm )
+    contm = PowerLaw1D.evaluate(x, cont, OIIIr, alpha=cont_grad)
+    return contm+ OIII_nar + Hbeta_nar
+
+def OIII_outflow_simple(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_out_peak):
+    OIIIr = 5008.24*(1+z)/1e4
+    OIIIb = OIIIr- (48.*(1+z)/1e4)
+    Hbeta = 4862.6*(1+z)/1e4
+
+
+    Nar_fwhm = OIII_fwhm/3e5*OIIIr/2.35482
+    Out_fwhm = OIII_out/3e5*OIIIr/2.35482
+
+    out_vel_wv = out_vel/3e5*OIIIr
+
+    OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+    OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
+
+    Hbeta_fwhm = Hbeta_fwhm/3e5*Hbeta/2.35482
+    Hbeta_nar = gauss(x, Hbeta_peak, Hbeta, Hbeta_fwhm )
+
+    out_vel_wv = out_vel/3e5*Hbeta
+    Hbeta_fwhm_out = Hbeta_fwhm_out/3e5*Hbeta/2.35482
+    Hbeta_out = gauss(x, Hbeta_out_peak, out_vel_wv, Hbeta_fwhm_out )
+
+    contm = PowerLaw1D.evaluate(x, cont, OIIIr, alpha=cont_grad)
+    return contm+ OIII_nar + OIII_out + Hbeta_nar + Hbeta_out
+
+def log_prior_OIII_outflow_simple(theta,priors):
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+
+    return results
+
+def log_prior_OIII_simple(theta,priors):
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+        elif p[0] ==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+        elif p[0]==2:
+            results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+        elif p[0]==3:
+            results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+
+    return results
+
 
 # =============================================================================
 #    functions to fit [OIII] only with outflow

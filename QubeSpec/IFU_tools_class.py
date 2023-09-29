@@ -695,7 +695,7 @@ class Cube:
                 self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky_smooth*norm[ix,iy]
 
 
-    def D1_spectra_collapse(self, plot, addsave='', err_range=[0], boundary=2.4):
+    def D1_spectra_collapse(self, plot, addsave='', err_range=[0], boundary=2.4, plot_err= 0):
         '''
         This function collapses the Cube to form a 1D spectrum of the galaxy
 
@@ -770,7 +770,20 @@ class Cube:
                 error = np.zeros(len(D1_spectra))
                 error[self.obs_wave<boundary] = D1_spectrum_var_er[self.obs_wave<boundary]*(error1/average_var1)
                 error[self.obs_wave>boundary] = D1_spectrum_var_er[self.obs_wave>boundary]*(error2/average_var2)
+
+
                 self.D1_spectrum_er = error
+
+                if plot_err==1:
+                    f,ax = plt.subplots(1)
+                    print('Error rescales are: ', error1/average_var1, error2/average_var2 )
+                    ax.plot(self.obs_wave, D1_spectrum_var_er, label='Extension')
+                    ax.plot(self.obs_wave, self.D1_spectrum_er, label='rescaled')
+
+                    ax.legend(loc='best')
+                    ax.set_xlabel(r'$\lambda_{\rm obs}$ $\mu$m')
+                    ax.set_ylabel('Flux density')
+
             else:
                 error = stats.sigma_clipped_stats(D1_spectra,sigma=3)[2]
                 
@@ -1526,7 +1539,7 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, models='Outflow',template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal',0, 0.003],\
+    def fitting_collapse_OIII(self,  plot, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal',0, 0.003],\
                                                                                                     'cont':[0,'loguniform',-3,1],\
                                                                                                     'cont_grad':[0,'normal',0,0.2], \
                                                                                                     'OIII_peak':[0,'loguniform',-3,1],\
@@ -1551,14 +1564,20 @@ class Cube:
         
         
         if models=='Outflow':
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
-            Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
-            
-            
-            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
-            Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
-            
-            
+            if simple==0:
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
+                
+                
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
+            elif simple==1:
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig.fitting_OIII(model='gal_simple' )
+                
+                
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out.fitting_OIII(model='outflow_simple' )
             
             if Fits_out.BIC-Fits_sig.BIC <-2:
                 print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
@@ -1619,9 +1638,12 @@ class Cube:
             
             
         elif models=='Single_only':
-            
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
-            Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
+            if simple==0:
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
+            elif simple==1:
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig.fitting_OIII(model='gal_simple' )
                
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
@@ -1635,9 +1657,12 @@ class Cube:
             self.dBIC = 3
             
         elif models=='Outflow_only':
-            
-            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
-            Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
+            if simple==0:
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
+            elif simple==1:
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out.fitting_OIII(model='outflow_simple')
                
             print('BICM', Fits_out.BIC)
             self.D1_fit_results = Fits_out.props
@@ -3647,7 +3672,7 @@ class Cube:
 
         return D1_spectrum, D1_spectrum_er, mask_catch
 
-    def PSF_matching(self, psf_fce, wv_ref=5.2, theta=107):
+    def PSF_matching(self, psf_fce=sp.NIRSpec_IFU_PSF, wv_ref=5.2, theta=107):
         from astropy.modeling.models import Gaussian2D 
         from photutils.psf import create_matching_kernel
         from photutils.psf import TopHatWindow, CosineBellWindow, HanningWindow, TukeyWindow, SplitCosineBellWindow
