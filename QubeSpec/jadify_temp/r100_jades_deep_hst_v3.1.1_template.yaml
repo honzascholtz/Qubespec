@@ -84,8 +84,8 @@ upper_limits:
                             # 3⋅σ upper limits.
 stellar_templates:
     class: 'c3k_mist'
-    regex: '/Users/jansen/ppxf/c3k_mist_ssp_R700/SSP_C3K_MIST_Salpeter*fits'
-    fwhm: '/Users/jansen/ppxf/c3k_mist_ssp_R700/LSF-Config_c3k_mist'
+    regex: '/Users/jansen/SED_fitting/ppxf/c3k_mist_ssp_R700/SSP_C3K_MIST_Salpeter*fits'
+    fwhm: '/Users/jansen/SED_fitting/ppxf/c3k_mist_ssp_R700/LSF-Config_c3k_mist'
     norm_range: null
       #[4000., 5200.]
 emission_lines:
