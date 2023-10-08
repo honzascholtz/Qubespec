@@ -52,6 +52,49 @@ from . import Halpha_models as H_models
 import numba
 from . import Support as sp
 
+class model:
+    def __init__(self, wave, flux, error, model):
+        self.flux = flux
+        self.error = error
+        self.wave = wave
+        self.model = model
+    
+    import numba
+    @numba.njit
+    def logprior_general(theta, priors):
+        results = 0.
+        for t,p in zip( theta, priors):
+            if p[0] ==0:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            elif p[0] ==1:
+                results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+            elif p[0]==2:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            elif p[0]==3:
+                results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        
+        return results
+
+    def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, template=None):
+        lp = logpriorfce(theta,priors)
+        
+        try:
+            if not np.isfinite(lp):
+                return -np.inf
+        except:
+            lp[np.isnan(lp)] = -np.inf
+        
+        if template:
+            evalm = model(x,*theta, template)
+        else:
+            evalm = model(x,*theta)
+        
+        sigma2 = yerr*yerr
+        log_likelihood = -0.5 * np.sum((y - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+        
+        return lp + log_likelihood
+    
+
 
 class Fitting:
     def __init__(self, wave, flux, error, z, N=5000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
