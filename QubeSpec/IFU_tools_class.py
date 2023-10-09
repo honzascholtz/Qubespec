@@ -3707,5 +3707,11 @@ class Cube:
         hdulist = fits.HDUList(hdus)
         hdulist.writeto( self.cube_path[-4] +'psf_matched.fits', overwrite=True)
 
-        def ppxf_fitting(self):
-            x=1
+    def ppxf_fitting(self):
+        x=1
+        
+        
+        
+        
+        
+        
