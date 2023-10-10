@@ -35,7 +35,6 @@ setup(name='QubeSpec',
         'corner>=2.2.1',
         'scipy>=1.9.1',
         'multiprocess',
-        'multiprocessing',
         'spectres'
       ],
       python_requires='>=3.8.0',
