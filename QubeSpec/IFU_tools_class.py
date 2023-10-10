@@ -3543,7 +3543,7 @@ class Cube:
         return f
         
 
-    def Regional_Spec(self, center, rad, err_range=None, manual_mask=np.array([]), boundary=None):
+    def Regional_Spec(self, center=[30,30], rad=0.4, err_range=None, manual_mask=np.array([]), boundary=None):
         '''
         Extracting regional spectra to be fitted.
 
@@ -3571,7 +3571,6 @@ class Cube:
 
         '''
 
-        center =  center
         shapes = self.dim
 
         print ('Center of cont', center)

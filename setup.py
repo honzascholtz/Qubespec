@@ -46,6 +46,7 @@ setup(name='QubeSpec',
       include_package_data=True,
       package_data={'': [
           'FeII_templates/FeII_Tsuzuki_opttemp.txt', 'FeII_templates/bg92.con',
-          'FeII_templates/Veron-cetty_2004.fits']},
+          'FeII_templates/Veron-cetty_2004.fits', 'jadify_temp/red_table_template.csv',
+          'jadify_temp/r100_jades_deep_hst_v3.1.1_template.yaml', 'jadify_temp/Temp_prism_clear_v3.0_extr3_1D.fits']},
       zip_safe=False
      )
