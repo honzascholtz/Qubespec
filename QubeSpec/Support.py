@@ -279,7 +279,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         std = error[use]
         
         n = len(use)
-        SNR = sum((flux_l)/np.sqrt(n) * (1./std))
+        SNR = sum(flux_l)/np.sqrt(sum(1./std**2))
         
         if SNR < 0:
             SNR=0
@@ -1096,3 +1096,15 @@ def NIRSpec_IFU_PSF(wave):
     sigma1= 0.12 + 1.9*wave * e**(-24.4/wave)
     sigma2= 0.09 + 2.0*wave * e**(-12.5/wave)                     
     return np.array([sigma1,sigma2])
+
+
+
+def pickle_load(file_path):
+    import pickle
+    with open(file_path, "rb") as fp:
+        return pickle.load(fp)
+
+def pickle_save(file_path, stuff):
+    import pickle
+    with open(file_path, "wb") as fp:
+        pickle.dump(stuff, fp)

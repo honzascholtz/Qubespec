@@ -25,7 +25,7 @@ import os
 
 from astropy import stats
 
-import multiprocessing as mp
+import multiprocess as mp
 
 from multiprocess import Pool
 
@@ -1325,7 +1325,7 @@ class Cube:
             
         elif models=='QSO_BKPL':
             
-            fFits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
             Fits_sig.fitting_Halpha(model='QSO_BKPL')
         
             self.D1_fit_results = Fits_sig.props

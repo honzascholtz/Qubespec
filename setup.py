@@ -36,6 +36,7 @@ setup(name='QubeSpec',
         'scipy>=1.9.1',
         'multiprocess',
         'multiprocessing',
+        'spectres'
       ],
       python_requires='>=3.8.0',
       #entry_points={
