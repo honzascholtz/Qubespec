@@ -3416,7 +3416,8 @@ class Cube:
 
         return f
     
-    def Map_creation_general(self,info, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII):
+    def Map_creation_general(self,info, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII,\
+                             brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
         z0 = self.z
         failed_fits=0
         

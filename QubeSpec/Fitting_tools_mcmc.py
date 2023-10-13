@@ -313,6 +313,7 @@ class Fitting:
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
             
@@ -809,12 +810,22 @@ def logprior_general(theta, priors):
     for t,p in zip( theta, priors):
         if p[0] ==0:
             results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-        elif p[0] ==1:
+        elif p[0]==1:
             results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
             results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
         elif p[0]==3:
             results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        elif p[0]==4:
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+        elif p[0]==4:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
     
     return results
 
@@ -847,17 +858,27 @@ def logprior_general_test(theta, priors, labels):
         print(p)
         if p[0] ==0:
             results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-        elif p[0] ==1:
-            results = np.log((p[1]<t<p[2])/(p[2]-p[1])) 
+        elif p[0]==1:
+            results= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
-            results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            results= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
         elif p[0]==3:
-            results = np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+            results= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        elif p[0]==4:
+            if p[3]<t<p[4]:
+                results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results = -np.inf
+        elif p[0]==4:
+            if p[3]<np.log10(t)<p[4]:
+                results= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results = -np.inf
     
         print(lb, t, results)
         
 def prior_create(labels,priors):
-    pr_code = np.zeros((len(labels),3))
+    pr_code = np.zeros((len(labels),5))
     
     for key in enumerate(labels):
         if priors[key[1]][1] == 'normal':
@@ -873,6 +894,18 @@ def prior_create(labels,priors):
         elif priors[key[1]][1] == 'loguniform':
             pr_code[key[0]][0] = 3
         
+        elif priors[key[1]][1] == 'normal_hat':
+            pr_code[key[0]][0] = 4
+            
+            pr_code[key[0]][3] = priors[key[1]][4]
+            pr_code[key[0]][4] = priors[key[1]][5]
+        
+        elif priors[key[1]][1] == 'lognormal_hat':
+            pr_code[key[0]][0] = 5
+            
+            pr_code[key[0]][3] = priors[key[1]][4]
+            pr_code[key[0]][4] = priors[key[1]][5]
+            
         else:
             raise Exception('Sorry mode in prior type not understood: ', key )
         
