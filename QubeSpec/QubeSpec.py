@@ -82,8 +82,8 @@ except FileNotFoundError:
 
 from . import Halpha_OIII_models as HaO_models
 from . import Support as sp
-from . import Plotting_tools_v2 as emplot
-from . import Fitting_tools_mcmc as emfit
+from . import Plotting as emplot
+from . import Fitting as emfit
 
 
 # ============================================================================

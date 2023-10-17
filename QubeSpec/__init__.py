@@ -1,1 +1,1 @@
-from .IFU_tools_class import *
+from .QubeSpec import *
