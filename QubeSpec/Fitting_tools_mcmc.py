@@ -219,7 +219,10 @@ class Fitting:
             
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
-        self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
+        try:
+            self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
+        except:
+            self.chi2, self.BIC = np.nan, np.nan
         
         like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         
@@ -283,7 +286,7 @@ class Fitting:
                     
             self.pr_code = prior_create(self.labels, self.priors)
                     
-            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, self.priors['Nar_fwhm'][0], peak_beta])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
@@ -713,7 +716,10 @@ class Fitting:
         
     def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64):
         self.labels= labels
-        self.log_prior_fce = logprior_general
+        if logprior !=None:
+            self.log_prior_fce = logprior_general
+        else: 
+            self.log_prior_fce = logprior
         self.fitted_model = fitted_model
         
         if self.priors['z'][2]==0:
