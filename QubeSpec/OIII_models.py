@@ -80,12 +80,12 @@ def OIII_outflow_simple(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm,
     OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
     OIII_out = gauss(x, OIIIw_peak, OIIIr+out_vel_wv, Out_fwhm) + gauss(x, OIIIw_peak/3, OIIIb+out_vel_wv, Out_fwhm)
 
-    Hbeta_fwhm = Hbeta_fwhm/3e5*Hbeta/2.35482
+    Hbeta_fwhm = OIII_fwhm/3e5*Hbeta/2.35482
     Hbeta_nar = gauss(x, Hbeta_peak, Hbeta, Hbeta_fwhm )
 
     out_vel_wv = out_vel/3e5*Hbeta
-    Hbeta_fwhm_out = Hbeta_fwhm_out/3e5*Hbeta/2.35482
-    Hbeta_out = gauss(x, Hbeta_out_peak, out_vel_wv, Hbeta_fwhm_out )
+    Hbeta_fwhm_out = OIII_fwhm/3e5*Hbeta/2.35482
+    Hbeta_out = gauss(x, Hbeta_out_peak, Hbeta+out_vel_wv, Hbeta_fwhm_out )
 
     contm = PowerLaw1D.evaluate(x, cont, OIIIr, alpha=cont_grad)
     return contm+ OIII_nar + OIII_out + Hbeta_nar + Hbeta_out

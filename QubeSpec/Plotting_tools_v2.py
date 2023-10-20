@@ -133,14 +133,21 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
                  ,color= 'green', linestyle ='dashed')
 
 
-    if 'Hbeta_fwhm' in keys:
-        Hbeta= 4862.6*(1+z)/1e4
-        Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
-        fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
-        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
-                     color= 'orange', linestyle ='dashed')
+    if 'Hbeta_peak' in keys:
+        if 'Hbeta_fwhm' in keys:
+            Hbeta= 4862.6*(1+z)/1e4
+            Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
+            fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+            ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+                        color= 'orange', linestyle ='dashed')
 
-        ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
+            #ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
+        else:
+            Hbeta= 4862.6*(1+z)/1e4
+            
+            fwhm = sol['Nar_fwhm'][0]/3e5/2.35*Hbeta
+            ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+                        color= 'orange', linestyle ='dashed')
 
 
     if 'outflow_fwhm' in keys:
@@ -151,6 +158,15 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
 
         ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIII_out_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_out_peak'][0],OIIIr, fwhm),\
                      color= 'blue', linestyle ='dashed')
+
+        if 'Hbeta_out_peak' in keys:
+            Hbeta_wv = 4862.6*(1+z)/1e4
+            Hbeta_out_wv = Hbeta_wv + sol['outflow_vel'][0]/3e5*Hbeta_wv
+
+            fwhm = sol['outflow_fwhm'][0]/3e5/2.35*Hbeta_out_wv
+
+            ax.plot(wv_rest[fit_loc] ,  gauss(wave[fit_loc], sol['Hbeta_out_peak'][0],Hbeta_out_wv, fwhm),\
+                        color= 'blue', linestyle ='dashed')
 
 
     if 'Hbetan_fwhm' in keys:

@@ -270,7 +270,7 @@ class Fitting:
                     
             self.pr_code = prior_create(self.labels, self.priors)
                     
-            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
+            pos_l = np.array([self.z,np.median(self.flux[fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, peak_beta/3])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                 
