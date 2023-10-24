@@ -31,7 +31,7 @@ Conversion2Chabrier=1.7 # Also Madau
 Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$'
 
-from .Models import FeII_templates as pth
+from . import FeII_templates as pth
 PATH_TO_FeII = pth.__path__[0]+ '/'
 
 def find_nearest(array, value):
