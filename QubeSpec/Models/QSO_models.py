@@ -13,11 +13,9 @@ import matplotlib.pyplot as plt; plt.ioff()
 from astropy.io import fits as pyfits
 from astropy import wcs
 from astropy.table import Table, join, vstack
-from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 from scipy.optimize import curve_fit
 
-from . import Graph_setup as gst
 
 from astropy.modeling.powerlaws import PowerLaw1D
 from astropy.modeling.powerlaws import BrokenPowerLaw1D
@@ -36,8 +34,6 @@ Ken98= (4.5*10**-44)
 Conversion2Chabrier=1.7 # Also Madau
 Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$'
-
-fsz = gst.graph_format()
 
 def find_nearest(array, value):
     """ Find the location of an array closest to a value
@@ -423,7 +419,7 @@ def Halpha_OIII_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, OIII_peak,Hbe
     OIII_part = OIII_QSO_BKPL(x, z, cont,cont_grad,\
                  OIII_peak, OIII_out_peak, Nar_fwhm,\
                  outflow_fwhm, outflow_vel,\
-                 Hbeta_BLR_peak, BLR_vel, BLR_alp1, BLR_alp2, BLR_sig,\
+                 Hbeta_BLR_peak, zBLR, BLR_alp1, BLR_alp2, BLR_sig,\
                  Hbeta_peak, Hbeta_out_peak)
 
     return Hal_part + OIII_part

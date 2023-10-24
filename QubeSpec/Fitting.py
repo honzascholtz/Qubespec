@@ -45,10 +45,10 @@ def gauss(x, k, mu,sig):
     
     return y
 
-from . import OIII_models as O_models
-from . import Halpha_OIII_models as HO_models
-from . import QSO_models as QSO_models
-from . import Halpha_models as H_models
+from .Models import OIII_models as O_models
+from .Models import Halpha_OIII_models as HO_models
+from .Models import QSO_models as QSO_models
+from .Models import Halpha_models as H_models
 import numba
 from . import Support as sp
 

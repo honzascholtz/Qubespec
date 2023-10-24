@@ -64,7 +64,7 @@ SII_r = 6731
 SII_b = 6718.29
 import time
 
-from . import FeII_templates as pth
+from .Models import FeII_templates as pth
 try:
     PATH_TO_FeII = pth.__path__[0]+ '/'
     with open(PATH_TO_FeII+'/Preconvolved_FeII.txt', "rb") as fp:
@@ -74,17 +74,17 @@ try:
 
 except FileNotFoundError:
     
-    from .FeII_comp import *
+    from .Models.FeII_comp import *
     its = preconvolve()
     print(its)
 
 
 
-from . import Halpha_OIII_models as HaO_models
 from . import Support as sp
 from . import Plotting as emplot
 from . import Fitting as emfit
 
+from .Models import Halpha_OIII_models as HaO_models
 
 # ============================================================================
 #  Main class

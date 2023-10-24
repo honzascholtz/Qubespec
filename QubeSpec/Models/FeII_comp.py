@@ -2,7 +2,7 @@
 #importing modules
 import numpy as np
 from astropy.io import fits as pyfits
-from . import FeII_templates as pth
+from .Models import FeII_templates as pth
 import pickle
 def find_nearest(array, value):
     """ Find the location of an array closest to a value
