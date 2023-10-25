@@ -5,5 +5,7 @@
 /QubeSpec/Models/FeII_templates/Preconvolved_FeII.txt
 /.ipynb_checkpoints
 /.DS_store
+/QubeSpec/.DS_Store
+/QubeSpec/Models/.DS_Store
 /QubeSpec/.vscode/launch.json
 /QubeSpec/Models/__pycache__/

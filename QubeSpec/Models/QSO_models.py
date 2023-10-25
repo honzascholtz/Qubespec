@@ -414,7 +414,7 @@ def Halpha_OIII_QSO_BKPL(x, z, cont,cont_grad, Hal_peak, NII_peak, OIII_peak,Hbe
                       outflow_fwhm, outflow_vel,\
                       Hal_BLR_peak, Hbeta_BLR_peak,  zBLR, BLR_alp1, BLR_alp2, BLR_sig):
 
-    Hal_part = Hal_QSO_BKPL(x, z, 0, 0, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel, Hal_BLR_peak, BLR_vel, BLR_alp1, BLR_alp2, BLR_sig)
+    Hal_part = Hal_QSO_BKPL(x, z, 0, 0, Hal_peak, NII_peak, Nar_fwhm, Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel, Hal_BLR_peak, zBLR, BLR_alp1, BLR_alp2, BLR_sig)
 
     OIII_part = OIII_QSO_BKPL(x, z, cont,cont_grad,\
                  OIII_peak, OIII_out_peak, Nar_fwhm,\
