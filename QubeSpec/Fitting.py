@@ -736,7 +736,7 @@ class Fitting:
         for i in enumerate(self.labels):
             pos_l[i[0]] = self.priors[i[1]][0] 
                 
-        if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf):
+        if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf) | (self.log_prior_fce(pos_l, self.pr_code)== np.nan):
             logprior_general_test(pos_l, self.pr_code, self.labels)
                 
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
