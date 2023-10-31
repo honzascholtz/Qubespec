@@ -45,6 +45,9 @@ def gauss(x, k, mu,sig):
     
     return y
 
+import warnings
+warnings.filterwarnings("ignore")
+
 from .Models import OIII_models as O_models
 from .Models import Halpha_OIII_models as HO_models
 from .Models import QSO_models as QSO_models
@@ -113,7 +116,7 @@ class Fitting:
         
         
         fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
-        
+        self.fit_loc = fit_loc
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
         
         self.flux_zoom = self.flux[sel]
@@ -232,7 +235,7 @@ class Fitting:
     # Primary function to fit [OIII] with and without outflows. 
     # =============================================================================
     
-    def fitting_OIII(self, model, template=0, Hbeta_dual=0):
+    def fitting_OIII(self, model, template=0, Hbeta_dual=0, plot=0):
         self.model = model
         self.template = template
         self.Hbeta_dual = Hbeta_dual
@@ -243,7 +246,7 @@ class Fitting:
         self.wave = self.wave[np.invert(self.fluxs.mask)]
         
         fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
-        
+        self.fit_loc = fit_loc
         sel=  np.where((self.wave<5025*(1+self.z)/1e4)& (self.wave>4980*(1+self.z)/1e4))[0]
         self.flux_zoom = self.flux[sel]
         self.wave_zoom = self.wave[sel]
@@ -260,7 +263,9 @@ class Fitting:
         except:
             peak_beta = peak/3
         
-        
+        if plot==1:
+            print(self.flux[fit_loc], self.error[fit_loc])
+
         nwalkers=64
 
         if self.model== 'outflow_simple':
@@ -502,7 +507,7 @@ class Fitting:
         fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
         fit_loc = np.append(fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
         fit_loc = np.append(fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0])
-        
+        self.fit_loc = fit_loc
     # =============================================================================
     #     Finding the initial conditions
     # =============================================================================
@@ -810,7 +815,7 @@ def log_probability_general(theta, x, y, yerr, priors, model, logpriorfce, templ
         evalm = model(x,*theta)
        
     sigma2 = yerr*yerr
-    log_likelihood = -0.5 * np.sum((y - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+    log_likelihood = -0.5 * np.nansum((y - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
     
     return lp + log_likelihood
 
