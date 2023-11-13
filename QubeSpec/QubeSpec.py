@@ -2603,7 +2603,7 @@ class Cube:
            
             
             z = Fits.props['popt'][0]
-            SNR = sp.SNR_calc(Fits.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
+            SNR = sp.SNR_calc(Fits.wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
             flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'OIIIt', self.flux_norm)
 
             map_oiii[0,i,j]= SNR
@@ -2978,7 +2978,6 @@ class Cube:
 
             z = res_spx['popt'][0]
         
-            
         
             if 'zBLR' in lists:
                 modelfce = HO_models.Halpha_OIII_BLR
@@ -3402,6 +3401,7 @@ class Cube:
 
             try:
                 i,j, Fits = results[row]
+                Fits.fitted_model = modelfce
             except:
                 print('Loading old fits? I am sorry no longer compatible...')
 
@@ -3450,8 +3450,8 @@ class Cube:
 
             ax = brokenaxes(xlims=((2.820,3.45),(3.75,4.05),(5,5.3)),  hspace=.01)
             
-            ax.plot(Fits.obs_wave, Fits.fluxs.data, drawstyle='steps-mid')
-            y= modelfce(Fits.obs_wave,*Fits.props['popt'])
+            ax.plot(Fits.wave, Fits.fluxs.data, drawstyle='steps-mid')
+            y= modelfce(Fits.wave,*Fits.props['popt'])
             ax.plot(self.obs_wave,  y, 'r--')
             
             ax.set_xlabel('wavelength (um)')
