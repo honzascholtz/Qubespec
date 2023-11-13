@@ -55,9 +55,13 @@ from .Models import Halpha_models as H_models
 import numba
 from . import Support as sp
 
+def load_Fitting(file_path):
+    fit_temp = Fitting()
+    fit_temp = sp.pickle_load(file_path)
+    return fit_temp
 
 class Fitting:
-    def __init__(self, wave, flux, error, z, N=5000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
+    def __init__(self, wave='', flux='', error='', z='', N=5000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-3,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
@@ -84,8 +88,6 @@ class Fitting:
                                                                                         'Fe_fwhm':[3000,'uniform',2000,6000],\
                                                                                         'SIIr_peak':[0,'loguniform', -3,1],\
                                                                                         'SIIb_peak':[0,'loguniform', -3,1],\
-                                                                                        'OI_peak':[0,'loguniform', -3,1],\
-                                                                                        'OI_out_peak':[0,'loguniform', -3,1],\
                                                                                         'BLR_Hbeta_peak':[0,'loguniform', -3,1]}):
         
         self.N = N
@@ -228,6 +230,8 @@ class Fitting:
             self.chi2, self.BIC = np.nan, np.nan
         
         like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+
+        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
         
         self.like_chains = like_samples
         
@@ -487,6 +491,8 @@ class Fitting:
         self.modeleval = self.fitted_model(self.wave[fit_loc], *self.props['popt'])
         self.chi2 = sum(((self.flux[fit_loc]-self.modeleval)/self.error[fit_loc])**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux[fit_loc]))
+        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+
         
         
     def fitting_Halpha_OIII(self, model):
@@ -540,13 +546,13 @@ class Fitting:
             self.fitted_model = HO_models.Halpha_OIII
             self.log_prior_fce = HO_models.log_prior_Halpha_OIII
             
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak', 'OI_peak')
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak')
             
             self.pr_code = prior_create(self.labels, self.priors)
             
             
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, self.priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
-                              peak_hal*0.2, peak_OIII*0.1])  
+                              peak_hal*0.2])  
             
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
@@ -556,7 +562,7 @@ class Fitting:
                 
                 raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your self.priors\
                                 boundries are sensible. {pos_l}')
-                
+               
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
             
@@ -567,16 +573,16 @@ class Fitting:
             nwalkers=64
             self.fitted_model = HO_models.Halpha_OIII_outflow
             
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak','OI_peak',\
-                    'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'OI_out_peak', 'Hbeta_out_peak'   )
+            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
+                    'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' )
             
             self.pr_code = prior_create(self.labels, self.priors)   
             self.log_prior_fce = HO_models.log_prior_Halpha_OIII_outflow
             
             pos_l = np.array([self.z,np.median(self.flux[fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
-                              peak_OIII*0.8, peak_hal*0.2, peak_hal*0.2, peak_hal*0.2, peak_hal*0.1,\
+                              peak_OIII*0.8, peak_hal*0.2, peak_hal*0.2, peak_hal*0.2, \
                               self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],
-                              peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05, peak_hal*0.05])
+                              peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05])
             
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
@@ -716,6 +722,8 @@ class Fitting:
         self.props = sp.prop_calc(self.chains)
         
         self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
+        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+
 
         
         
@@ -765,11 +773,56 @@ class Fitting:
         self.chains = self.res
         self.props = sp.prop_calc(self.chains)
         self.like_chains = like_samples
+        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
 
+    def save(self, file_path):
+        import pickle
+        """save class as self.name.txt"""
+        with open(file_path, "wb") as file:
+            file.write(pickle.dumps(self.__dict__))
         
-        #self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
+    def load(self, file_path):
+        """try load self.name.txt"""
+        import pickle
+        with open(file_path, "rb") as file:
+            dataPickle = file.read()
+            self.__dict__ = pickle.loads(dataPickle)
+        
+from scipy.stats import norm
+from scipy.stats import uniform
+from scipy.stats import truncnorm
 
-       
+#import numba
+#@numba.njit
+def logprior_general_scipy(theta, priors):
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            #results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            results+= norm.logpdf(t, p[1], p[2])
+        elif p[0]==1:
+            results+= uniform.logpdf(t, p[1], p[2])
+        elif p[0]==2:
+            results+=  norm.logpdf(np.log10(t), p[1], p[2])
+        elif p[0]==3:
+            results+= uniform.logpdf(np.log10(t), p[1], p[2])
+        elif p[0]==4:
+            results += truncnorm.logpdf(t, p[1], p[2], p[3], p[4])
+            '''
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+            '''
+            
+        elif p[0]==4:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
+    
+    return results
+
 
 import numba
 @numba.njit
@@ -778,6 +831,7 @@ def logprior_general(theta, priors):
     for t,p in zip( theta, priors):
         if p[0] ==0:
             results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            #results+= norm.pdf(t, p[1], p[2])
         elif p[0]==1:
             results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
@@ -904,7 +958,7 @@ def Fitting_Halpha_OIII_unwrap(lst, progress=False):
         Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         
-        cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
+        cube_res  = [i,j, Fits_sig]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
@@ -919,7 +973,7 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
         Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='BLR' )
         
-        cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
+        cube_res  = [i,j, Fits_sig]
         
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
@@ -940,18 +994,7 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
         Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_out.fitting_Halpha_OIII(model='outflow' )
         
-        
-        BIC_sig = Fits_sig.BIC
-        BIC_out = Fits_out.BIC
-        
-        if (BIC_sig-BIC_out)>5:
-            fitted_model = Fits_out.fitted_model
-            flat_samples = Fits_out.chains
-        else:
-            fitted_model = Fits_sig.fitted_model
-            flat_samples = Fits_sig.chains
-            
-        cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
+        cube_res  = [i,j,Fits_sig, Fits_out ]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
@@ -970,17 +1013,7 @@ def Fitting_OIII_2G_unwrap(lst):
         Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
         Fits_out.fitting_OIII(model='outflow_simple')
         
-        BIC_sig = Fits_sig.BIC
-        BIC_out = Fits_out.BIC
-        
-        if (BIC_sig-BIC_out)>5:
-            fitted_model = Fits_out.fitted_model
-            flat_samples = Fits_out.chains
-        else:
-            fitted_model = Fits_sig.fitted_model
-            flat_samples = Fits_sig.chains
-            
-        cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
+        cube_res  = [i,j, Fits_sig, Fits_out ]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
@@ -1001,7 +1034,7 @@ def Fitting_Halpha_unwrap(lst):
     Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
     Fits_sig.fitting_Halpha(model='gal')
     
-    cube_res  = [i,j,Fits_sig.props]
+    cube_res  = [i,j,Fits_sig]
     
     return cube_res
     
@@ -1016,17 +1049,12 @@ def Fitting_general_unwrap(lst, progress=False):
     if len(use)==0:
         use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
-    
-    
     try:
         Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
         Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
-       
-        fitted_model = Fits_sig.fitted_model
-        flat_samples = Fits_sig.chains
-        
+      
             
-        cube_res  = [i,j,sp.prop_calc(flat_samples), flat_samples,wave,flx_spax_m,error ]
+        cube_res  = [i,j,Fits_sig ]
     except:
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')

@@ -86,138 +86,138 @@ from . import Fitting as emfit
 
 from .Models import Halpha_OIII_models as HaO_models
 
+
 # ============================================================================
 #  Main class
 # =============================================================================
 class Cube:
-
-    def __init__(self, Full_path, z, ID, flag, savepath, Band, norm=1e-13):
+    def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13):
         import importlib
         importlib.reload(emfit )
+        if Full_path !='':
+            filemarker = fits.open(Full_path)
 
-        filemarker = fits.open(Full_path)
+            #print (Full_path)
+            if flag=='KMOS':
 
-        #print (Full_path)
-        if flag=='KMOS':
+                header = filemarker[1].header # FITS header in HDU 1
+                flux_temp  = filemarker[1].data/norm
 
-            header = filemarker[1].header # FITS header in HDU 1
-            flux_temp  = filemarker[1].data/norm
+                filemarker.close()  # FITS HDU file marker closed
 
-            filemarker.close()  # FITS HDU file marker closed
+            elif flag=='Sinfoni':
+                header = filemarker[0].header # FITS header in HDU 1
+                flux_temp  = filemarker[0].data/norm
 
-        elif flag=='Sinfoni':
-            header = filemarker[0].header # FITS header in HDU 1
-            flux_temp  = filemarker[0].data/norm
+                filemarker.close()  # FITS HDU file marker closed
 
-            filemarker.close()  # FITS HDU file marker closed
+            elif flag=='NIRSPEC_IFU':
+                with fits.open(Full_path, memmap=False) as hdulist:
+                    flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                    error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                    w = wcs.WCS(hdulist[1].header)
+                    header = hdulist[1].header
+                    cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
+                    wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
+                    wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
+                    if wave.unit==astropy.units.m:
+                        wave = wave.to('um')
+                    else:
+                        wave *= 1.e6 # Somehow, units are autoconverted to m
 
-        elif flag=='NIRSPEC_IFU':
-            with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
-                error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
-                w = wcs.WCS(hdulist[1].header)
-                header = hdulist[1].header
-                cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
-                wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
-                wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
-                if wave.unit==astropy.units.m:
-                    wave = wave.to('um')
-                else:
-                    wave *= 1.e6 # Somehow, units are autoconverted to m
+                    error *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                    flux_temp *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                    flux_temp = flux_temp.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                    error = error.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                    flux_temp = flux_temp.value
+                    self.error_cube = error.value
 
-                error *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
-                flux_temp *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
-                flux_temp = flux_temp.to('1 erg/(s cm2 AA arcsec2)')/0.01
-                error = error.to('1 erg/(s cm2 AA arcsec2)')/0.01
-                flux_temp = flux_temp.value
-                self.error_cube = error.value
+            elif flag=='NIRSPEC_IFU_fl':
+                with fits.open(Full_path, memmap=False) as hdulist:
+                    flux_temp = hdulist['SCI'].data/norm*1e4
+                    self.error_cube = hdulist['ERR'].data/norm*1e4
+                    w = wcs.WCS(hdulist[1].header)
+                    header = hdulist[1].header
 
-        elif flag=='NIRSPEC_IFU_fl':
-            with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/norm*1e4
-                self.error_cube = hdulist['ERR'].data/norm*1e4
-                w = wcs.WCS(hdulist[1].header)
-                header = hdulist[1].header
+            elif flag=='MIRI':
+                with fits.open(Full_path, memmap=False) as hdulist:
+                    flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                    error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                    w = wcs.WCS(hdulist[1].header)
+                    header = hdulist[1].header
+                    cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
+                    wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
+                    wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
+                    if wave.unit==astropy.units.m:
+                        wave = wave.to('um')
+                    else:
+                        wave *= 1.e6 # Somehow, units are autoconverted to m
 
-        elif flag=='MIRI':
-            with fits.open(Full_path, memmap=False) as hdulist:
-                flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
-                error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
-                w = wcs.WCS(hdulist[1].header)
-                header = hdulist[1].header
-                cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
-                wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
-                wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
-                if wave.unit==astropy.units.m:
-                    wave = wave.to('um')
-                else:
-                    wave *= 1.e6 # Somehow, units are autoconverted to m
+                    error *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                    flux_temp *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
+                    flux_temp = flux_temp.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                    error = error.to('1 erg/(s cm2 AA arcsec2)')/0.01
+                    flux_temp = flux_temp.value
+                    self.error_cube = error.value
 
-                error *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
-                flux_temp *= (astropy.constants.c.to('AA/s') / wave.to('AA')**2)[:, None, None]
-                flux_temp = flux_temp.to('1 erg/(s cm2 AA arcsec2)')/0.01
-                error = error.to('1 erg/(s cm2 AA arcsec2)')/0.01
-                flux_temp = flux_temp.value
-                self.error_cube = error.value
+            else:
+                raise Exception('Instrument flag not understood')
+
+            flux = np.ma.masked_invalid(flux_temp)   #  deal with NaN
+
+            # Number of spatial pixels
+            n_xpixels = header['NAXIS1']
+            n_ypixels = header['NAXIS2']
+            dim = [n_ypixels, n_xpixels]
+
+            #  Number of spectral pixels
+            n_spixels = header['NAXIS3']
+            dim = [n_ypixels, n_xpixels, n_spixels]
+
+
+            try:
+                x = header['CDELT1']
+            except:
+                header['CDELT1'] = header['CD1_1']
+            try:
+                x = header['CDELT2']
+            except:
+                header['CDELT2'] = header['CD2_2']
+            try:
+                x = header['CDELT3']
+            except:
+                header['CDELT3'] = header['CD3_3']
+
+            wave = header['CRVAL3'] + (np.arange(n_spixels) - (header['CRPIX3'] - 1.0))*header['CDELT3']
+
+            deg_per_pix_x = abs(header['CDELT1'])
+            arc_per_pix_x = 1.*deg_per_pix_x*3600
+            Xpix = header['NAXIS1']
+            Xph = Xpix*arc_per_pix_x
+
+            deg_per_pix_y = abs(header['CDELT2'])
+
+            arc_per_pix_y = deg_per_pix_y*3600
+            Ypix = header['NAXIS2']
+            Yph = Ypix*arc_per_pix_y
+            self.cube_path = Full_path
+            self.flux_norm= norm
+            self.dim = dim
+            self.z = z
+            self.obs_wave = wave
+            self.flux = flux
+            self.ID = ID
+            self.instrument = flag
+            if flag=='NIRSPEC_IFU_fl':
+                self.instrument= 'NIRSPEC_IFU'
+            self.savepath = savepath
+            self.header= header
+            self.phys_size = np.array([Xph, Yph])
+            self.band = Band
 
         else:
-            raise Exception('Instrument flag not understood')
+            self.save_dummy = 0
 
-        flux = np.ma.masked_invalid(flux_temp)   #  deal with NaN
-
-        # Number of spatial pixels
-        n_xpixels = header['NAXIS1']
-        n_ypixels = header['NAXIS2']
-        dim = [n_ypixels, n_xpixels]
-
-        #  Number of spectral pixels
-        n_spixels = header['NAXIS3']
-        dim = [n_ypixels, n_xpixels, n_spixels]
-
-
-        try:
-            x = header['CDELT1']
-        except:
-            header['CDELT1'] = header['CD1_1']
-        try:
-            x = header['CDELT2']
-        except:
-            header['CDELT2'] = header['CD2_2']
-        try:
-            x = header['CDELT3']
-        except:
-            header['CDELT3'] = header['CD3_3']
-
-        wave = header['CRVAL3'] + (np.arange(n_spixels) - (header['CRPIX3'] - 1.0))*header['CDELT3']
-
-        deg_per_pix_x = abs(header['CDELT1'])
-        arc_per_pix_x = 1.*deg_per_pix_x*3600
-        Xpix = header['NAXIS1']
-        Xph = Xpix*arc_per_pix_x
-
-        deg_per_pix_y = abs(header['CDELT2'])
-
-        arc_per_pix_y = deg_per_pix_y*3600
-        Ypix = header['NAXIS2']
-        Yph = Ypix*arc_per_pix_y
-        self.cube_path = Full_path
-        self.flux_norm= norm
-        self.dim = dim
-        self.z = z
-        self.obs_wave = wave
-        self.flux = flux
-        self.ID = ID
-        self.instrument = flag
-        if flag=='NIRSPEC_IFU_fl':
-            self.instrument= 'NIRSPEC_IFU'
-        self.savepath = savepath
-        self.header= header
-        self.phys_size = np.array([Xph, Yph])
-        self.band = Band
-
-        #hdu = fits.PrimaryHDU(self.error_cube, header=header)
-        #hdulist = fits.HDUList([hdu])
-        #hdulist.writeto('/Users/jansen/Cube_temp.fits', overwrite=True)
 
     def add_res(self, line_cat):
         '''
@@ -2336,10 +2336,6 @@ class Cube:
         with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_OIII_unwrap, Unwrapped_cube )
 
-
-
-        self.spaxel_fit_raw = cube_res
-
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
@@ -2372,9 +2368,6 @@ class Cube:
             Ncores=1
         with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_OIII_2G_unwrap, Unwrapped_cube )
-
-
-        self.spaxel_fit_raw = cube_res
 
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII_2G'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
@@ -2409,9 +2402,6 @@ class Cube:
         with Pool(Ncores) as pool:
             cube_res = pool.map(emfit.Fitting_Halpha_unwrap, Unwrapped_cube)
 
-
-
-        self.spaxel_fit_raw = cube_res
 
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
@@ -2459,8 +2449,6 @@ class Cube:
                 cube_res =pool.map(emfit.Fitting_Halpha_OIII_outflowboth_unwrap, Unwrapped_cube)
         else:
             raise Exception('models variable not understood. Options are: Single, BLR and outflow_both')
-
-        self.spaxel_fit_raw = cube_res
 
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
@@ -2602,26 +2590,21 @@ class Cube:
 
         for row in tqdm.tqdm(range(len(results))):
             try:
-                i,j,res_spx, chains,wave,flx_spax_m,error = results[row]
+                i,j, Fits = results[row]
             except:
-                i,j, res_spx = results[row]
-                i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+                print('Loading old fits? I am sorry no longer compatible...')
 
-            lists = list(res_spx.keys())
-            if 'Failed fit' in lists:
+            if str(type(Fits)) == "<class 'dict'>":
                 failed_fits+=1
                 continue
 
-            if 'outflow_vel' in lists:
-                fitted_model = emfit.O_models.OIII_outflow
+            fitted_model = Fits.fitted_model
                 
-            else:
-                fitted_model = emfit.O_models.OIII
-                
+           
             
-            z = res_spx['popt'][0]
-            SNR = sp.SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'OIII')
-            flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(res_spx, chains, 'OIIIt', self.flux_norm)
+            z = Fits.props['popt'][0]
+            SNR = sp.SNR_calc(Fits.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
+            flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'OIIIt', self.flux_norm)
 
             map_oiii[0,i,j]= SNR
 
@@ -2631,7 +2614,7 @@ class Cube:
                 map_oiii[3,i,j] = p84_oiii.copy()
 
 
-                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc_single(fitted_model, res_spx, 0, z=self.z)#res_spx['Nar_fwhm'][0]
+                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc_single(fitted_model, Fits.props, 0, z=self.z)#res_spx['Nar_fwhm'][0]
 
                 p = ax.get_ylim()[1]
 
@@ -2641,15 +2624,15 @@ class Cube:
 
                 dl = self.obs_wave[1]-self.obs_wave[0]
                 n = width_upper/3e5*(5008.24*(1+self.z)/1e4)/dl
-                map_oiii[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
+                map_oiii[3,i,j] = SNR_cut*Fits.error[1]*dl*np.sqrt(n)
                 
 
             
             if SNR>SNR_cut:
                 try:
-                    emplot.plotting_OIII(self.obs_wave, flx_spax_m, ax, res_spx, fitted_model)
+                    emplot.plotting_OIII(self.obs_wave, Fits.fluxs, ax, Fits.props, Fits.fitted_model)
                 except:
-                    print(res_spx, fitted_model)
+                    print(Fits.props, Fits.fitted_model)
                     break
                 ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
                 plt.tight_layout()
@@ -2970,10 +2953,6 @@ class Cube:
 
         map_oiii_ki = np.zeros((5,self.dim[0], self.dim[1]))
         map_oiii_ki[:,:,:] = np.nan
-
-        map_oi = np.zeros((4,self.dim[0], self.dim[1]))
-        map_oi[:,:,:] = np.nan
-
         # =============================================================================
         #        Filling these maps
         # =============================================================================
@@ -3044,7 +3023,7 @@ class Cube:
 #             Plotting
 # =============================================================================
             f = plt.figure(figsize=(10,4))
-            baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01)
+            baxes = brokenaxes(xlims=((4800,5050),(6500,6800)),  hspace=.01)
             emplot.plotting_Halpha_OIII(self.obs_wave, flx_spax_m, baxes, res_spx, modelfce)
 
             #if res_spx['Hal_peak'][0]<3*error[0]:
@@ -3122,25 +3101,6 @@ class Cube:
                 dl = self.obs_wave[1]-self.obs_wave[0]
                 n = width_upper/3e5*(4860*(1+self.z)/1e4)/dl
                 map_hb[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
-
-# =============================================================================
-#             OI
-# =============================================================================
-            if 'OI_peak' in list(res_spx.keys()):
-                flux_oi, p16_oi,p84_oi = sp.flux_calc_mcmc(res_spx, chains, 'OI', self.flux_norm)
-                SNR_oi=  flux_oi/p16_oi
-                SNRs = np.append(SNRs, SNR_oi)
-                map_oi[0,i,j]= SNR_oi.copy()
-                if SNR_oi>SNR_cut:
-                    map_oi[1,i,j] = flux_oi.copy()
-                    map_oi[2,i,j] = p16_oi.copy()
-                    map_oi[3,i,j] = p84_oi.copy()
-
-                else:
-
-                    dl = self.obs_wave[1]-self.obs_wave[0]
-                    n = width_upper/3e5*(6300*(1+self.z)/1e4)/dl
-                    map_oi[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
 
 # =============================================================================
 #           SII
@@ -3352,24 +3312,6 @@ class Cube:
         ax2.set_ylabel('Dec offset (arcsecond)')
 
         # =============================================================================
-        # OI SNR
-        ax3 = axes[4,0]
-        ax3.set_title('OI SNR')
-        fw = ax3.imshow(map_oi[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
-        divider = make_axes_locatable(ax3)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(fw, cax=cax, orientation='vertical')
-
-        # =============================================================================
-        # OI flux
-        ax3 = axes[4,1]
-        ax3.set_title('OI Flux')
-        fw = ax3.imshow(map_oi[1,:,:], origin='lower', extent= lim_sc)
-        divider = make_axes_locatable(ax3)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(fw, cax=cax, orientation='vertical')
-
-        # =============================================================================
         # SII SNR
         ax3 = axes[5,0]
         ax3.set_title('[SII] SNR')
@@ -3402,7 +3344,6 @@ class Cube:
         nii_kin_hdu = fits.ImageHDU(map_nii_ki, name='NII_kin')
         hbe_hdu = fits.ImageHDU(map_hb, name='Hbeta')
         oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
-        oi_hdu = fits.ImageHDU(map_oi, name='OI')
 
         siir_hdu = fits.ImageHDU(map_siir, name='SIIr')
         siib_hdu = fits.ImageHDU(map_siib, name='SIIb')
@@ -3411,7 +3352,7 @@ class Cube:
         oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
         Av_hdu = fits.ImageHDU(Av, name='Av')
 
-        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,oi_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
+        hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
         hdulist.writeto(self.savepath+self.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
 
         return f
@@ -3460,20 +3401,20 @@ class Cube:
         for row in tqdm.tqdm(range(len(results))):
 
             try:
-                i,j, res_spx,chains,wave,flx_spax_m,error = results[row]
+                i,j, Fits = results[row]
             except:
-                i,j, res_spx,chains= results[row]
-                i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+                print('Loading old fits? I am sorry no longer compatible...')
 
-            lists = list(res_spx.keys())
-            if 'Failed fit' in lists:
+            if str(type(Fits)) == "<class 'dict'>":
                 failed_fits+=1
                 continue
 
-            z = res_spx['z'][0]
+            fitted_model = Fits.fitted_model
+
+            z = Fits.props['z'][0]
             for key in info_keys:
                 
-                SNR= sp.SNR_calc(self.obs_wave, flx_spax_m, error, res_spx, 'general',\
+                SNR= sp.SNR_calc(self.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
                                  wv_cent = info[key]['wv'],\
                                  peak_name = key+'_peak', \
                                      fwhm_name = info[key]['fwhm'])
@@ -3481,7 +3422,7 @@ class Cube:
                 info[key]['flux_map'][0,i,j] = SNR
                 
                 if SNR>SNR_cut:
-                    flux, p16,p84 = sp.flux_calc_mcmc(res_spx, chains, 'general', self.flux_norm,\
+                    flux, p16,p84 = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'general', self.flux_norm,\
                                                       wv_cent = info[key]['wv'],\
                                                       peak_name = key+'_peak', \
                                                           fwhm_name = info[key]['fwhm'])
@@ -3492,15 +3433,15 @@ class Cube:
 
                     if info[key]['kin'] ==1:
 
-                        info[key]['kin_map'][0,i,j] = (np.median(chains['z'])-self.z)/(1+self.z)*3e5
-                        info[key]['kin_map'][1,i,j] = np.median(chains[info[key]['fwhm']])
+                        info[key]['kin_map'][0,i,j] = (np.median(Fits.chains['z'])-self.z)/(1+self.z)*3e5
+                        info[key]['kin_map'][1,i,j] = np.median(Fits.chains[info[key]['fwhm']])
                      
             
 
                 else:
                     dl = self.obs_wave[1]-self.obs_wave[0]
                     n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
-                    info[key]['flux_map'][3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
+                    info[key]['flux_map'][3,i,j] = -SNR_cut*Fits.error[-1]*dl*np.sqrt(n)
 
 # =============================================================================
 #             Plotting
@@ -3509,14 +3450,14 @@ class Cube:
 
             ax = brokenaxes(xlims=((2.820,3.45),(3.75,4.05),(5,5.3)),  hspace=.01)
             
-            ax.plot(self.obs_wave, flx_spax_m.data, drawstyle='steps-mid')
-            y= modelfce(self.obs_wave,*res_spx['popt'])
+            ax.plot(Fits.obs_wave, Fits.fluxs.data, drawstyle='steps-mid')
+            y= modelfce(Fits.obs_wave,*Fits.props['popt'])
             ax.plot(self.obs_wave,  y, 'r--')
             
             ax.set_xlabel('wavelength (um)')
             ax.set_ylabel('Flux density')
             
-            ax.set_ylim(-2*error[0], 1.2*max(y))
+            ax.set_ylim(-2*Fits.error[0], 1.2*max(y))
             ax.set_title('xy='+str(j)+' '+ str(i) )
 
 
@@ -3709,6 +3650,21 @@ class Cube:
 
     def ppxf_fitting(self):
         x=1
+
+    
+    def save(self, file_path):
+        import pickle
+        """save class as self.name.txt"""
+        with open(file_path, "wb") as file:
+            file.write(pickle.dumps(self.__dict__))
+        
+
+    def load(self, file_path):
+        """try load self.name.txt"""
+        import pickle
+        with open(file_path, "rb") as file:
+            dataPickle = file.read()
+            self.__dict__ = pickle.loads(dataPickle)
         
         
         
