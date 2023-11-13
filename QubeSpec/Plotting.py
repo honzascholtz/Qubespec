@@ -117,7 +117,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
 
     flt = np.where((wv_rest[fit_loc]>4900)&(wv_rest[fit_loc]<5100))[0]
 
-    ax.set_ylim(-0.1*max(y_tot[flt]), max(y_tot[flt])*1.1)
+    ax.set_ylim(-0.1*np.nanmax(y_tot[flt]), np.nanmax(y_tot[flt])*1.1)
     ax.tick_params(direction='in')
     ax.set_xlim(4700,5050 )
 
@@ -205,7 +205,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
 
     if ('zBLR' in keys):
         if 'BLR_alp1' in keys:
-            from .QSO_models import BKPLG
+            from .Models.QSO_models import BKPLG
             from astropy.modeling.powerlaws import BrokenPowerLaw1D
             from astropy.convolution import Gaussian1DKernel
             from astropy.convolution import convolve
@@ -291,7 +291,7 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]/3e5*SII_b/2.35), \
                 color='darkblue', linestyle='dashed')
 
-    if 'BLR_offset' in keys:
+    if 'zBLR' in keys:
         BLR_wv = 6564.52*(1+sol['zBLR'][0])/1e4
 
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['BLR_Hal_peak'][0], BLR_wv, sol['BLR_fwhm'][0]/3e5*Hal_wv/2.35), \
@@ -315,7 +315,7 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
         ax.plot(wv_rest[fit_loc], NII_out_b, color='magenta', linestyle='dashed')
 
     if 'BLR_alp1' in keys:
-        from .QSO_models import BKPLG
+        from .Models.QSO_models import BKPLG
         from astropy.modeling.powerlaws import BrokenPowerLaw1D
         from astropy.convolution import Gaussian1DKernel
         from astropy.convolution import convolve

@@ -137,7 +137,6 @@ class Visualize:
             self.map_nii = hdulist['NII'].data
             self.map_hb = hdulist['Hbeta'].data
             self.map_oiii = hdulist['OIII'].data
-            self.map_oi = hdulist['OI'].data
             self.map_siir = hdulist['SIIr'].data
             self.map_siib = hdulist['SIIb'].data
             self.map_hal_ki = hdulist['Hal_kin'].data

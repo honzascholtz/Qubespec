@@ -454,7 +454,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
             model = gauss(wave, res['BLR_Hal_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
             
         elif 'BLR_alp1' in keys:
-            from QSO_models import BKPLG
+            from .Models.QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hn, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
             
         else:
@@ -494,7 +494,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
         if 'BLR_fwhm' in keys:
             model = gauss(wave, res['BLR_Hal_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hbeta  )
         elif 'BLR_alp1' in keys:
-            from QSO_models import BKPLG
+            from .Models.QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], hbeta, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
 
         else:
