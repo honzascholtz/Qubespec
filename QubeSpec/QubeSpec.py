@@ -1551,6 +1551,8 @@ class Cube:
                                                                                                     'Hbeta_fwhm':[400,'uniform',120,7000],\
                                                                                                     'Hbeta_vel':[10,'normal', 0,200],\
                                                                                                     'Hbetan_peak':[0,'loguniform',-3,1],\
+                                                                                                    'Hbeta_peak':[0,'loguniform',-3,1],\
+                                                                                                    'Hbeta_out_peak':[0,'loguniform',-3,1],\
                                                                                                     'Hbetan_fwhm':[300,'uniform',120,700],\
                                                                                                     'Hbetan_vel':[10,'normal', 0,100],\
                                                                                                     'Fe_peak':[0,'loguniform',-3,1],\
@@ -3629,8 +3631,8 @@ class Cube:
 
         psf_matched = self.flux.copy()
         error_matched = self.error_cube.copy()
-        for i, wave in tqdm.tqdm(enumerate(self.obs_wave)):
-            
+        for its in tqdm.tqdm(enumerate(self.obs_wave)):
+            i, wave = its
             #gf_loc = Gaussian2D(100, 50, 50, PSF(wave)[0], PSF(wave)[1], theta=theta)
             #g_loc = gf_loc(x,y)
             #g_loc /=g_loc.sum()

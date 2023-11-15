@@ -55,10 +55,6 @@ from .Models import Halpha_models as H_models
 import numba
 from . import Support as sp
 
-def load_Fitting(file_path):
-    fit_temp = Fitting()
-    fit_temp = sp.pickle_load(file_path)
-    return fit_temp
 
 class Fitting:
     def __init__(self, wave='', flux='', error='', z='', N=5000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
