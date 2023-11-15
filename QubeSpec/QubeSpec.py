@@ -3376,6 +3376,9 @@ class Cube:
         #         Setting up the maps
         # =============================================================================
 
+        Result_cube = np.zeros_like(self.flux.data)
+        Result_cube_data = self.flux.data
+        Result_cube_error = self.error_cube.data
         
         info_keys = list(info.keys())
         
@@ -3414,6 +3417,13 @@ class Cube:
             fitted_model = Fits.fitted_model
 
             z = Fits.props['z'][0]
+            Result_cube_data[:,i,j] = Fits.fluxs.data
+            try:
+                Result_cube_error[:,i,j] = Fits.error.data
+            except:
+                lds=0
+            Result_cube[:,i,j] = Fits.yeval
+
             for key in info_keys:
                 
                 SNR= sp.SNR_calc(self.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
@@ -3474,9 +3484,13 @@ class Cube:
 # =============================================================================
         primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
         hdus = [primary_hdu]
+        hdus.append(fits.ImageHDU(Result_cube_data, name='flux'))
+        hdus.append(fits.ImageHDU(Result_cube_error, name='error'))
+        hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
+
         for key in info_keys:
             hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
-        
+
         for key in info_keys:
             if info[key]['kin'] ==1:
                 hdus.append(fits.ImageHDU(info[key]['kin_map'], name=key+'_kin'))

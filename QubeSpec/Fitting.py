@@ -806,12 +806,6 @@ def logprior_general_scipy_test(theta, priors):
             results+= loguniform.logpdf(t, 10**p[1], 10**p[2])
         elif p[0]==4:
             results += truncnorm.logpdf(t, p[1], p[2], p[3], p[4])
-            '''
-            if p[3]<t<p[4]:
-                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-            else:
-                results += -np.inf
-            '''
             
         elif p[0]==4:
             if p[3]<np.log10(t)<p[4]:
@@ -834,20 +828,9 @@ def logprior_general_scipy(theta, priors):
         elif p[0]==3:
             results+= uniform.logpdf(np.log10(t), p[1], p[2])
         elif p[0]==4:
-            results += truncnorm.logpdf(t, p[1], p[2], p[3], p[4])
-            '''
-            if p[3]<t<p[4]:
-                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-            else:
-                results += -np.inf
-            '''
-            
+            results += truncnorm.logpdf(t, p[1], p[2], p[3], p[4])   
         elif p[0]==4:
-            if p[3]<np.log10(t)<p[4]:
-                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
-            else:
-                results += -np.inf
-    
+            results += truncnorm.logpdf(np.log10(t), p[1], p[2], p[3], p[4])
     return results
 
 

@@ -89,36 +89,18 @@ def generate_data(mean_x, mean_y, std_x, std_y, theta, n_pixels):
     return cube, modl
 
 
-from . import Plotting_tools_v2 as emplot
-from . import Halpha_OIII_models as models
-from . import IFU_tools_class as IFU
-def plotting_haloiii(results,i,j, iter_map, axes):
-    index = iter_map[j,i]
+from . import Plotting as emplot
+from . import QubeSpec as IFU
 
-    if index==0:
-        print('not fit at '+str(i)+' '+str(j))
-    else:
-        index=int(index)
-
-        i,j, res_spx,chains,obs_wave,flx_spax_m,error = results[index]
-
-        lists = list(res_spx.keys())
-        if 'Failed fit' in lists:
-           return
-
-        z = res_spx['popt'][0]
-
-        if 'zBLR' in lists:
-            modelfce = models.Halpha_OIII_BLR
-        elif 'outflow_vel' not in lists:
-            modelfce = models.Halpha_OIII
-        elif 'outflow_vel' in lists and 'zBLR' not in lists:
-            modelfce = models.Halpha_OIII_outflow
-
-        emplot.plotting_Halpha_OIII(obs_wave, flx_spax_m, axes, res_spx, modelfce)
-        axes.set_title(str(IFU.sp.SNR_calc(obs_wave, flx_spax_m, error, res_spx ,'Hn')))
-
-
+def plot_general(i,j, obs_wave, flux, error, yeval , axes):
+    axes.cla()
+    fluxm= flux[:,j,i]
+    errorm= error[:,j,i]
+    yevalm = yeval[:,j,i]
+    axes.plot(obs_wave, fluxm, drawstyle='steps-mid')
+    axes.plot(obs_wave, yevalm, 'r--')
+    axes.plot(obs_wave, errorm, 'k:')
+    axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
 
 
 class Visualize:
@@ -130,66 +112,72 @@ class Visualize:
         self.cube = cube
         self.modl = modl
 
-    def load_data(self, path_maps, path_res, mode='Halpha_OIII'):
-
-        with pyfits.open(path_maps, memmap=False) as hdulist:
-            self.map_hal = hdulist['Halpha'].data
-            self.map_nii = hdulist['NII'].data
-            self.map_hb = hdulist['Hbeta'].data
-            self.map_oiii = hdulist['OIII'].data
-            self.map_siir = hdulist['SIIr'].data
-            self.map_siib = hdulist['SIIb'].data
-            self.map_hal_ki = hdulist['Hal_kin'].data
-            self.map_oiii_ki= hdulist['OIII_kin'].data
+    def load_data(self, path_res, map_hdu ):
+        with pyfits.open(path_res, memmap=False) as hdulist:
+            self.map = []
+            for its in map_hdu:
+                self.map.append(hdulist[its].data[0,:,:])
+            
+            self.yeval = hdulist['yeval'].data
+            self.flux = hdulist['flux'].data
+            self.error = hdulist['error'].data
 
             self.header = hdulist['PRIMARY'].header
-
-        with open(path_res, "rb") as fp:
-            self.results= pickle.load(fp)
-
-        self.iter_map = np.zeros_like(self.map_hal[0])
-        for index in enumerate(self.results):
-            it = index[0]
-            i,j, res_spx,chains,wave,flx_spax_m,error = index[1]
-            self.iter_map[i,j] = int(it)
+            nwave = np.shape(self.yeval)[0]
+            self.obs_wave = self.header['CRVAL3'] + (np.arange(nwave) - (self.header['CRPIX3'] - 1.0))*self.header['CDELT3']
 
 
-    def showme(self,z=0):
 
+    def showme(self, xlims= ((3,5.3)), vmax=1e-15):
+                                  
         fig = plt.figure(figsize=(15.6, 8))
         fig.canvas.manager.set_window_title('vicube')
         gs = fig.add_gridspec(
             2, 3, height_ratios=(1,1), width_ratios=(1,1,1))
 
         ax0 = fig.add_subplot(gs[0, 0])
-        ax1 = fig.add_subplot(gs[0, 1])
-        ax2 = fig.add_subplot(gs[0, 2])
-        axspec = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01, subplot_spec=gs[1, :])
+        ax1 = fig.add_subplot(gs[0, 1], sharex=ax0, sharey=ax0)
+        ax2 = fig.add_subplot(gs[0, 2], sharex=ax0, sharey=ax0)
+        axes = [ax0,ax1,ax2]
+        axspec = fig.add_subplot(gs[1, :]) #brokenaxes(xlims=xlims,  hspace=.01, subplot_spec=gs[1, :])
 
-        _img_ = ax0.imshow(self.map_hal[0], origin='lower')
-        _img_ = ax1.imshow(self.map_hal[1], origin='lower')
-        _img_ = ax2.imshow(self.map_oiii[1], origin='lower')
+        axes= axes[:len(self.map)]
+        for ax, map,its in zip(axes,self.map, range(len(axes))):
+            if its==2:
+                cmap='coolwarm'
+            else:
+                cmap='viridis'
+            _img_ = ax.imshow(map, origin='lower', cmap=cmap)
+        
 
-        selector  = matplotlib.patches.Rectangle(
+        selector0  = matplotlib.patches.Rectangle(
             (14.5, 14.5), 1, 1, edgecolor='r', facecolor='none', lw=1.0)
-        ax1.add_artist(selector)
-        selector.set_visible(True)
+        selector1  = matplotlib.patches.Rectangle(
+            (14.5, 14.5), 1, 1, edgecolor='r', facecolor='none', lw=1.0)
+        selector2  = matplotlib.patches.Rectangle(
+            (14.5, 14.5), 1, 1, edgecolor='r', facecolor='none', lw=1.0)
+        ax0.add_artist(selector0)
+        ax1.add_artist(selector1)
+        ax2.add_artist(selector2)
+        selector0.set_visible(True)
+        selector1.set_visible(True)
+        selector2.set_visible(True)
 
-        plotting_haloiii(self.results, 50, 50, self.iter_map, axspec)
+        plot_general(50,50, self.obs_wave, self.flux, self.error, self.yeval , axspec)
 
 
         def update_plot(event):
-            selector.set_visible(True)
+            selector0.set_visible(True)
             i, j = int(event.xdata), int(event.ydata)
 
-            axspec = brokenaxes(xlims=((4800,5050),(6250,6350),(6500,6800)),  hspace=.01, subplot_spec=gs[1, :])
-            plotting_haloiii(self.results, i, j, self.iter_map, axspec)
-            selector.set_xy((i-.5, j-.5))
-
+            #axspec = brokenaxes(xlims=xlims,  hspace=.01, subplot_spec=gs[1, :])
+            #axspec = fig.add_subplot(gs[1, :])
+            plot_general(i,j, self.obs_wave, self.flux, self.error, self.yeval , axspec)
+            selector0.set_xy((i-.5, j-.5)),selector1.set_xy((i-.5, j-.5)),selector2.set_xy((i-.5, j-.5))
 
         def hover(event):
-            if (event.inaxes != ax1):
-                selector.set_visible(False)
+            if (event.inaxes != ax0):
+                selector0.set_visible(False),selector1.set_visible(False),selector2.set_visible(False)
                 fig.canvas.draw_idle()
                 return
             update_plot(event)
