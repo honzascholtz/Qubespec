@@ -787,9 +787,40 @@ class Fitting:
 from scipy.stats import norm
 from scipy.stats import uniform
 from scipy.stats import truncnorm
+from scipy.stats import lognorm
+from scipy.stats import loguniform
 
 #import numba
 #@numba.njit
+def logprior_general_scipy_test(theta, priors):
+    results = 0.
+    for t,p in zip( theta, priors):
+        if p[0] ==0:
+            #results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            results+= norm.logpdf(t, p[1], p[2])
+        elif p[0]==1:
+            results+= uniform.logpdf(t, p[1], p[2])
+        elif p[0]==2:
+            results+=  lognorm.logpdf(t, 10**p[1], 10**p[2])
+        elif p[0]==3:
+            results+= loguniform.logpdf(t, 10**p[1], 10**p[2])
+        elif p[0]==4:
+            results += truncnorm.logpdf(t, p[1], p[2], p[3], p[4])
+            '''
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+            '''
+            
+        elif p[0]==4:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
+    
+    return results
+
 def logprior_general_scipy(theta, priors):
     results = 0.
     for t,p in zip( theta, priors):

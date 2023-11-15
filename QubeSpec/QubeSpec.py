@@ -1518,7 +1518,7 @@ class Cube:
         if models=='QSO_BKPL':
             baxes = brokenaxes(xlims=((4700,5050),(6200,6800)),  hspace=.01)
         else:
-            baxes = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
+            baxes = brokenaxes(xlims=((4800,5050),(6400,6800)),  hspace=.01)
                 
         emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')                             
         baxes.set_xlabel('Restframe wavelength (ang)')
@@ -1527,7 +1527,7 @@ class Cube:
         if models=='QSO_BKPL':
             baxes_er = brokenaxes(xlims=((4700,5050),(6200,6800)),  hspace=.01)  
         else:
-            baxes_er = brokenaxes(xlims=((4800,5050),(6250,6350),(6400,6800)),  hspace=.01)
+            baxes_er = brokenaxes(xlims=((4800,5050),(6400,6800)),  hspace=.01)
             
         
         y_tot = self.D1_fit_model(self.obs_wave, *self.D1_fit_results['popt'])
