@@ -38,85 +38,26 @@ arrow = u'$\u2193$'
 PATH='/Users/jansen/My Drive/Astro/'
 fsz = gst.graph_format()
 
-
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import matplotlib.widgets
 import matplotlib.cm
 import numpy as np
 from brokenaxes import brokenaxes
-np.random.seed(8614)
-
-from astropy.modeling.models import Gaussian2D
-from scipy.ndimage import gaussian_filter1d
-
-def generate_data(mean_x, mean_y, std_x, std_y, theta, n_pixels):
-    """Generate mock data and model
-    Returns
-    -------
-    cube : float 3-d array
-        The mock data.
-    modl : float 3-d array
-        The mock data, without Gaussian noise added.
-    """
-
-    # Generate a realistic galaxy image.
-    g2d = Gaussian2D(
-        1., mean_x, mean_y, std_x, std_y, theta=theta)
-    x, y = [np.linspace(-5., 5., 30) for _ in 'ab']
-    xx, yy = np.meshgrid(x, y)
-    img = g2d(xx, yy)
-
-    # Generate a realistic galaxy spectrum X-D
-    spec = np.zeros(n_pixels)
-    wave = np.arange(spec.size)
-
-    spec = 10./(wave/1000.+1.)**2
-    spec[:155] /= 4.
-    spec = gaussian_filter1d(spec, 10)
-    for w,f,s in zip((250, 1022, 1257, 2200, 2250),
-                     (5, -5, 12, 37, 6),
-                     (15, 18, 18, 18, 25)):
-        spec += f*np.exp(-0.5*((wave-w)/s)**2)
-
-    # Observing the model galaxy with noise.
-    modl = img[:, :, None] * spec[None, None, :]
-    cube = np.random.normal(
-        img[:, :, None]*spec[None, None, :],    # mean
-        )
-    img  = np.nanmedian(cube, axis=2)
-
-    return cube, modl
-
-
 from . import Plotting as emplot
 from . import QubeSpec as IFU
 
-def plot_general(i,j, obs_wave, flux, error, yeval , axes):
-    axes.cla()
-    fluxm= flux[:,j,i]
-    errorm= error[:,j,i]
-    yevalm = yeval[:,j,i]
-    axes.plot(obs_wave, fluxm, drawstyle='steps-mid')
-    axes.plot(obs_wave, yevalm, 'r--')
-    axes.plot(obs_wave, errorm, 'k:')
-    axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
-
-
 class Visualize:
-    def __init__(self):
-
-        cube, modl = generate_data(
-            0., 0., 1., 2., np.pi/6., 2500)
-
-        self.cube = cube
-        self.modl = modl
-
-    def load_data(self, path_res, map_hdu ):
+    def __init__(self, path_res, map_hdu ):
+        """
+        Load the fit and the data
+        Returns
+        -------
+        """
         with pyfits.open(path_res, memmap=False) as hdulist:
             self.map = []
             for its in map_hdu:
-                self.map.append(hdulist[its].data[0,:,:])
+                self.map.append(hdulist[its].data[:,:,:])
             
             self.yeval = hdulist['yeval'].data
             self.flux = hdulist['flux'].data
@@ -126,7 +67,15 @@ class Visualize:
             nwave = np.shape(self.yeval)[0]
             self.obs_wave = self.header['CRVAL3'] + (np.arange(nwave) - (self.header['CRPIX3'] - 1.0))*self.header['CDELT3']
 
-
+    def plot_general(self, i,j, axes):
+        axes.cla()
+        fluxm= self.flux[:,j,i]
+        errorm= self.error[:,j,i]
+        yevalm = self.yeval[:,j,i]
+        axes.plot(self.obs_wave, fluxm, drawstyle='steps-mid')
+        axes.plot(self.obs_wave, yevalm, 'r--')
+        axes.plot(self.obs_wave, errorm, 'k:')
+        axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
 
     def showme(self, xlims= ((3,5.3)), vmax=1e-15):
                                   
@@ -145,11 +94,12 @@ class Visualize:
         for ax, map,its in zip(axes,self.map, range(len(axes))):
             if its==2:
                 cmap='coolwarm'
+                map_ind=0
             else:
                 cmap='viridis'
-            _img_ = ax.imshow(map, origin='lower', cmap=cmap)
+                map_ind=1
+            _img_ = ax.imshow(map[map_ind,:,:], origin='lower', cmap=cmap)
         
-
         selector0  = matplotlib.patches.Rectangle(
             (14.5, 14.5), 1, 1, edgecolor='r', facecolor='none', lw=1.0)
         selector1  = matplotlib.patches.Rectangle(
@@ -163,8 +113,8 @@ class Visualize:
         selector1.set_visible(True)
         selector2.set_visible(True)
 
-        plot_general(50,50, self.obs_wave, self.flux, self.error, self.yeval , axspec)
-
+        self.plot_general(50,50, axspec)
+        plt.tight_layout()
 
         def update_plot(event):
             selector0.set_visible(True)
@@ -172,7 +122,7 @@ class Visualize:
 
             #axspec = brokenaxes(xlims=xlims,  hspace=.01, subplot_spec=gs[1, :])
             #axspec = fig.add_subplot(gs[1, :])
-            plot_general(i,j, self.obs_wave, self.flux, self.error, self.yeval , axspec)
+            self.plot_general(i,j , axspec)
             selector0.set_xy((i-.5, j-.5)),selector1.set_xy((i-.5, j-.5)),selector2.set_xy((i-.5, j-.5))
 
         def hover(event):
@@ -184,5 +134,4 @@ class Visualize:
             fig.canvas.draw_idle()
         fig.canvas.mpl_connect("motion_notify_event", hover)
 
-        plt.show()
-        #plt.subplots_adjust(wspace=0, hspace=0)
+        plt.show()    
