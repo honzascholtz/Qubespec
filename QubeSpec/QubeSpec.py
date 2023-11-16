@@ -695,7 +695,7 @@ class Cube:
                 self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky_smooth*norm[ix,iy]
 
 
-    def D1_spectra_collapse(self, plot, addsave='', err_range=[0], boundary=2.4, plot_err= 0):
+    def D1_spectra_collapse(self, plot,rad= 0.6, addsave='', err_range=[0], boundary=2.4, plot_err= 0, flg=1):
         '''
         This function collapses the Cube to form a 1D spectrum of the galaxy
 
@@ -715,7 +715,8 @@ class Cube:
         None.
 
         '''
-
+        
+        self.choose_pixels( plot=plot, rad= rad, flg=flg, mask_manual=[0])
         # Loading the Signal mask - selects spaxel to collapse to 1D spectrum
         mask_spax = self.Signal_mask.copy()
         # Loading mask of the sky lines an bad features in the spectrum
@@ -830,7 +831,7 @@ class Cube:
 
 
 
-    def mask_JWST(self, plot, threshold=1e11, spe_ma=[], dtype=bool):
+    def mask_JWST(self, plot, threshold=1e11, spe_ma=[]):
         '''
         Masking bad pixels in JWST NIRSPEC and MIRI observations.
 
