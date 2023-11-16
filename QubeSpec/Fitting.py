@@ -57,7 +57,7 @@ from . import Support as sp
 
 
 class Fitting:
-    def __init__(self, wave='', flux='', error='', z='', N=5000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
+    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-3,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
@@ -93,6 +93,7 @@ class Fitting:
         self.wave = wave
         self.fluxs = flux
         self.error = error
+        self.ncpu= ncpu
         
     # =============================================================================
     #  Primary function to fit Halpha both with or without BLR - data prep and fit 
@@ -755,9 +756,21 @@ class Fitting:
         pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
         
         nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-        nwalkers, ndim, log_probability_general, args=(self.waves, self.flux, self.errors,self.pr_code, self.fitted_model, self.log_prior_fce)) 
-        sampler.run_mcmc(pos, self.N, progress=self.progress);
+        
+        if self.ncpu==1:
+            sampler = emcee.EnsembleSampler(
+                nwalkers, ndim, log_probability_general, args=(self.waves, self.flux, self.errors,self.pr_code, self.fitted_model, self.log_prior_fce)) 
+            sampler.run_mcmc(pos, self.N, progress=self.progress)
+        
+        elif self.ncpu>1:
+            from multiprocess import Pool
+            with Pool(self.ncpu) as pool:
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, log_probability_general, args=(self.waves, self.flux, self.errors,self.pr_code, self.fitted_model, self.log_prior_fce), pool=pool) 
+            
+                sampler.run_mcmc(pos, self.N, progress=self.progress)
+
+
             
         flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
         like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
