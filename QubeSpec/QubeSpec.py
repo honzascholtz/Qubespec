@@ -3630,7 +3630,7 @@ class Cube:
 
         return D1_spectrum, D1_spectrum_er, mask_catch
 
-    def PSF_matching(self, psf_fce=sp.NIRSpec_IFU_PSF, wv_ref=5.2, theta=107):
+    def PSF_matching(self, psf_fce=sp.NIRSpec_IFU_PSF, wv_ref=5.2, theta=None):
         from astropy.modeling.models import Gaussian2D 
         from photutils.psf import create_matching_kernel
         from photutils.psf import TopHatWindow, CosineBellWindow, HanningWindow, TukeyWindow, SplitCosineBellWindow
@@ -3643,7 +3643,7 @@ class Cube:
         #gmatch /= gmatch.sum()
         #window = TopHatWindow(0.6)
         #window = CosineBellWindow(alpha=0.99)
-
+        theta = self.header['PA_V3']-138
         psf_matched = self.flux.copy()
         error_matched = self.error_cube.copy()
         for its in tqdm.tqdm(enumerate(self.obs_wave)):
