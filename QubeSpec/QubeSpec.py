@@ -1217,7 +1217,7 @@ class Cube:
 
             plt.tight_layout()
 
-    def fitting_collapse_Halpha(self, plot, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal', 0,0.001],\
+    def fitting_collapse_Halpha(self, plot, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal_hat', 0,0,0,0],\
                                                                                        'cont':[0,'loguniform',-3,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
@@ -1447,7 +1447,7 @@ class Cube:
                 emplot.plotting_Halpha(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
             
             
-    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal', 0, 0.003],\
+    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal_hat', 0, 0.,0,0],\
                                                                                                      'cont':[0,'loguniform', -3,1],\
                                                                                                      'cont_grad':[0,'normal', 0,0.2],\
                                                                                                      'Hal_peak':[0,'loguniform', -3,1],\
@@ -1613,7 +1613,7 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal',0, 0.003],\
+    def fitting_collapse_OIII(self,  plot, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0],\
                                                                                                     'cont':[0,'loguniform',-3,1],\
                                                                                                     'cont_grad':[0,'normal',0,0.2], \
                                                                                                     'OIII_peak':[0,'loguniform',-3,1],\

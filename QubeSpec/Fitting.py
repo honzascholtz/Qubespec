@@ -102,6 +102,12 @@ class Fitting:
         self.model= model
         if self.priors['z'][0]==0:
             self.priors['z'][0]=self.z
+            if (self.priors['z'][1]=='normal_hat') & (self.priors['z'][2]==0):
+                self.priors['z'][2] = self.z
+                self.priors['z'][3] = 200/3e5*(1+self.z)
+                self.priors['z'][4] = self.z-1000/3e5*(1+self.z)
+                self.priors['z'][4] = self.z+1000/3e5*(1+self.z)
+
         
         try:
             if self.priors['zBLR'][0]==0:
@@ -240,8 +246,13 @@ class Fitting:
         self.model = model
         self.template = template
         self.Hbeta_dual = Hbeta_dual
-        if self.priors['z'][2]==0:
-            self.priors['z'][2]=self.z
+        if self.priors['z'][0]==0:
+            self.priors['z'][0]=self.z
+            if (self.priors['z'][1]=='normal_hat') & (self.priors['z'][2]==0):
+                self.priors['z'][2] = self.z
+                self.priors['z'][3] = 200/3e5*(1+self.z)
+                self.priors['z'][4] = self.z-1000/3e5*(1+self.z)
+                self.priors['z'][4] = self.z+1000/3e5*(1+self.z)
         
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.wave[np.invert(self.fluxs.mask)]
@@ -495,8 +506,13 @@ class Fitting:
     def fitting_Halpha_OIII(self, model):
         self.model = model
         
-        if self.priors['z'][2]==0:
-            self.priors['z'][2]=self.z
+        if self.priors['z'][0]==0:
+            self.priors['z'][0]=self.z
+            if (self.priors['z'][1]=='normal_hat') & (self.priors['z'][2]==0):
+                self.priors['z'][2] = self.z
+                self.priors['z'][3] = 200/3e5*(1+self.z)
+                self.priors['z'][4] = self.z-1000/3e5*(1+self.z)
+                self.priors['z'][4] = self.z+1000/3e5*(1+self.z)
         try:
             if self.priors['zBLR'][2]==0:
                 self.priors['zBLR'][2]=self.z
