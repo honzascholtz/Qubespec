@@ -113,8 +113,14 @@ class Cube:
 
             elif flag=='NIRSPEC_IFU':
                 with fits.open(Full_path, memmap=False) as hdulist:
-                    flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
-                    error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                    try:
+                        flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                        error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                    except Exception as _exc_:
+                        print(_exc_)
+                        flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit('Jy')*1e-6
+                        error = hdulist['ERR'].data/norm * astropy.units.Unit('Jy')*1e-6
+
                     w = wcs.WCS(hdulist[1].header)
                     header = hdulist[1].header
                     cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
@@ -620,7 +626,74 @@ class Cube:
             plt.ylabel('Flux')
             plt.xlabel('Observed wavelength')
 
+    def background_subtraction_testing(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,
+                source_mask=None, wave_smooth=25, plot=0, **kwargs):
+        '''
+        Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
+        Parameters
+        ----------
+        center : TYPE
+            DESCRIPTION.
+        rad : TYPE, optional
+            DESCRIPTION. The default is 0.6.
+        plot : TYPE, optional
+            DESCRIPTION. The default is 0.
+
+        Returns
+        ------
+        None.
+
+        '''
+        from photutils.background import Background2D, MedianBackground
+        from astropy.stats import SigmaClip
+
+
+        n_wave, n_x, n_y = self.flux.shape
+        self.background = np.full((n_wave, n_x, n_y), np.nan)
+        self.coverage_mask = self.flux.data==np.nan
+        self.coverage_mask = self.coverage_mask[100,:,:]
+
+        for _wave_,_image_ in tqdm.tqdm(enumerate(self.flux)):
+            mask = ~np.isfinite(_image_)
+            mask = mask if source_mask is None else mask | source_mask
+
+            #plt.figure()
+            #plt.imshow(mask, origin='lower')
+            #plt.show()
+            try:
+                background2d = Background2D(
+                        _image_, box_size, filter_size=filter_size, mask=mask,
+                        coverage_mask=self.coverage_mask, sigma_clip=SigmaClip(sigma=sigma_clip),
+                        bkg_estimator=MedianBackground(), **kwargs)
+                
+                self.background[_wave_,:,:] = background2d.background
+            except Exception as _exc_:
+                print(_exc_)
+                background2d = np.full(_image_.shape, np.nan)
+
+                self.background[_wave_,:,:] = background2d
+
+        # For wavelength slices where all spaxels were invalid, interpolate linearly
+        # between nearby wavelengths.
+        wave_mask = np.all(np.isnan(self.background), axis=(1,2))
+        wave_indx = np.linspace(0., 1, n_wave) # Dummy variable.
+        if np.any(wave_mask):
+            for i in range(n_x):
+                for j in range(n_y):
+                    if self.coverage_mask[n_x, n_y]:
+                        continue
+                    self.background[wave_mask, i, j] = np.interp(
+                        wave_indx[wave_mask], wave_indx[~wave_mask],
+                        self.background[~wave_mask, i, j])
+        
+        from scipy import signal
+        if wave_smooth:
+            self.backgrond = signal.medfilt(self.background, (wave_smooth, 1, 1))
+        self.flux_old = self.flux.copy()
+        self.flux = self.flux-self.background
+        
+        
     def background_sub_spec_gnz11(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
@@ -1797,6 +1870,8 @@ class Cube:
 
         redshift_cat['ID'][0] = 100000
         redshift_cat['z_visinsp'][0] = self.z
+        redshift_cat['z_phot'][0] = self.z
+        redshift_cat['z_bagp'][0] = self.z
         redshift_cat.write(self.savepath+'PRISM_1D/redshift_1D.csv',overwrite=True)
 
         import nirspecxf
