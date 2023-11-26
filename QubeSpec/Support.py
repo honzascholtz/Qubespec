@@ -159,7 +159,7 @@ def smooth(image,sm):
     return con_im  
 
 def prop_calc(results): 
-    """ Take the dictionary with the results chains and calculates the values 
+    """ Legacy - Take the dictionary with the results chains and calculates the values 
     and 1 sigma confidence interval
 	
 	"""
@@ -279,7 +279,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         std = error[use]
         
         n = len(use)
-        SNR = sum(flux_l)/np.sqrt(sum(std**2))
+        SNR = np.nansum(flux_l)/np.sqrt(np.nansum(std**2))
         
         if SNR < 0:
             SNR=0
@@ -294,7 +294,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     std = error[use]
     
     n = len(use)
-    SNR = sum(flux_l)/np.sqrt(sum(std**2))
+    SNR =np.nansum(flux_l)/np.sqrt(np.nansum(std**2))
     if SNR < 0:
         SNR=0
     
@@ -323,7 +323,7 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
             y_model = model(wave, *popt)
         else:
             y_model = model(wave, *popt, template)
-        chi2 = sum(((flux-y_model)/error)**2)
+        chi2 = np.nansum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
     
     if mode=='Halpha':
@@ -339,7 +339,7 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         error = error[fit_loc]
         
         y_model = model(wave, *popt)
-        chi2 = sum(((flux-y_model)/error)**2)
+        chi2 = np.nansum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
     
     if mode=='Halpha_OIII':
@@ -358,7 +358,7 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         error = error[fit_loc]
         
         y_model = model(wave, *popt)
-        chi2 = sum(((flux-y_model)/error)**2)
+        chi2 = np.nansum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
         
         
