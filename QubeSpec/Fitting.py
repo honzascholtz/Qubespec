@@ -52,9 +52,9 @@ from .Models import OIII_models as O_models
 from .Models import Halpha_OIII_models as HO_models
 from .Models import QSO_models as QSO_models
 from .Models import Halpha_models as H_models
+from .Models import Custom_model
 import numba
 from . import Support as sp
-
 
 class Fitting:
     """ 
@@ -820,6 +820,30 @@ class Fitting:
         
         self.props = self.prop_calc()
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+
+    def fitting_custom(self, model_inputs,model_name, nwalkers=64, template=None, N=6000):
+        """ Fitting any custom model that you pass with a dictionary. You need to put in fitted_model, labels and
+        you can pass logprior function or number of walkers.        
+        """
+        self.template= template
+        self.model_inputs = model_inputs
+        self.model_name = model_name 
+        
+        
+        if self.priors['z'][2]==0:
+            self.priors['z'][2]=self.z
+            
+        self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.waves = self.wave[np.invert(self.fluxs.mask)]
+        self.errors = self.error[np.invert(self.fluxs.mask)]
+
+        self.flux_fitloc = self.flux.copy()
+        self.wave_fitloc = self.waves.copy()
+        self.error_fitloc = self.errors.copy()
+        
+        Model = Custom_model.LineProfile(self.model_name, model_inputs)
+        Model.fit_to_data(self.wave_fitloc, self.flux_fitloc, self.error_fitloc, N=N, nwalkers=nwalkers)
+
 
     def save(self, file_path):
         import pickle
