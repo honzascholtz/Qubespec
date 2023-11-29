@@ -10,10 +10,6 @@ Created on Wed Aug 16 17:35:45 2017
 import numpy as np
 import matplotlib.pyplot as plt
 
-from astropy.io import fits as pyfits
-from astropy import wcs
-from astropy.table import Table, join, vstack
-from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 from scipy.optimize import curve_fit
 import os
@@ -28,8 +24,6 @@ e= np.e
 c= 3.*10**8
 h= 6.62*10**-34
 k= 1.38*10**-23
-
-arrow = u'$\u2193$' 
 
 N = 6000
 PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'

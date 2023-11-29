@@ -18,21 +18,13 @@ from astropy.nddata import Cutout2D
 
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
-import emcee
 import corner
 import tqdm
 import os
-
 from astropy import stats
-
 import multiprocess as mp
-
 from multiprocess import Pool
-
-from astropy.modeling.powerlaws import PowerLaw1D
-
 from brokenaxes import brokenaxes
-
 from astropy.utils.exceptions import AstropyWarning
 import astropy.constants, astropy.cosmology, astropy.units, astropy.wcs
 from astropy.table import Table
@@ -44,14 +36,6 @@ pi= np.pi
 e= np.e
 
 c= 3.*10**8
-h= 6.62*10**-34
-k= 1.38*10**-23
-
-Ken98= (4.5*10**-44)
-Conversion2Chabrier=1.7 # Also Madau
-Calzetti12= 2.8*10**-44
-arrow = u'$\u2193$'
-
 
 OIIIr = 5008.24
 OIIIb = 4960.3

@@ -18,9 +18,7 @@ import pickle
 from scipy.optimize import curve_fit
 import glob
 
-from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
-from astropy.nddata import Cutout2D
 
 from astropy.modeling.powerlaws import PowerLaw1D
 
@@ -35,9 +33,6 @@ c= 3.*10**8
 h= 6.62*10**-34
 k= 1.38*10**-23
 
-Ken98= (4.5*10**-44)
-Conversion2Chabrier=1.7 # Also Madau
-Calzetti12= 2.8*10**-44
 arrow = u'$\u2193$'
 
 from . import Fitting_tools_mcmc as emfit
