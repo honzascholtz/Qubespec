@@ -164,18 +164,6 @@ class Model:
 
             self.lines[doublet_name] = DoubletModel(doublet_name, doublet_parameters[doublet_name][:-3],
                 doublet_parameters[doublet_name][-3], doublet_parameters[doublet_name][-2], width_type=doublet_parameters[doublet_name][-1])
-        
-        #Initialize free ratio doublets
-        for ratio_name in ratio_parameters.keys():
-            if ratio_parameters[ratio_name][0] == 0:
-                ratio_parameters[ratio_name][0] = self.theta['z'].value
-
-            if ratio_parameters[ratio_name][2] == 0:
-                fwhm_type = ratio_parameters[ratio_name][7]
-                ratio_parameters[doublet_name][2] = self.theta['fwhm_'+fwhm_type].value
-
-            self.lines[ratio_name] = RatioModel(ratio_name, ratio_parameters[ratio_name][:-3],
-                ratio_parameters[ratio_name][-3], ratio_parameters[ratio_name][-2], width_type=ratio_parameters[ratio_name][-1])
 
     def prop_calc(self, results):  
         labels = list(results.keys())[1:]
