@@ -25,7 +25,6 @@ c= 3.*10**8
 h= 6.62*10**-34
 k= 1.38*10**-23
 
-N = 6000
 PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 
 version = 'Main'    
@@ -226,7 +225,7 @@ class Fitting:
              nwalkers, ndim, self.log_probability_general, args=())
      
         sampler.run_mcmc(pos, self.N, progress=self.progress)
-        self.flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)      
+        self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
         
         self.chains = {'name': 'Halpha'}
         for i in range(len(self.labels)):
@@ -493,7 +492,7 @@ class Fitting:
         
      
         sampler.run_mcmc(pos, self.N, progress=self.progress)
-        self.flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)      
+        self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
         
         self.chains = {'name': 'OIII'}
         for i in range(len(self.labels)):
@@ -739,7 +738,7 @@ class Fitting:
                 nwalkers, ndim, self.log_probability_general, args=()) 
         sampler.run_mcmc(pos, self.N, progress=self.progress)
         
-        self.flat_samples = sampler.get_chain(discard=int(0.5*N), thin=15, flat=True)
+        self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
         self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         
         self.chains = {'name': 'Halpha_OIII'}
@@ -838,7 +837,7 @@ class Fitting:
         self.Model = Custom_model.Model(self.model_name, model_inputs)
         self.Model.fit_to_data(self.wave_fitloc, self.flux_fitloc, self.error_fitloc, N=self.N, nwalkers=nwalkers, ncpu=1)
 
-        self.labels= self.Model.chains
+        self.labels= self.Model.labels
         self.chains = self.Model.chains
         self.props = self.Model.props
         self.yeval = self.Model.calculate_values(self.waves)
@@ -887,33 +886,30 @@ class Fitting:
         pr_code = np.zeros((len(self.labels),5))
         
         for key in enumerate(self.labels):
-            if self.priors[key[1]][1] == 'normal':
-                pr_code[key[0]][0] = 0
+            match self.priors[key[1]][1]:
+                case 'normal':
+                    pr_code[key[0]][0] = 0
+                case 'lognormal':
+                    pr_code[key[0]][0] = 2
                 
+                case 'uniform':
+                    pr_code[key[0]][0] = 1
+                
+                case 'loguniform':
+                    pr_code[key[0]][0] = 3
             
-            elif self.priors[key[1]][1] == 'lognormal':
-                pr_code[key[0]][0] = 2
-                
-            elif self.priors[key[1]][1] == 'uniform':
-                pr_code[key[0]][0] = 1
-                
-            elif self.priors[key[1]][1] == 'loguniform':
-                pr_code[key[0]][0] = 3
+                case 'normal_hat':
+                    pr_code[key[0]][0] = 4
+                    pr_code[key[0]][3] = self.priors[key[1]][4]
+                    pr_code[key[0]][4] = self.priors[key[1]][5]
             
-            elif self.priors[key[1]][1] == 'normal_hat':
-                pr_code[key[0]][0] = 4
+                case 'lognormal_hat':
+                    pr_code[key[0]][0] = 5
+                    pr_code[key[0]][3] = self.priors[key[1]][4]
+                    pr_code[key[0]][4] = self.priors[key[1]][5]
                 
-                pr_code[key[0]][3] = self.priors[key[1]][4]
-                pr_code[key[0]][4] = self.priors[key[1]][5]
-            
-            elif self.priors[key[1]][1] == 'lognormal_hat':
-                pr_code[key[0]][0] = 5
-                
-                pr_code[key[0]][3] = self.priors[key[1]][4]
-                pr_code[key[0]][4] = self.priors[key[1]][5]
-                
-            else:
-                raise Exception('Sorry mode in prior type not understood: ', key )
+                case _:
+                    raise Exception('Sorry mode in prior type not understood: ', key )
             
             pr_code[key[0]][1] = self.priors[key[1]][2]
             pr_code[key[0]][2] = self.priors[key[1]][3]

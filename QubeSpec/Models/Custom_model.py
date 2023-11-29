@@ -29,6 +29,18 @@ class Parameter:
                 return stats.truncnorm.logpdf(self.value, self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4])
             case _:
                 raise NameError("Prior {} not found".format(self.prior_params[0]))
+    
+    def sample_prior(self, N):
+        match self.prior_params[0]:
+            case "uniform": return stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1], N )
+            case 'loguniform': return 10**stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1],N)
+            case 'normal': return stats.norm.rvs( self.prior_params[1], self.prior_params[2], N)
+            case'lognormal':
+                return stats.lognorm.logpdf( self.prior_params[1], self.prior_params[2], N)
+            case 'normal_hat':
+                return stats.truncnorm.logpdf(self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4],N)
+            case _:
+                raise NameError("Prior {} not found".format(self.prior_params[0]))
 
 ###########Line models
 class LineModel:
@@ -59,7 +71,7 @@ class DoubletModel:
         self.rest_wav2 = rest_wav2
         self.parameters = parameters
         self.width_type = width_type
-
+        
     def gauss(self, x, k, mu, sig):
         expo = -((x-mu)**2)/(2*sig*sig)
         y = k * np.e**expo
@@ -68,20 +80,16 @@ class DoubletModel:
     def fwhm_conv(self, fwhm_in, central_wav):
         return (fwhm_in/2.355)*central_wav/(3*10**5)
 
-    def return_value(self, in_wavelenght):
-        if self.parameters[4] == -1:
-            peak1 = self.parameters[1]
-            peak2 = peak1/self.parameters[3]
-        else:
-            peak1 = self.parameters[1]
-            peak2 = self.parameters[4]
+    def return_value(self, in_wavelength):
+        peak1 = self.parameters[1]
+        peak2 = peak1/self.parameters[3]
 
         cen_wav1 = self.rest_wav1*(1+self.parameters[0])
         sigma1 = self.fwhm_conv(self.parameters[2], cen_wav1)
         cen_wav2 = self.rest_wav2*(1+self.parameters[0])
         sigma2 = self.fwhm_conv(self.parameters[2], cen_wav2)
-        flux = self.gauss(in_wavelenght, peak1, cen_wav1, sigma1)+\
-            self.gauss(in_wavelenght, peak2, cen_wav2, sigma2)
+        flux = self.gauss(in_wavelength, peak1, cen_wav1, sigma1)+\
+            self.gauss(in_wavelength, peak2, cen_wav2, sigma2)
         return flux
 
 ##############Generic 'build your own line' class:

@@ -536,7 +536,7 @@ class Cube:
 
 
 
-    def background_sub_spec(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
+    def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -610,7 +610,7 @@ class Cube:
             plt.ylabel('Flux')
             plt.xlabel('Observed wavelength')
 
-    def background_subtraction_testing(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,
+    def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,
                 source_mask=None, wave_smooth=25, plot=0, **kwargs):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
@@ -638,6 +638,10 @@ class Cube:
         self.coverage_mask = self.flux.data==np.nan
         self.coverage_mask = self.coverage_mask[100,:,:]
 
+        source_mask_temp = source_mask.copy()
+        source_mask[source_mask_temp==0] = True
+        source_mask[source_mask_temp==1] = False
+
         for _wave_,_image_ in tqdm.tqdm(enumerate(self.flux)):
             mask = ~np.isfinite(_image_)
             mask = mask if source_mask is None else mask | source_mask
@@ -662,20 +666,36 @@ class Cube:
         # between nearby wavelengths.
         wave_mask = np.all(np.isnan(self.background), axis=(1,2))
         wave_indx = np.linspace(0., 1, n_wave) # Dummy variable.
+
         if np.any(wave_mask):
             for i in range(n_x):
                 for j in range(n_y):
-                    if self.coverage_mask[n_x, n_y]:
-                        continue
+                    if self.coverage_mask[i, j]:
+                            continue
                     self.background[wave_mask, i, j] = np.interp(
-                        wave_indx[wave_mask], wave_indx[~wave_mask],
-                        self.background[~wave_mask, i, j])
+                            wave_indx[wave_mask], wave_indx[~wave_mask],
+                            self.background[~wave_mask, i, j])
+                    
         
         from scipy import signal
         if wave_smooth:
             self.backgrond = signal.medfilt(self.background, (wave_smooth, 1, 1))
         self.flux_old = self.flux.copy()
         self.flux = self.flux-self.background
+
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        hdus.append(fits.ImageHDU(self.background.data, name='background'))
+        hdus.append(fits.ImageHDU(self.flux.data, name='flux_bkg'))
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+'/'+self.ID+'BKG.fits', overwrite=True)
+
+        if plot==1:
+            f, ax = plt.subplots(1)
+            ax.plot(self.obs_wave, np.median(self.background[:, int(n_x/2)-5:int(n_x/2)+5, int(n_y/2)-5:int(n_y/2)+5], axis=(1,2)), drawstyle='steps-mid')
+            ax.set_xlabel('obs_wave')
+            ax.set_ylabel('Flux density')
         
         
     def background_sub_spec_gnz11(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
