@@ -1,5 +1,6 @@
 QubeSpec is a simple but powerful python package to fit optical astronomical spectra and more importantly analysing IFS cube from JWST/NIRSpec, JWST/MIRI, VLT/KMOS and VLT/SINFONI. The code has built models for fitting Halpha, [OIII], Hbeta, [SII] and [NII] of galaxies, galaxies with outflows, Type-1 AGN and Quasars.
 
+Authors: Jan Scholtz, Francesco D'Eugenio and Ignas Ignas Juodžbalis
 
 # Obtain the source code.
 
@@ -25,6 +26,8 @@ You can see the documentation here:
 https://www.overleaf.com/read/vkpmctpzdhsc
 
 CHANGELOG:
+
+1/12/23 - Well things changed. You can fit custom functions or supply a dictionary that will fit it for you. I also included truncated normal priors, new background subtraction for NIRSpec, scaling of the NIRSpec noise etc. 
 
 6/3/23 - Making the code pip installable, adding the option for custom fitting functions.
 

@@ -18,16 +18,17 @@ class Parameter:
         self.value = value
         self.name = name 
         self.prior_params = prior
-
     def log_prior(self):
-        if self.prior_params[0] == 'uniform':
-            return stats.uniform.logpdf(self.value, self.prior_params[1], self.prior_params[2])
-        elif self.prior_params[0] == 'gaussian':
-            return stats.norm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
-        elif self.prior_params[0] == 'lognormal':
-            return stats.lognorm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
-        else:
-            raise NameError("Prior {} not found".format(self.prior_params[0]))
+        match self.prior_params[0]:
+            case "uniform": return stats.uniform.logpdf(self.value, self.prior_params[1], self.prior_params[2]-self.prior_params[1])
+            case 'loguniform': return stats.uniform.logpdf(np.log10(self.value), self.prior_params[1], self.prior_params[2]-self.prior_params[1])
+            case 'normal': return stats.norm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
+            case'lognormal':
+                return stats.lognorm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
+            case 'normal_hat':
+                return stats.truncnorm.logpdf(self.value, self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4])
+            case _:
+                raise NameError("Prior {} not found".format(self.prior_params[0]))
 
 ###########Line models
 class LineModel:
@@ -82,40 +83,11 @@ class DoubletModel:
         flux = self.gauss(in_wavelenght, peak1, cen_wav1, sigma1)+\
             self.gauss(in_wavelenght, peak2, cen_wav2, sigma2)
         return flux
-    
-class RatioModel:
-    def __init__(self, name, parameters, rest_wav1, rest_wav2, width_type=""):
-        self.name = name
-        self.rest_wav1 = rest_wav1
-        self.rest_wav2 = rest_wav2
-        self.parameters = parameters
-        self.width_type = width_type
-
-    def gauss(self, x, k, mu, sig):
-        expo = -((x-mu)**2)/(2*sig*sig)
-        y = k * np.e**expo
-        return y
-
-    def fwhm_conv(self, fwhm_in, central_wav):
-        return (fwhm_in/2.355)*central_wav/(3*10**5)
-
-    def return_value(self, in_wavelenght):
-        peak1 = self.parameters[1]
-        rat = self.parameters[4]
-
-        cen_wav1 = self.rest_wav1*(1+self.parameters[0])
-        sigma1 = self.fwhm_conv(self.parameters[2], cen_wav1)
-        cen_wav2 = self.rest_wav2*(1+self.parameters[0])
-        sigma2 = self.fwhm_conv(self.parameters[2], cen_wav2)
-        flux = self.gauss(in_wavelenght, peak1, cen_wav1, sigma1)+\
-            self.gauss(in_wavelenght, rat*peak1, cen_wav2, sigma2)
-        return flux
-
 
 ##############Generic 'build your own line' class:
 class Model:
     def __init__(self, model_name, input_parameters):
-        self.name = model_name #Enter model name
+        self.model_name = model_name #Enter model name
         self.lines = {}
         self.theta = {}
         #input_parameters key format: purpose_narrow/broad_name_type
@@ -169,26 +141,6 @@ class Model:
                         case 'wav1': doublet_parameters[name][5] = value
                         case 'wav2': doublet_parameters[name][6] = value
                 
-                case 'r':
-                    name = split_key[2]
-                    if name not in ratio_parameters: ratio_parameters[name] = [0, 0, 0, -1, -1, 0, 0, 0]
-                    param_name = split_key[3]
-                    ratio_parameters[name][7] = split_key[1]
-
-                    if len(input_parameters[key]) > 1: 
-                        self.theta[name+'_'+param_name] = Parameter(value, name+'_'+param_name, 
-                    input_parameters[key][1])
-
-                    match param_name:
-                        case 'z': ratio_parameters[name][0] = value
-                        case 'peak1': ratio_parameters[name][1] = value
-                        case 'fwhm': ratio_parameters[name][2] = value
-                        case 'ratio': ratio_parameters[name][3] = value
-                        case 'ratio2': ratio_parameters[name][4] = value
-                        case 'wav1': ratio_parameters[name][5] = value
-                        case 'wav2': ratio_parameters[name][6] = value
-
-
         #Initialize lines
         for line_name in line_parameters.keys():
             if line_parameters[line_name][0] == 0:
@@ -289,6 +241,13 @@ class Model:
         for param in self.theta.values():
             logprior += param.log_prior()
         return logprior
+    
+    def log_prior_test(self):
+        for param in self.theta.values():
+            l= param.log_prior()
+            if l==-np.inf:
+                print('Prior returned infinity', param.value,param.prior_params[0] ,param.prior_params[0:])
+                raise SyntaxError('Prior returned infinity - see above')
 
     #Chi2 log-likelihood
     def log_likelihood(self,):
@@ -304,28 +263,44 @@ class Model:
         else:
             return lp+self.log_likelihood()
 
-    def fit_to_data(self, wave, flux, error, N=6000, nwalkers=32):
+    def fit_to_data(self, wave, flux, error, N=6000, nwalkers=32, ncpu=1, progress=True):
         self.wave = wave
         self.flux = flux
         self.error = error
+        self.progress= progress
+        self.ncpu = ncpu
+        self.N = N 
         pos_l = np.array([par.value for par in self.theta.values()])
         ndim = len(pos_l)
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-
-        with Pool() as pool:
-            sampler = emcee.EnsembleSampler(nwalkers, ndim, self.log_probability, 
+        #pos[:,0] = np.random.normal(pos_l[0],0.001, nwalkers)
+        
+        for i in range(nwalkers):
+            self.update_parameters(pos_l)
+            self.log_prior_test()
+        
+        if self.ncpu==1:
+            sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, self.log_probability, args=()) 
+            
+            sampler.run_mcmc(pos, self.N, progress=self.progress)
+        
+        elif self.ncpu>1:
+            from multiprocess import Pool
+            with Pool(self.ncpu) as pool:
+                sampler = emcee.EnsembleSampler(nwalkers, ndim, self.log_probability, 
             args=(), pool = pool)
 
-            sampler.run_mcmc(pos, N, progress=True)
+                sampler.run_mcmc(pos, self.N, progress=self.progress)
 
         #Extract chains
         self.flat_samples = sampler.get_chain(discard=int(0.25*N), thin=15, flat=True)
         self.labels = list(self.theta.keys())
         
-        res_dict={}
+        self.chains={'name':self.model_name}
         for i in range(len(self.labels)):
-            res_dict[self.labels[i]] = self.flat_samples[:,i]
-        pp = self.prop_calc(res_dict) #Calculate properties
-        self.update_parameters(pp['popt']) #Set final parameters to best fit values
-
+            self.chains[self.labels[i]] = self.flat_samples[:,i]
+        self.props = self.prop_calc(self.chains) #Calculate properties
+        self.update_parameters(self.props['popt']) #Set final parameters to best fit values
+        
     

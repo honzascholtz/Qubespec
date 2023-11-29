@@ -821,7 +821,7 @@ class Fitting:
         self.props = self.prop_calc()
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
 
-    def fitting_custom(self, model_inputs,model_name, nwalkers=64, template=None, N=6000):
+    def fitting_custom(self, model_inputs,model_name, nwalkers=64, template=None):
         """ Fitting any custom model that you pass with a dictionary. You need to put in fitted_model, labels and
         you can pass logprior function or number of walkers.        
         """
@@ -841,8 +841,14 @@ class Fitting:
         self.wave_fitloc = self.waves.copy()
         self.error_fitloc = self.errors.copy()
         
-        Model = Custom_model.LineProfile(self.model_name, model_inputs)
-        Model.fit_to_data(self.wave_fitloc, self.flux_fitloc, self.error_fitloc, N=N, nwalkers=nwalkers)
+        self.Model = Custom_model.Model(self.model_name, model_inputs)
+        self.Model.fit_to_data(self.wave_fitloc, self.flux_fitloc, self.error_fitloc, N=self.N, nwalkers=nwalkers, ncpu=1)
+
+        self.labels= self.Model.chains
+        self.chains = self.Model.chains
+        self.props = self.Model.props
+        self.yeval = self.Model.calculate_values(self.waves)
+        self.comps = self.Model.lines
 
 
     def save(self, file_path):
@@ -977,7 +983,6 @@ def logprior_general_scipy(theta, priors):
     results = 0.
     for t,p in zip( theta, priors):
         if p[0] ==0:
-            #results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
             results+= norm.logpdf(t, p[1], p[2])
         elif p[0]==1:
             results+= uniform.logpdf(t, p[1], p[2])
