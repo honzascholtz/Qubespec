@@ -10,3 +10,5 @@
 /QubeSpec/.vscode/launch.json
 /QubeSpec/Models/__pycache__/
 QubeSpec/IFS_tutorial/.DS_Store
+QubeSpec/detection/__pycache__/Detection.cpython-311.pyc
+QubeSpec/detection/__pycache__/__init__.cpython-311.pyc

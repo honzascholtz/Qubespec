@@ -609,8 +609,8 @@ class Cube:
             plt.ylabel('Flux')
             plt.xlabel('Observed wavelength')
 
-    def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,
-                source_mask=None, wave_smooth=25, wave_range=None, plot=0, detection_threshold=3, **kwargs):
+    def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,\
+                source_mask=[], wave_smooth=25, wave_range=None, plot=0, detection_threshold=3, **kwargs):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -636,14 +636,15 @@ class Cube:
         self.background = np.full((n_wave, n_x, n_y), np.nan)
         self.coverage_mask = self.flux.data==np.nan
         self.coverage_mask = self.coverage_mask[100,:,:]
-
-        if source_mask:
+        if len(source_mask) !=0:
+            print('Using supplied source mask')
             source_mask_temp = source_mask.copy()
             source_mask[source_mask_temp==0] = True
             source_mask[source_mask_temp==1] = False
         else:
             from .detection import Detection as dtn
-            if wave_range:
+            if any(wave_range):
+                print('Using sextractor to find the source. ')
                 obj, seg = dtn.source_detection(self.flux, self.error_cube, self.obs_wave, wave_range=wave_range,noise_type='nominal', detection_threshold=detection_threshold)
                 source_mask = self.coverage_mask.copy()
                 source_mask[seg !=0] = True
