@@ -92,7 +92,7 @@ def error_calc(array):
     return p50, p16,p84
 
 def conf(aray):
-    """ old version of finding 16th and 84th percintile
+    """ Legacy - old version of finding 16th and 84th percintile
 	
 	"""
     
@@ -159,7 +159,7 @@ def smooth(image,sm):
     return con_im  
 
 def prop_calc(results): 
-    """ Legacy - Take the dictionary with the results chains and calculates the values 
+    """ Legacy - Now part of Fitting class.  Take the dictionary with the results chains and calculates the values 
     and 1 sigma confidence interval
 	
 	"""

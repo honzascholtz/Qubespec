@@ -78,25 +78,36 @@ class Cube:
     def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13):
         import importlib
         importlib.reload(emfit )
-        if Full_path !='':
-            filemarker = fits.open(Full_path)
+
+        self.z = z
+        self.ID = ID
+        self.instrument = flag
+        self.savepath = savepath
+        self.band = Band
+        self.Cube_path = Full_path
+        self.flux_norm= norm
+
+        
+        if self.Cube_path !='':
+            
 
             #print (Full_path)
-            if flag=='KMOS':
-
-                header = filemarker[1].header # FITS header in HDU 1
+            if self.instrument=='KMOS':
+                filemarker = fits.open(Full_path)
+                self.header = filemarker[1].header # FITS header in HDU 1
                 flux_temp  = filemarker[1].data/norm
 
                 filemarker.close()  # FITS HDU file marker closed
 
-            elif flag=='Sinfoni':
-                header = filemarker[0].header # FITS header in HDU 1
+            elif self.instrument=='Sinfoni':
+                filemarker = fits.open(Full_path)
+                self.header = filemarker[0].header # FITS header in HDU 1
                 flux_temp  = filemarker[0].data/norm
 
                 filemarker.close()  # FITS HDU file marker closed
 
-            elif flag=='NIRSPEC_IFU':
-                with fits.open(Full_path, memmap=False) as hdulist:
+            elif self.instrument=='NIRSPEC_IFU':
+                with fits.open(self.Cube_path, memmap=False) as hdulist:
                     try:
                         flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
                         error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
@@ -106,7 +117,7 @@ class Cube:
                         error = hdulist['ERR'].data/norm * astropy.units.Unit('Jy')*1e-6
 
                     w = wcs.WCS(hdulist[1].header)
-                    header = hdulist[1].header
+                    self.header = hdulist[1].header
                     cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
                     wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
                     wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
@@ -122,19 +133,19 @@ class Cube:
                     flux_temp = flux_temp.value
                     self.error_cube = error.value
 
-            elif flag=='NIRSPEC_IFU_fl':
-                with fits.open(Full_path, memmap=False) as hdulist:
+            elif self.instrument=='NIRSPEC_IFU_fl':
+                with fits.open(self.Cube_path, memmap=False) as hdulist:
                     flux_temp = hdulist['SCI'].data/norm*1e4
                     self.error_cube = hdulist['ERR'].data/norm*1e4
-                    w = wcs.WCS(hdulist[1].header)
-                    header = hdulist[1].header
+                    self.w = wcs.WCS(hdulist[1].header)
+                    self.header = hdulist[1].header
 
-            elif flag=='MIRI':
-                with fits.open(Full_path, memmap=False) as hdulist:
+            elif self.instrument=='MIRI':
+                with fits.open(self.Cube_path, memmap=False) as hdulist:
                     flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
                     error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
-                    w = wcs.WCS(hdulist[1].header)
-                    header = hdulist[1].header
+                    self.w = wcs.WCS(hdulist[1].header)
+                    self.header = hdulist[1].header
                     cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
                     wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
                     wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
@@ -153,57 +164,45 @@ class Cube:
             else:
                 raise Exception('Instrument flag not understood')
 
-            flux = np.ma.masked_invalid(flux_temp)   #  deal with NaN
+            self.flux = np.ma.masked_invalid(flux_temp)   #  deal with NaN
 
             # Number of spatial pixels
-            n_xpixels = header['NAXIS1']
-            n_ypixels = header['NAXIS2']
-            dim = [n_ypixels, n_xpixels]
-
+            n_xpixels = self.header['NAXIS1']
+            n_ypixels = self.header['NAXIS2']
             #  Number of spectral pixels
-            n_spixels = header['NAXIS3']
-            dim = [n_ypixels, n_xpixels, n_spixels]
+            n_spixels = self.header['NAXIS3']
+            self.dim = [n_ypixels, n_xpixels, n_spixels]
 
 
             try:
-                x = header['CDELT1']
+                x = self.header['CDELT1']
             except:
-                header['CDELT1'] = header['CD1_1']
+                self.header['CDELT1'] = self.header['CD1_1']
             try:
-                x = header['CDELT2']
+                x = self.header['CDELT2']
             except:
-                header['CDELT2'] = header['CD2_2']
+                self.header['CDELT2'] = self.header['CD2_2']
             try:
-                x = header['CDELT3']
+                x = self.header['CDELT3']
             except:
-                header['CDELT3'] = header['CD3_3']
+                self.header['CDELT3'] = self.header['CD3_3']
 
-            wave = header['CRVAL3'] + (np.arange(n_spixels) - (header['CRPIX3'] - 1.0))*header['CDELT3']
+            self.obs_wave = self.header['CRVAL3'] + (np.arange(n_spixels) - (self.header['CRPIX3'] - 1.0))*self.header['CDELT3']
 
-            deg_per_pix_x = abs(header['CDELT1'])
+            deg_per_pix_x = abs(self.header['CDELT1'])
             arc_per_pix_x = 1.*deg_per_pix_x*3600
-            Xpix = header['NAXIS1']
+            Xpix = self.header['NAXIS1']
             Xph = Xpix*arc_per_pix_x
 
-            deg_per_pix_y = abs(header['CDELT2'])
+            deg_per_pix_y = abs(self.header['CDELT2'])
 
             arc_per_pix_y = deg_per_pix_y*3600
-            Ypix = header['NAXIS2']
+            Ypix = self.header['NAXIS2']
             Yph = Ypix*arc_per_pix_y
-            self.cube_path = Full_path
-            self.flux_norm= norm
-            self.dim = dim
-            self.z = z
-            self.obs_wave = wave
-            self.flux = flux
-            self.ID = ID
-            self.instrument = flag
-            if flag=='NIRSPEC_IFU_fl':
+                        
+            if self.instrument=='NIRSPEC_IFU_fl':
                 self.instrument= 'NIRSPEC_IFU'
-            self.savepath = savepath
-            self.header= header
             self.phys_size = np.array([Xph, Yph])
-            self.band = Band
 
         else:
             self.save_dummy = 0
@@ -611,7 +610,7 @@ class Cube:
             plt.xlabel('Observed wavelength')
 
     def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,
-                source_mask=None, wave_smooth=25, plot=0, **kwargs):
+                source_mask=None, wave_smooth=25, wave_range=None, plot=0, detection_threshold=3, **kwargs):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -638,9 +637,20 @@ class Cube:
         self.coverage_mask = self.flux.data==np.nan
         self.coverage_mask = self.coverage_mask[100,:,:]
 
-        source_mask_temp = source_mask.copy()
-        source_mask[source_mask_temp==0] = True
-        source_mask[source_mask_temp==1] = False
+        if source_mask:
+            source_mask_temp = source_mask.copy()
+            source_mask[source_mask_temp==0] = True
+            source_mask[source_mask_temp==1] = False
+        else:
+            from .detection import Detection as dtn
+            if wave_range:
+                obj, seg = dtn.source_detection(self.flux, self.error_cube, self.obs_wave, wave_range=wave_range,noise_type='nominal', detection_threshold=detection_threshold)
+                source_mask = self.coverage_mask.copy()
+                source_mask[seg !=0] = True
+                source_mask[seg ==0] = False       
+            else:
+                raise Exception('Define wave_range or source_mask ')
+                
 
         for _wave_,_image_ in tqdm.tqdm(enumerate(self.flux)):
             mask = ~np.isfinite(_image_)
@@ -1221,7 +1231,7 @@ class Cube:
 
             plt.tight_layout()
 
-    def fitting_collapse_Halpha(self, plot, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal_hat', 0,0,0,0],\
+    def fitting_collapse_Halpha(self, plot=1, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal_hat', 0,0,0,0],\
                                                                                        'cont':[0,'loguniform',-3,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
@@ -1451,7 +1461,7 @@ class Cube:
                 emplot.plotting_Halpha(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
             
             
-    def fitting_collapse_Halpha_OIII(self, plot, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal_hat', 0, 0.,0,0],\
+    def fitting_collapse_Halpha_OIII(self, plot=1, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal_hat', 0, 0.,0,0],\
                                                                                                      'cont':[0,'loguniform', -3,1],\
                                                                                                      'cont_grad':[0,'normal', 0,0.2],\
                                                                                                      'Hal_peak':[0,'loguniform', -3,1],\
@@ -1617,7 +1627,7 @@ class Cube:
         
         
         
-    def fitting_collapse_OIII(self,  plot, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0],\
+    def fitting_collapse_OIII(self, plot=1, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0],\
                                                                                                     'cont':[0,'loguniform',-3,1],\
                                                                                                     'cont_grad':[0,'normal',0,0.2], \
                                                                                                     'OIII_peak':[0,'loguniform',-3,1],\
@@ -2037,7 +2047,24 @@ class Cube:
         ax.set_xlim(40,60)
         ax.set_ylim(40,57)
 
+    def astrometry_correction(self, Coord):
+        '''
+        Correcting the Astrometry of the Cube. Enter new Ra and Dec coordinates.
+        '''
 
+        cube_center = self.center_data[1:3]
+
+        # Old Header for plotting purposes
+        Header_cube_old = self.header.copy()
+
+        # New Header
+        Header_cube_new = self.header.copy()
+        Header_cube_new['CRPIX1'] = cube_center[0]+1
+        Header_cube_new['CRPIX2'] = cube_center[1]+1
+        Header_cube_new['CRVAL1'] = Coord[0]
+        Header_cube_new['CRVAL2'] = Coord[1]
+
+        self.header = Header_cube_new
 
     def astrometry_correction_GAIA(self, path_to_gaia):
         '''
@@ -2316,7 +2343,6 @@ class Cube:
             Spax_mask = mask.copy()
 
         plt.figure()
-
         plt.imshow(np.ma.array(data=self.Median_stack_white, mask=Spax_mask), origin='lower')
 
         Unwrapped_cube = []
@@ -2625,12 +2651,7 @@ class Cube:
                     pool.imap(
                         emfit.Fitting_general_unwrap, Unwrapped_cube),
                     total=len(Unwrapped_cube)))
-                #cube_res = pool.map(emfit.Fitting_general_unwrap, Unwrapped_cube)
-        
-        #cube_res = emfit.Fitting_general_unwrap( Unwrapped_cube[2], progress=True)
-        
-        self.spaxel_fit_raw = cube_res
-        
+               
         with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
         
@@ -2649,9 +2670,6 @@ class Cube:
         except:
             with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_OIII'+add+'.txt', "rb") as fp:
                 results= pickle.load(fp)
-
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
-            Unwrapped_cube= pickle.load(fp)
 
         # =============================================================================
         #         Setting up the maps
@@ -2893,7 +2911,6 @@ class Cube:
         else:
             flx_max = flux_max
 
-        smt=0.0000001
         print(lim_sc)
         flx = ax1.imshow(map_flux,vmax=flx_max, origin='lower', extent= lim_sc)
         ax1.set_title('Halpha Flux map')
@@ -3438,7 +3455,7 @@ class Cube:
 
         return f
     
-    def Map_creation_general(self,info, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII,\
+    def Map_creation_general_comparison(self,info,path1, path2, SNR_cut = 3 ,deltabic=10, add='',\
                              brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
         z0 = self.z
         failed_fits=0
@@ -3446,11 +3463,11 @@ class Cube:
         # =============================================================================
         #         Importing all the data necessary to post process
         # =============================================================================
-        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
-            results= pickle.load(fp)
-
-        with open(self.savepath+self.ID+'_'+self.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
-            Unwrapped_cube= pickle.load(fp)
+        with open(path1, "rb") as fp:
+            results1= pickle.load(fp)
+        
+        with open(path2, "rb") as fp:
+            results2 = pickle.load(fp)
 
         # =============================================================================
         #         Setting up the maps
@@ -3477,16 +3494,16 @@ class Cube:
         #        Filling these maps
         # =============================================================================
 
+        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_general_fit_detection_only_comp'+add+'.pdf')
 
-        from . import Plotting_tools_v2 as emplot
-
-        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_general_fit_detection_only.pdf')
-
-        for row in tqdm.tqdm(range(len(results))):
+        Results2_map = np.full((2,len(results2)), fill_value=np.nan)
+        for i,row in enumerate(Result_cube):
+            Results2_map[:,i] = row[0], row[1]
+        '''
+        for row in tqdm.tqdm(range(len(results1))):
 
             try:
-                i,j, Fits = results[row]
-                Fits.fitted_model = modelfce
+                i,j, Fits = results1[row]
             except:
                 print('Loading old fits? I am sorry no longer compatible...')
 
@@ -3494,9 +3511,6 @@ class Cube:
                 failed_fits+=1
                 continue
 
-            fitted_model = Fits.fitted_model
-
-            z = Fits.props['z'][0]
             Result_cube_data[:,i,j] = Fits.fluxs.data
             try:
                 Result_cube_error[:,i,j] = Fits.error.data
@@ -3524,12 +3538,9 @@ class Cube:
                     info[key]['flux_map'][3,i,j] = p84
 
                     if info[key]['kin'] ==1:
-
                         info[key]['kin_map'][0,i,j] = (np.median(Fits.chains['z'])-self.z)/(1+self.z)*3e5
                         info[key]['kin_map'][1,i,j] = np.median(Fits.chains[info[key]['fwhm']])
                      
-            
-
                 else:
                     dl = self.obs_wave[1]-self.obs_wave[0]
                     n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
@@ -3540,10 +3551,10 @@ class Cube:
 # =============================================================================
             f = plt.figure( figsize=(20,6))
 
-            ax = brokenaxes(xlims=((2.820,3.45),(3.75,4.05),(5,5.3)),  hspace=.01)
+            ax = brokenaxes(xlims=brokenaxes_xlims,  hspace=.01)
             
             ax.plot(Fits.wave, Fits.fluxs.data, drawstyle='steps-mid')
-            y= modelfce(Fits.wave,*Fits.props['popt'])
+            y= Fits.yeval
             ax.plot(self.obs_wave,  y, 'r--')
             
             ax.set_xlabel('wavelength (um)')
@@ -3551,7 +3562,6 @@ class Cube:
             
             ax.set_ylim(-2*Fits.error[0], 1.2*max(y))
             ax.set_title('xy='+str(j)+' '+ str(i) )
-
 
             Spax.savefig()
             plt.close(f)
@@ -3579,7 +3589,135 @@ class Cube:
         hdulist.writeto(self.savepath+self.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
 
         return f
+    '''
+    def Map_creation_general(self,info, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = None,\
+                             brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
+        z0 = self.z
+        failed_fits=0
         
+        # =============================================================================
+        #         Importing all the data necessary to post process
+        # =============================================================================
+        with open(self.savepath+self.ID+'_'+self.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
+            results= pickle.load(fp)
+
+        # =============================================================================
+        #         Setting up the maps
+        # =============================================================================
+
+        Result_cube = np.zeros_like(self.flux.data)
+        Result_cube_data = self.flux.data
+        Result_cube_error = self.error_cube.data
+        
+        info_keys = list(info.keys())
+        
+        for key in info_keys:
+            map_flx = np.zeros((4,self.dim[0], self.dim[1]))
+            map_flx[:,:,:] = np.nan
+                
+            info[key]['flux_map'] = map_flx
+            
+            if info[key]['kin'] ==1:
+                map_ki = np.zeros((5,self.dim[0], self.dim[1]))
+                map_ki[:,:,:] = np.nan
+
+                info[key]['kin_map'] = map_ki
+        # =============================================================================
+        #        Filling these maps
+        # =============================================================================
+
+        Spax = PdfPages(self.savepath+self.ID+'_Spaxel_general_fit_detection_only'+add+'.pdf')
+
+        for row in tqdm.tqdm(range(len(results))):
+
+            try:
+                i,j, Fits = results[row]
+            except:
+                print('Loading old fits? I am sorry no longer compatible...')
+
+            if str(type(Fits)) == "<class 'dict'>":
+                failed_fits+=1
+                continue
+
+            Result_cube_data[:,i,j] = Fits.fluxs.data
+            try:
+                Result_cube_error[:,i,j] = Fits.error.data
+            except:
+                lds=0
+            Result_cube[:,i,j] = Fits.yeval
+
+            for key in info_keys:
+                
+                SNR= sp.SNR_calc(self.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
+                                 wv_cent = info[key]['wv'],\
+                                 peak_name = key+'_peak', \
+                                     fwhm_name = info[key]['fwhm'])
+                
+                info[key]['flux_map'][0,i,j] = SNR
+                
+                if SNR>SNR_cut:
+                    flux, p16,p84 = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'general', self.flux_norm,\
+                                                      wv_cent = info[key]['wv'],\
+                                                      peak_name = key+'_peak', \
+                                                          fwhm_name = info[key]['fwhm'])
+                    
+                    info[key]['flux_map'][1,i,j] = flux
+                    info[key]['flux_map'][2,i,j] = p16
+                    info[key]['flux_map'][3,i,j] = p84
+
+                    if info[key]['kin'] ==1:
+                        info[key]['kin_map'][0,i,j] = (np.median(Fits.chains['z'])-self.z)/(1+self.z)*3e5
+                        info[key]['kin_map'][1,i,j] = np.median(Fits.chains[info[key]['fwhm']])
+                     
+                else:
+                    dl = self.obs_wave[1]-self.obs_wave[0]
+                    n = width_upper/3e5*(6564.52**(1+self.z)/1e4)/dl
+                    info[key]['flux_map'][3,i,j] = -SNR_cut*Fits.error[-1]*dl*np.sqrt(n)
+
+# =============================================================================
+#             Plotting
+# =============================================================================
+            f = plt.figure( figsize=(20,6))
+
+            ax = brokenaxes(xlims=brokenaxes_xlims,  hspace=.01)
+            
+            ax.plot(Fits.wave, Fits.fluxs.data, drawstyle='steps-mid')
+            y= Fits.yeval
+            ax.plot(self.obs_wave,  y, 'r--')
+            
+            ax.set_xlabel('wavelength (um)')
+            ax.set_ylabel('Flux density')
+            
+            ax.set_ylim(-2*Fits.error[0], 1.2*max(y))
+            ax.set_title('xy='+str(j)+' '+ str(i) )
+
+            Spax.savefig()
+            plt.close(f)
+
+        print('Failed fits', failed_fits)
+        Spax.close()
+
+# =============================================================================
+#         Plotting maps
+# =============================================================================
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        hdus.append(fits.ImageHDU(Result_cube_data, name='flux'))
+        hdus.append(fits.ImageHDU(Result_cube_error, name='error'))
+        hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
+
+        for key in info_keys:
+            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
+
+        for key in info_keys:
+            if info[key]['kin'] ==1:
+                hdus.append(fits.ImageHDU(info[key]['kin_map'], name=key+'_kin'))
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+self.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
+
+        return f
+     
 
     def Regional_Spec(self, center=[30,30], rad=0.4, err_range=None, manual_mask=np.array([]), boundary=None):
         '''
