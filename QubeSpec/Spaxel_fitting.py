@@ -8,6 +8,7 @@ from astropy.table import Table
 import time
 import warnings
 import matplotlib.pyplot as plt 
+from astropy.utils.exceptions import AstropyWarning
 
 
 def Spaxel_fitting_OIII_MCMC_mp(Cube,Ncores=(mp.cpu_count() - 1), priors= {'cont':[0,-3,1],\
@@ -38,9 +39,7 @@ def Spaxel_fitting_OIII_MCMC_mp(Cube,Ncores=(mp.cpu_count() - 1), priors= {'cont
         Ncores=1
     with open(os.getenv("HOME")+'/priors.pkl', "wb") as fp:
         pickle.dump( priors,fp)
-    #for i in range(len(Unwrapped_cube)):
-        #results.append( emfit.Fitting_OIII_unwrap(Unwrapped_cube[i], Cube.obs_wave, Cube.z))
-
+    
     with Pool(Ncores) as pool:
         cube_res = pool.map(emfit.Fitting_OIII_unwrap, Unwrapped_cube )
 

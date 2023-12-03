@@ -230,7 +230,7 @@ class Cube:
 
     def mask_emission(self):
         '''
-        This function masks out all the OIII and HBeta emission.
+        Legacy: This function masks out all the OIII and HBeta emission.
         It is a ;egacy KASHz function.
 
         Returns
@@ -238,9 +238,9 @@ class Cube:
         None.
 
         '''
-        OIIIa=  501./1e3*(1+self.z)
-        OIIIb=  496./1e3*(1+self.z)
-        Hbeta=  485./1e3*(1+self.z)
+        OIIIa=  OIIIr/1e4*(1+self.z)
+        OIIIb=  OIIIb/1e4*(1+self.z)
+        Hbeta=  Hbeta/1e4*(1+self.z)
         width = 300/3e5*OIIIa
 
         mask =  self.flux.mask.copy()
@@ -315,27 +315,12 @@ class Cube:
         None.
 
         '''
-        try:
-            flux = np.ma.array(self.flux.data, mask=self.sky_line_mask_em)
-        except:
-            flux = self.flux
 
-        median = np.ma.median(flux, axis=(0))
-
-        if self.ID== 'ALESS_75':
-            use = np.where((self.obs_wave < 1.7853) &(self.obs_wave > 1.75056))[0]
-
-            use = np.append(use, np.where((self.obs_wave < 2.34) &(self.obs_wave > 2.31715))[0] )
-
-            median = np.ma.median(flux[use,:,:], axis=(0))
-
-
-        self.Median_stack_white = median
-
+        self.Median_stack_white =  np.ma.median(self.flux, axis=(0))
 
         if plot==1:
             plt.figure()
-            plt.imshow(median,  origin='lower')
+            plt.imshow(self.Median_stack_white,  origin='lower')
             plt.colorbar()
 
 
