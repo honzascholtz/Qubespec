@@ -1,4 +1,4 @@
-import astropy.io as fits
+from astropy.io import fits
 import numpy as np
 import pickle
 import tqdm

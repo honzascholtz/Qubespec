@@ -89,7 +89,6 @@ class Cube:
         self.band = Band
         self.Cube_path = Full_path
         self.flux_norm= norm
-
         
         if self.Cube_path !='':
             
@@ -210,7 +209,12 @@ class Cube:
         else:
             self.save_dummy = 0
 
+    def divider():
+        return np.nan
 
+    background_subtraction = bkg.background_subtraction
+    background_subtraction_depricated = bkg.background_sub_spec_depricated
+    
     def add_res(self, line_cat):
         '''
         Add catalogue line from a astorpy table - used in KASHz
@@ -523,50 +527,7 @@ class Cube:
 
 
 
-    def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
-        '''
-        Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
-        Parameters
-        ----------
-        center : TYPE
-            DESCRIPTION.
-        rad : TYPE, optional
-            DESCRIPTION. The default is 0.6.
-        plot : TYPE, optional
-            DESCRIPTION. The default is 0.
-
-        Returns
-        -------
-        None.
-
-        '''
-        self.collapsed_bkg, self.flux = bkg.background_sub_spec_depricated(self, center, rad=rad, manual_mask=manual_mask, smooth=smooth, plot=plot)
-
-    def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,\
-                source_mask=[], wave_smooth=25, wave_range=None, plot=0, detection_threshold=3, **kwargs):
-        '''
-        Background subtraction used when the NIRSPEC cube has still flux in the blank field.
-
-        Parameters
-        ----------
-        center : TYPE
-            DESCRIPTION.
-        rad : TYPE, optional
-            DESCRIPTION. The default is 0.6.
-        plot : TYPE, optional
-            DESCRIPTION. The default is 0.
-
-        Returns
-        ------
-        None.
-
-        '''
-        self.background, self.flux, self.flux_old = bkg.background_subtraction(self, box_size=box_size, \
-                                   filter_size=filter_size, sigma_clip=sigma_clip, source_mask=source_mask, wave_smooth=wave_smooth,\
-                                    wave_range= wave_range, detection_threshold=detection_threshold,plot=plot, **kwargs) 
-        
-        
     def background_sub_spec_gnz11(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
         '''
         Background subtraction used when the NIRSPEC cube has still flux in the blank field.
