@@ -75,6 +75,8 @@ class Visualize:
         axes.plot(self.obs_wave, fluxm, drawstyle='steps-mid')
         axes.plot(self.obs_wave, yevalm, 'r--')
         axes.plot(self.obs_wave, errorm, 'k:')
+        axes.text(self.obs_wave[10], 0.9*max(yevalm), 'x='+str(i)+', y='+str(j) )
+
         axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
 
     def showme(self, xlims= ((3,5.3)), vmax=1e-15):
