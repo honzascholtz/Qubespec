@@ -1869,13 +1869,9 @@ class Cube:
 
         Unwrapped_cube = []
         for i in tqdm.tqdm(x):
-            #i= i+step
-
             for j in y:
-                #j=j+step
                 if Spax_mask[i,j]==False:
-                    #print i,j
-
+                   
                     Spax_mask_pick = ThD_mask.copy()
                     Spax_mask_pick[:,:,:] = True
                     if sp_binning=='Nearest':

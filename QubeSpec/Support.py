@@ -388,15 +388,18 @@ def QFitsview_mask(filepath):
 
 
 
-def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
+def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
     keys = list(res.keys())
     
     if mode=='general':
-        
+        if ratio_name=='':
+            ratio=1
+        else:
+            ratio=res[ratio_name][0]
         wave = np.linspace(wv_cent-100, wv_cent+100,1000)*(1+res['z'][0])/1e4
         cent = wv_cent*(1+res['z'][0])/1e4
         
-        model = gauss(wave, res[peak_name][0], cent, res[fwhm_name][0]/2.355/3e5*cent  )
+        model = ratio*gauss(wave, res[peak_name][0], cent, res[fwhm_name][0]/2.355/3e5*cent  )
     
     elif mode=='OIIIt':
         
@@ -556,7 +559,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name=''):
     return Flux
 
 import random
-def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=2000, wv_cent=5008, peak_name='', fwhm_name=''):
+def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
     
     labels = list(chains.keys())
 
@@ -575,7 +578,7 @@ def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=2000, wv_cent=5008, peak_name
             res_new[labels[i+1]] = [popt[i], 0,0 ]
         
         res_new['popt'] = popt
-        Fluxes.append(flux_calc(res_new, mode,norm, wv_cent=wv_cent, peak_name=peak_name, fwhm_name=fwhm_name))
+        Fluxes.append(flux_calc(res_new, mode,norm, wv_cent=wv_cent, peak_name=peak_name, fwhm_name=fwhm_name, ratio_name=ratio_name))
     
     p50,p16,p84 = np.percentile(Fluxes, (50,16,84))
     p16 = p50-p16
