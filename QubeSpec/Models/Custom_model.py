@@ -20,13 +20,14 @@ class Parameter:
         self.prior_params = prior
     def log_prior(self):
         match self.prior_params[0]:
-            case "uniform": return stats.uniform.logpdf(self.value, self.prior_params[1], self.prior_params[2]-self.prior_params[1])
-            case 'loguniform': return stats.uniform.logpdf(np.log10(self.value), self.prior_params[1], self.prior_params[2]-self.prior_params[1])
-            case 'normal': return stats.norm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
+            case "uniform": return stats.uniform.logpdf(self.value, loc = self.prior_params[1], scale= self.prior_params[2]-self.prior_params[1])
+            case 'loguniform': return stats.uniform.logpdf(np.log10(self.value), loc=self.prior_params[1], scale=self.prior_params[2]-self.prior_params[1])
+            case 'normal': return stats.norm.logpdf(self.value,loc= self.prior_params[1], scale= self.prior_params[2])
             case'lognormal':
-                return stats.lognorm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
+                return stats.lognorm.logpdf(self.value, loc=self.prior_params[1], scale=self.prior_params[2])
             case 'normal_hat':
-                return stats.truncnorm.logpdf(self.value, self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4])
+                return stats.truncnorm.logpdf(self.value, a=(self.prior_params[3]-self.prior_params[1])/self.prior_params[2], b=(self.prior_params[4]-self.prior_params[1])/self.prior_params[2], loc=self.prior_params[1],\
+                                               scale = self.prior_params[2] )
             case _:
                 raise NameError("Prior {} not found".format(self.prior_params[0]))
     
@@ -101,7 +102,6 @@ class Model:
         #input_parameters key format: purpose_narrow/broad_name_type
         line_parameters = {}
         doublet_parameters = {}
-        ratio_parameters = {}
         for key in input_parameters.keys():
             split_key = key.split('_')
             value = input_parameters[key][0]
@@ -239,11 +239,12 @@ class Model:
         return logprior
     
     def log_prior_test(self):
+        l = []
         for param in self.theta.values():
-            l= param.log_prior()
-            if l==-np.inf:
-                print('Prior returned infinity', param.value,param.prior_params[0] ,param.prior_params[0:])
-                raise SyntaxError('Prior returned infinity - see above')
+            l.append( param.log_prior())
+            if (l[-1]==-np.inf) | (l[-1]==float('nan'))  | (l[-1]==float('nan')) :
+                print('Prior returned infinity', param.value,param.prior_params[0] ,param.prior_params[0:], l[-1])
+                raise SyntaxError('Prior returned infinity or nan - see above')
 
     #Chi2 log-likelihood
     def log_likelihood(self,):

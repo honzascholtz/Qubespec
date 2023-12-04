@@ -975,13 +975,13 @@ def logprior_general_scipy(theta, priors):
         if p[0] ==0:
             results+= norm.logpdf(t, p[1], p[2])
         elif p[0]==1:
-            results+= uniform.logpdf(t, p[1], p[2])
+            results+= uniform.logpdf(t, p[1], p[2]-p[1])
         elif p[0]==2:
             results+=  norm.logpdf(np.log10(t), p[1], p[2])
         elif p[0]==3:
-            results+= uniform.logpdf(np.log10(t), p[1], p[2])
+            results+= uniform.logpdf(np.log10(t), p[1], p[2]-p[1])
         elif p[0]==4:
-            results += truncnorm.logpdf(t, p[1], p[2], p[3], p[4])   
+            results += truncnorm.logpdf(t, a= (p[3]-p[1])/p[2], b= (p[4]-p[1])/p[2], loc=p[1], scale=p[2])
         elif p[0]==4:
             results += truncnorm.logpdf(np.log10(t), p[1], p[2], p[3], p[4])
     return results
