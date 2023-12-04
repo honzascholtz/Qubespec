@@ -1115,13 +1115,12 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
 
 
     if len(err_range)==2:
-        error = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
+        error1 = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
                                                     &(obs_wave<err_range[1])],sigma=3)[2]
         
-        average_var = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
+        average_var1 = stats.sigma_clipped_stats(error_var[(err_range[0]<obs_wave) \
                                                     &(obs_wave<err_range[1])],sigma=3)[1]
-        error = error_var*(error/average_var)
-        print(error, average_var,error/average_var)
+        error = error_var*(error1/average_var1)
 
     elif len(err_range)==4:
         error1 = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
@@ -1137,10 +1136,10 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         error[obs_wave<boundary] = error_var[obs_wave<boundary]*(error1/average_var1)
         error[obs_wave>boundary] = error_var[obs_wave>boundary]*(error2/average_var2)
     else:
-        error = stats.sigma_clipped_stats(flux,sigma=3)[2]
+        error1 = stats.sigma_clipped_stats(flux,sigma=3)[2]
                 
-        average_var = stats.sigma_clipped_stats(flux,sigma=3)[1]
-        error = error_var/(error/average_var)
+        average_var1 = stats.sigma_clipped_stats(flux,sigma=3)[1]
+        error = error_var/(error1/average_var1)
             
     error[error==0] = np.mean(error)*10
 
@@ -1148,7 +1147,7 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         try:
             print('Error rescales are: ', error1/average_var1, error2/average_var2 )
         except:
-            print('Error rescale is: ', error/average_var )
+            print('Error rescale is: ', error1/average_var1 )
 
 
     return error
