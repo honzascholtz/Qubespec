@@ -42,7 +42,7 @@ class Dust_cor:
         self.Balmer_lines = Balmer_lines
 
     
-    def flux_cor(self, F, wav, fb1, fb2, fb_names, R_v=None, curve='smc'):
+    def flux_cor(self, F, wav, fb1, fb2, fb_names, R_v=None, curve='smc', curve_fce=None):
         fb1_name, fb2_name = fb_names.split('_')
         self.R_v = R_v
         
@@ -50,13 +50,13 @@ class Dust_cor:
         fb2_wave = self.Balmer_lines[fb2_name][0]
 
         Balmer_rat = self.Balmer_lines[fb1_name][1]/self.Balmer_lines[fb2_name][1]
-
-        if curve=='smc':
-            curve_fce = self.smc
-        elif curve=='calzetti2000':
-            curve_fce = self.calzetti2000
-        elif curve=='cardonelli1989':
-            curve_fce = self.cardelli1989
+        if curve_fce !=None:
+            if curve=='smc':
+                curve_fce = self.smc
+            elif curve=='calzetti2000':
+                curve_fce = self.calzetti2000
+            elif curve=='cardonelli1989':
+                curve_fce = self.cardelli1989
 
         Kb1=curve_fce(fb1_wave, R_v = R_v)
         Kb2=curve_fce(fb2_wave, R_v = R_v)
@@ -78,14 +78,15 @@ class Dust_cor:
         Av=np.array(Av)
         return f, Av
     
-    def flux_cor_fit(self, F, wav, ratios, fb_names,eratios=None, R_v=None, curve='smc'):
+    def flux_cor_fit(self, F, wav, ratios, fb_names,eratios=None, R_v=None, curve='smc', curve_fce=None):
 
-        if curve=='smc':
-            self.curve_fce = self.smc
-        elif curve=='calzetti2000':
-            self.curve_fce = self.calzetti2000
-        elif curve=='cardonelli1989':
-            self.curve_fce = self.cardelli1989
+        if curve_fce !=None:
+            if curve=='smc':
+                curve_fce = self.smc
+            elif curve=='calzetti2000':
+                curve_fce = self.calzetti2000
+            elif curve=='cardonelli1989':
+                curve_fce = self.cardelli1989
         self.R_v = R_v
 
         Balmer_rats = []
