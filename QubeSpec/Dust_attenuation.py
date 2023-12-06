@@ -105,7 +105,7 @@ class Dust_cor:
             Kb2s.append(self.curve_fce(fb2_wave, R_v = self.R_v))
         Kb1s= np.array(Kb1s)
         Kb2s = np.array(Kb2s)
-        K =self.curve_fce(wav*1e-10, R_v = self.R_v)
+        K = self.curve_fce(wav*1e-10, R_v = self.R_v)
 
         from scipy.optimize import curve_fit
         Ext_model = Model(Kb1s, Kb2s, Balmer_rats)

@@ -7,35 +7,15 @@ Created on Sun Dec 25 21:23:34 2022
 """
 
 #importing modules
-import numpy as np
-import matplotlib.pyplot as plt; plt.ioff()
-
 from astropy.io import fits as pyfits
-from astropy import wcs
-from astropy.table import Table, join, vstack
-from matplotlib.backends.backend_pdf import PdfPages
-import pickle
-from scipy.optimize import curve_fit
-
 from . import Graph_setup as gst
 
 nan= float('nan')
 
 pi= np.pi
 e= np.e
-
-plt.close('all')
 c= 3.*10**8
-h= 6.62*10**-34
-k= 1.38*10**-23
 
-Ken98= (4.5*10**-44)
-Conversion2Chabrier=1.7 # Also Madau
-Calzetti12= 2.8*10**-44
-arrow = u'$\u2193$'
-
-
-PATH='/Users/jansen/My Drive/Astro/'
 fsz = gst.graph_format()
 
 import matplotlib.pyplot as plt

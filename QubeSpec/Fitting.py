@@ -120,8 +120,7 @@ class Fitting:
         self.fluxs[np.isnan(self.fluxs)] = 0
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.wave[np.invert(self.fluxs.mask)]
-        
-        
+         
         self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
         
@@ -136,12 +135,9 @@ class Fitting:
             
             self.fitted_model = H_models.Halpha_wBLR
             self.log_prior_fce = H_models.log_prior_Halpha_BLR
-            
-            
             self.pr_code = self.prior_create()
             
             pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
-            
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                 
@@ -158,7 +154,6 @@ class Fitting:
             self.pr_code = self.prior_create()
             
             pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
-            
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
             
@@ -171,7 +166,6 @@ class Fitting:
         elif self.model=='outflow':
             self.fitted_model = H_models.Halpha_outflow
             self.log_prior_fce = H_models.log_prior_Halpha_outflow
-
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
             self.pr_code = self.prior_create()
             
@@ -207,10 +201,8 @@ class Fitting:
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
             
             self.pr_code = self.prior_create()
-            
             self.fitted_model = QSO_models.Hal_QSO_BKPL
             self.log_prior_fce = logprior_general
-            
             self.res = {'name': 'Halpha_QSO_BKPL'}
             
         else:
@@ -237,11 +229,8 @@ class Fitting:
         except:
             self.chi2, self.BIC = np.nan, np.nan
         
-        like_samples = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-
+        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
-        
-        self.like_chains = like_samples
         
     # =============================================================================
     # Primary function to fit [OIII] with and without outflows. 
@@ -290,8 +279,7 @@ class Fitting:
         if self.model== 'outflow_simple':
             self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_out_peak']
             self.fitted_model = O_models.OIII_outflow_simple
-            self.log_prior_fce = O_models.log_prior_OIII_outflow_simple
-                    
+            self.log_prior_fce = O_models.log_prior_OIII_outflow_simple    
             self.pr_code = self.prior_create()
                     
             pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, peak_beta/3])
@@ -306,8 +294,7 @@ class Fitting:
         elif self.model== 'gal_simple':
             self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak']
             self.fitted_model = O_models.OIII_simple
-            self.log_prior_fce = O_models.log_prior_OIII_simple
-                    
+            self.log_prior_fce = O_models.log_prior_OIII_simple     
             self.pr_code = self.prior_create()
                     
             pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, self.priors['Nar_fwhm'][0], peak_beta])
@@ -324,7 +311,6 @@ class Fitting:
                     self.labels=['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel']
                     self.fitted_model = O_models.OIII_outflow
                     self.log_prior_fce = O_models.log_prior_OIII_outflow
-                    
                     self.pr_code = self.prior_create()
                     
                     pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0]])
@@ -339,7 +325,6 @@ class Fitting:
                     self.labels= ['z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel']
                     self.fitted_model = O_models.OIII_outflow_narHb
                     self.log_prior_fce = O_models.log_prior_OIII_outflow_narHb
-                    
                     self.pr_code =self.prior_create()
                     
                     pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0],\
@@ -357,7 +342,6 @@ class Fitting:
                     self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel', 'Fe_peak', 'Fe_fwhm')
                     self.fitted_model = O_models.OIII_outflow_Fe
                     self.log_prior_fce = O_models.log_prior_OIII_outflow_Fe
-                    
                     self.pr_code = self.prior_create()
                     
                     pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['OIII_out'][0],self.priors['outflow_vel'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],\
@@ -408,7 +392,6 @@ class Fitting:
                     self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel')
                     self.fitted_model = O_models.OIII_dual_hbeta
                     self.log_prior_fce = O_models.log_prior_OIII_dual_hbeta
-                    
                     self.pr_code =self.prior_create()
                     
                     pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2,  self.priors['Nar_fwhm'][0], peak_beta/4, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],\
@@ -425,7 +408,6 @@ class Fitting:
                     self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel', 'Fe_peak', 'Fe_fwhm')
                     self.fitted_model = O_models.OIII_Fe
                     self.log_prior_fce = O_models.log_prior_OIII_Fe
-                    
                     self.pr_code = self.prior_create()
                     
                     pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2,  self.priors['OIII_fwhm'][0], peak_beta, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],np.median(self.flux[self.fit_loc]), self.priors['Fe_fwhm'][0]]) 
@@ -440,7 +422,6 @@ class Fitting:
                     self.labels=('z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak', 'Hbeta_fwhm','Hbeta_vel','Hbetan_peak', 'Hbetan_fwhm','Hbetan_vel','Fe_peak', 'Fe_fwhm')
                     self.fitted_model = O_models.OIII_dual_hbeta_Fe
                     self.log_prior_fce = O_models.log_prior_OIII_dual_hbeta_Fe
-                    
                     self.pr_code = self.prior_create()
                     
                     pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2,  self.priors['OIII_fwhm'][0], peak_beta/2, self.priors['Hbeta_fwhm'][0],self.priors['Hbeta_vel'][0],\
@@ -474,7 +455,6 @@ class Fitting:
             self.pr_code = self.prior_create()
             self.fitted_model = QSO_models.OIII_QSO_BKPL
             self.log_prior_fce = logprior_general
-             
             self.res = {'name': 'OIII_QSO_BKP'}
             
         else:
@@ -489,8 +469,6 @@ class Fitting:
         sampler = emcee.EnsembleSampler(
                  nwalkers, ndim, self.log_probability_general, args=())
         
-        
-     
         sampler.run_mcmc(pos, self.N, progress=self.progress)
         self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
         
@@ -499,9 +477,7 @@ class Fitting:
             self.chains[self.labels[i]] = self.flat_samples[:,i]
         
         self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-
         self.props = self.prop_calc()
-        
         self.modeleval = self.fitted_model(self.wave_fitloc, *self.props['popt'])
         self.chi2 = sum(((self.flux_fitloc-self.modeleval)/self.error_fitloc)**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
@@ -569,11 +545,8 @@ class Fitting:
             nwalkers=64
             self.fitted_model = HO_models.Halpha_OIII
             self.log_prior_fce = HO_models.log_prior_Halpha_OIII
-            
             self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak')
-            
             self.pr_code = self.prior_create()
-            
             
             pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, self.priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
                               peak_hal*0.2])  
@@ -773,7 +746,7 @@ class Fitting:
         self.flux_fitloc = self.flux.copy()
         self.wave_fitloc = self.waves.copy()
         self.error_fitloc = self.errors.copy()
-        
+
         self.pr_code = self.prior_create()
        
         pos_l = np.zeros(len(self.labels))

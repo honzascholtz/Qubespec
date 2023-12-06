@@ -1234,7 +1234,6 @@ class Cube:
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
             Fits_sig.fitting_Halpha_OIII(model='gal' )
             
-            
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
             self.D1_fit_model = Fits_sig.fitted_model
@@ -1246,7 +1245,6 @@ class Cube:
             self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
             self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
     
-            
             self.dBIC = 3
             
             
@@ -1254,7 +1252,6 @@ class Cube:
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
             Fits_sig.fitting_Halpha_OIII(model='outflow' )
             
-            
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
             self.D1_fit_model = Fits_sig.fitted_model
@@ -1269,10 +1266,9 @@ class Cube:
             
             self.dBIC = 3
             
-        elif models=='BLR':   
+        elif (models=='BLR') | (models=='BLR_only'):   
              Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
              Fits_sig.fitting_Halpha_OIII(model='BLR' )
-             
              
              self.D1_fit_results = Fits_sig.props
              self.D1_fit_chain = Fits_sig.chains
@@ -1284,7 +1280,6 @@ class Cube:
              self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
              self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
              self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
-     
              
              self.dBIC = 3
 
@@ -1292,7 +1287,6 @@ class Cube:
              Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
              Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
              
-             
              self.D1_fit_results = Fits_sig.props
              self.D1_fit_chain = Fits_sig.chains
              self.D1_fit_model = Fits_sig.fitted_model
@@ -1304,13 +1298,11 @@ class Cube:
              self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
              self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
      
-             
              self.dBIC = 3
 
         elif models=='QSO_BKPL':   
              Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
              Fits_sig.fitting_Halpha_OIII(model='QSO_BKPL' )
-             
              
              self.D1_fit_results = Fits_sig.props
              self.D1_fit_chain = Fits_sig.chains
@@ -1324,7 +1316,6 @@ class Cube:
              self.SNR_nii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'NII')
              '''
              
-        
         else:
             raise Exception('models variable in fitting_collapse_Halpha_OIII not understood. Outflow variables: Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple')
         labels= list(self.D1_fit_chain.keys())[1:]
@@ -1359,8 +1350,6 @@ class Cube:
         baxes_er.set_ylim(-5*self.D1_spectrum_er[0], 5*self.D1_spectrum_er[0])
          
         self.fit_plot = [f,baxes]
-        
-        
         
     def fitting_collapse_OIII(self, plot=1, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0],\
                                                                                                     'cont':[0,'loguniform',-3,1],\

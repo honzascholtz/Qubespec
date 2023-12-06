@@ -73,10 +73,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
     if plot==1:
         plt.figure()
         plt.title('Median Background spectrum')
-
         plt.plot(self.obs_wave, np.ma.array(data= Sky_smooth , mask=self.sky_clipped_1D), drawstyle='steps-mid')
-
-
         plt.ylabel('Flux')
         plt.xlabel('Observed wavelength')
 
@@ -139,7 +136,7 @@ def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip
             
             self.background[_wave_,:,:] = background2d.background
         except Exception as _exc_:
-            print(_exc_)
+            print(_wave_, _exc_)
             background2d = np.full(_image_.shape, np.nan)
 
             self.background[_wave_,:,:] = background2d
@@ -156,8 +153,7 @@ def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip
                         continue
                 self.background[wave_mask, i, j] = np.interp(
                         wave_indx[wave_mask], wave_indx[~wave_mask],
-                        self.background[~wave_mask, i, j])
-                
+                        self.background[~wave_mask, i, j])   
     
     from scipy import signal
     if wave_smooth:
