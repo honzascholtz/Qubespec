@@ -386,6 +386,11 @@ def QFitsview_mask(filepath):
 
     return mask
 
+def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
+    mu = wv_cent*(1+res['z'][0])/1e4
+    FWHM = res[fwhm_name][0]
+    a = 1./(2*(FWHM/3e5*mu/2.35482)**2)
+    return res[peak_name][0]*np.sqrt(np.pi/a)
 
 
 def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
@@ -396,158 +401,105 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
             ratio=1
         else:
             ratio=res[ratio_name][0]
-        wave = np.linspace(wv_cent-100, wv_cent+100,1000)*(1+res['z'][0])/1e4
-        cent = wv_cent*(1+res['z'][0])/1e4
-        
-        model = ratio*gauss(wave, res[peak_name][0], cent, res[fwhm_name][0]/2.355/3e5*cent  )
+        flx =  ratio*flux_calc_general(wv_cent, res, fwhm_name, peak_name)
+        return flx*norm
     
     elif mode=='OIIIt':
-        
-        wave = np.linspace(4900, 5100,700)*(1+res['z'][0])/1e4
-        if 'OIII_out_peak' in keys:
-            o3 = 5008.24*(1+res['z'][0])/1e4
-            
-            o3n = gauss(wave, res['OIII_peak'][0], o3, res['Nar_fwhm'][0]/2.355/3e5*o3  )*1.333
-            o3w = gauss(wave, res['OIII_out_peak'][0], o3, res['outflow_fwhm'][0]/2.355/3e5*o3  )*1.333
-            
-            model = o3n+o3w
-            
-        else:
-            o3 = 5008.24*(1+res['z'][0])/1e4
-            model = gauss(wave, res['OIII_peak'][0], o3, res['Nar_fwhm'][0]/2.355/3e5*o3  )*1.333
+        flx =  flux_calc_general(OIIIr, res, 'Nar_fwhm', 'OIII_peak')
+        if 'OIII_out_peak' in keys:  
+            flx +=  flux_calc_general(OIIIr, res, 'outflow_fwhm', 'OIII_out_peak')      
+        return flx*norm
             
             
     elif mode=='OIIIn':
-        wave = np.linspace(4900, 5100,700)*(1+res['z'][0])/1e4
-        
-        o3 = 5008.24*(1+res['z'][0])/1e4
-        model = gauss(wave, res['OIII_peak'][0], o3, res['Nar_fwhm'][0]/2.355/3e5*o3  )*1.333
+        flx =  flux_calc_general(OIIIr, res, 'Nar_fwhm', 'OIII_peak')
+        return flx*norm
         
     elif mode=='OIIIw':
-        wave = np.linspace(4900, 5100,300)*(1+res['z'][0])/1e4
         if 'OIII_out_peak' in keys:
-            o3 = 5008.24*(1+res['z'][0])/1e4
-            model = gauss(wave, res['OIII_out_peak'][0], o3, res['outflow_fwhm'][0]/2.355/3e5*o3  )*1.333
+            flx =  flux_calc_general(OIIIr, res, 'outflow_fwhm', 'OIII_out_peak')  
+            return flx*norm
         else:
-            model = np.zeros_like(wave)
+            return 0
     
     elif mode=='Hat':
-        wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
-        hn = 6565*(1+res['z'][0])/1e4
-        
-        model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
-        
+        flx =  flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak')
         if 'outflow_fwhm' in list(res.keys()):
-            model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  ) + \
-                gauss(wave, res['Hal_out_peak'][0], hn, res['outflow_fwhm'][0]/2.355/3e5*hn  )
+            flx +=  flux_calc_general(Hal, res, 'outflow_fwhm', 'Hal_out_peak')
+        return flx*norm
     
     elif mode=='Han':
-        wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
-        hn = 6565*(1+res['z'][0])/1e4
+        flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak')
+        return flx*norm
         
-        model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
-        
-        if 'outflow_fwhm' in list(res.keys()):
-            model = gauss(wave, res['Hal_peak'][0], hn, res['Nar_fwhm'][0]/2.355/3e5*hn  )
-    
     elif mode=='Hal_BLR':
-        wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
-        hn = 6565*(1+res['z'][0])/1e4
         if 'BLR_fwhm' in keys:
-            model = gauss(wave, res['BLR_Hal_peak'][0], hn, res['BLR_fwhm'][0]/2.355/3e5*hn  )
+            flx = flux_calc_general(Hal, res, 'BLR_fwhm', 'BLR_Hal_peak')
+            return flx*norm
             
         elif 'BLR_alp1' in keys:
             from .Models.QSO_models import BKPLG
-            model = BKPLG(wave, res['BLR_peak'][0], hn, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
+            wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
+            model = BKPLG(wave, res['BLR_peak'][0], Hal*(1+res['z'][0])/1e4, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
             
         else:
-            model = np.zeros_like(wave)
+            return 0
     
     elif mode=='NIIt':
-        wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
-        nii = 6583*(1+res['z'][0])/1e4
-        model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
+        flx = flux_calc_general(NII_r, res, 'Nar_fwhm', 'NII_peak')
         
         if 'outflow_fwhm' in list(res.keys()):
-            model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  ) + \
-                gauss(wave, res['NII_out_peak'][0], nii, res['outflow_fwhm'][0]/2.355/3e5*nii  )
+            flx +=  flux_calc_general(NII_r, res, 'outflow_fwhm', 'NII_out_peak')
+        return flx*norm
     
     elif mode=='NII':
-        wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
-        nii = 6583*(1+res['z'][0])/1e4
-        model = gauss(wave, res['NII_peak'][0], nii, res['Nar_fwhm'][0]/2.355/3e5*nii  )*1.333
-        
-                
+        flx = flux_calc_general(NII_r, res, 'Nar_fwhm', 'NII_peak')
+        return flx*norm
+              
     elif mode=='NIIo':
-        wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
-        nii = 6583*(1+res['z'][0])/1e4
-        model = gauss(wave, res['NII_out_peak'][0], nii, res['outflow_fwhm'][0]/2.355/3e5*nii  )*1.333
+        flx = flux_calc_general(NII_r, res, 'outflow_fwhm', 'NII_out_peak')
+        return flx*norm
         
-    elif mode=='Hbeta':
-        wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
-        hbeta = 4862.6*(1+res['z'][0])/1e4
+    elif mode=='Hbeta':     
         try:
-            model = gauss(wave, res['Hbeta_peak'][0], hbeta, res['Hbeta_fwhm'][0]/2.355/3e5*hbeta  )
+            flx = flux_calc_general(Hbe, res, 'Nar_fwhm', 'Hbeta_peak')
         except:
-            model = gauss(wave, res['Hbeta_peak'][0], hbeta, res['Nar_fwhm'][0]/2.355/3e5*hbeta  )
+            flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak')
+
+        return flx*norm
     
     elif mode=='Hbe_BLR':
-        wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
-        hbeta = 4862.6*(1+res['z'][0])/1e4
         if 'BLR_fwhm' in keys:
-            model = gauss(wave, res['BLR_Hal_peak'][0], hbeta, res['BLR_fwhm'][0]/2.355/3e5*hbeta  )
+            flx = flux_calc_general(Hbe, res, 'BLR_fwhm', 'BLR_Hbeta_peak')
+            return flx*norm
+        
         elif 'BLR_alp1' in keys:
+            wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
             from .Models.QSO_models import BKPLG
-            model = BKPLG(wave, res['BLR_peak'][0], hbeta, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
-
+            model = BKPLG(wave, res['BLR_peak'][0], Hbe, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
         else:
-            model = np.zeros_like(wave)
+            return 0 
+        
     elif mode=='Hbetaw':
-        wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
-        hbeta = 4862.6*(1+res['z'][0])/1e4
-        model = gauss(wave, res['Hbeta_peak'][0], hbeta, res['Hbeta_fwhm'][0]/2.355/3e5*hbeta  )
-    
+        flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak')
+        return flx*norm
     elif mode=='Hbetan':
-        wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
-        hbeta = 4862.6*(1+res['z'][0])/1e4
-        model = gauss(wave, res['Hbetan_peak'][0], hbeta, res['Hbetan_fwhm'][0]/2.355/3e5*hbeta  )
+        flx = flux_calc_general(Hbe, res, 'Hbetan_fwhm', 'Hbetan_peak')
+        return flx*norm
     
     elif mode=='OI':
-        wave = np.linspace(6250,6350,700)*(1+res['z'][0])/1e4
-        OI = 6302*(1+res['z'][0])/1e4
-        model = gauss(wave, res['OI_peak'][0], OI, res['Nar_fwhm'][0]/2.355/3e5*OI  )    
+        flx = flux_calc_general(6302, res, 'Nar_fwhm', 'OI_peak')
+        return flx*norm
+       
     
     elif mode=='SIIr':
-        SII_r = 6732.67*(1+res['z'][0])/1e4   
+        flx = flux_calc_general(6732, res, 'Nar_fwhm', 'SIIr_peak')
+        return flx*norm
         
-        
-        wave = np.linspace(6600,6800,700)*(1+res['z'][0])/1e4
-        try:  
-            model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
-        except:
-            model_r = gauss(wave, res['SIIr_peak'][0], SII_r, res['Nar_fwhm'][0]/2.355/3e5*SII_r  )
-        
-        import scipy.integrate as scpi
-            
-        Flux_r = scpi.simps(model_r, wave)*norm
-       
-        return Flux_r
     
     elif mode=='SIIb':
-        SII_b = 6718.29*(1+res['z'][0])/1e4   
-        
-        wave = np.linspace(6600,6800,700)*(1+res['z'][0])/1e4
-        try:
-            model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
-        except:
-            model_b = gauss(wave, res['SIIb_peak'][0], SII_b, res['Nar_fwhm'][0]/2.355/3e5*SII_b  )
-        
-        import scipy.integrate as scpi
-            
-        
-        Flux_b = scpi.simps(model_b, wave)*norm
-        
-        return Flux_b
+        flx = flux_calc_general(6718, res, 'Nar_fwhm', 'SIIb_peak') 
+        return flx*norm
     
     else:
         raise Exception('Sorry mode in Flux not understood')
