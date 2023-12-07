@@ -1968,37 +1968,9 @@ class Cube:
         if self.instrument =='NIRSPEC_IFU':
             print('NIRSPEC mode of error calc')
             D1_spectrum_var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2)))
-            
-            if len(err_range)==2:
-                error = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                
-                average_var = stats.sigma_clipped_stats(D1_spectrum_var_er[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                D1_spectrum_er = D1_spectrum_var_er*(error/average_var)
-                
-            elif len(err_range)==4:
-                error1 = stats.sigma_clipped_stats(D1_spectrum[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[2]
-                error2 = stats.sigma_clipped_stats(D1_spectrum[(err_range[2]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[3])],sigma=3)[2]
-                
-                average_var1 = stats.sigma_clipped_stats(D1_spectrum_var_er[(err_range[0]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[1])],sigma=3)[1]
-                average_var2 = stats.sigma_clipped_stats(D1_spectrum_var_er[(err_range[2]<self.obs_wave) \
-                                                            &(self.obs_wave<err_range[3])],sigma=3)[1]
-                
-                error = np.zeros(len(D1_spectrum))
-                error[self.obs_wave<boundary] = D1_spectrum_var_er[self.obs_wave<boundary]*(error1/average_var1)
-                error[self.obs_wave>boundary] = D1_spectrum_var_er[self.obs_wave>boundary]*(error2/average_var2)
-                D1_spectrum_er = error
-            else:
-                error = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[2]
-                
-                average_var = stats.sigma_clipped_stats(D1_spectrum,sigma=3)[1]
-                D1_spectrum_er = D1_spectrum_var_er/(error/average_var)
-            
-            D1_spectrum_er[self.D1_spectrum_er==0] = np.mean(self.D1_spectrum_er)*5
+
+            D1_spectrum_er = sp.error_scaling(self.obs_wave, D1_spectrum, D1_spectrum_var_er, err_range, boundary,\
+                                                   exp=0)
         else:
             print('Other mode of error calc')
             if len(err_range)==2:
