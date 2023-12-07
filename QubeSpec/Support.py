@@ -120,28 +120,6 @@ def twoD_Gaussian(dm, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
                             + c*((y-yo)**2)))
     return g.ravel()
 
-
-def Av_calc(Falpha, Fbeta):
-    """ Calculating Av based on Halpha and Hbeta emission 
-	
-	"""
-    
-    Av = 1.964*4.12*np.log10(Falpha/Fbeta/2.86)
-    
-    return Av
-
-def Flux_cor(Flux, Av, lam= 0.6563):
-    """ Correcting a line flux based on Av
-	
-	"""
-    
-    Ebv = Av/4.12
-    Ahal = 3.325*Ebv
-    
-    F = Flux*10**(0.4*Ahal)
-    
-    return F
-
 def smooth(image,sm):
     """ Gaussian 2D smoothning for maps
 	
@@ -244,8 +222,6 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         center = NII_r*(1+sol[0])/1e4
         fwhm = dictsol['Nar_fwhm'][0]/3e5*center
         model = gauss(wave, dictsol['NII_peak'][0], center, fwhm/2.35)
-        
-            
     
     elif mode =='Hb':
         center = Hbe*(1+sol[0])/1e4
@@ -360,30 +336,21 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
         y_model = model(wave, *popt)
         chi2 = np.nansum(((flux-y_model)/error)**2)
         BIC = chi2+ len(popt)*np.log(len(flux))
-        
-        
-    
+       
     return chi2, BIC
 
 def unwrap_chain(res):
-    keys = list(res.keys())[1:]
-    
-    chains = np.zeros(( len(res[keys[0]]), len(keys) ))
-    
-    for i in range(len(keys)):
-        
-        chains[:,i] = res[keys[i]]
-        
+    keys = list(res.keys())[1:]  
+    chains = np.zeros(( len(res[keys[0]]), len(keys) ))  
+    for i in range(len(keys)):  
+        chains[:,i] = res[keys[i]]    
     return chains
 
 def QFitsview_mask(filepath):
     mask_load = pyfits.getdata(filepath)
-
     mask = ~mask_load
-
     mask[mask==-1] = 1
     mask[mask==-2] = 0
-
     return mask
 
 def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
@@ -465,7 +432,6 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
             flx = flux_calc_general(Hbe, res, 'Nar_fwhm', 'Hbeta_peak')
         except:
             flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak')
-
         return flx*norm
     
     elif mode=='Hbe_BLR':
@@ -489,14 +455,12 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     
     elif mode=='OI':
         flx = flux_calc_general(6302, res, 'Nar_fwhm', 'OI_peak')
-        return flx*norm
-       
+        return flx*norm      
     
     elif mode=='SIIr':
         flx = flux_calc_general(6732, res, 'Nar_fwhm', 'SIIr_peak')
         return flx*norm
         
-    
     elif mode=='SIIb':
         flx = flux_calc_general(6718, res, 'Nar_fwhm', 'SIIb_peak') 
         return flx*norm
@@ -566,7 +530,6 @@ def W80_OIII_calc( function, sol, chains, plot):
         
         peakn = np.random.choice(chains['OIII_peak'], N)
         peakw = np.random.choice(chains['OIII_out_peak'], N)
-        
         
         for i in range(N):
             y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
@@ -1052,8 +1015,6 @@ def NIRSpec_IFU_PSF(wave):
     sigma2= 0.09 + 2.0*wave * e**(-12.5/wave)                     
     return np.array([sigma1,sigma2])
 
-
-
 def pickle_load(file_path):
     import pickle
     with open(file_path, "rb") as fp:
@@ -1067,7 +1028,6 @@ def pickle_save(file_path, stuff):
 def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
     error= np.zeros_like(flux)
     from astropy import stats
-
 
     if len(err_range)==2:
         error1 = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
@@ -1103,6 +1063,5 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
             print('Error rescales are: ', error1/average_var1, error2/average_var2 )
         except:
             print('Error rescale is: ', error1/average_var1 )
-
 
     return error
