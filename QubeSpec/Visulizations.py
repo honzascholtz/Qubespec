@@ -9,7 +9,7 @@ Created on Sun Dec 25 21:23:34 2022
 #importing modules
 from astropy.io import fits as pyfits
 from . import Graph_setup as gst
-
+import numpy as np
 nan= float('nan')
 
 pi= np.pi
@@ -22,7 +22,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches
 import matplotlib.widgets
 import matplotlib.cm
-import numpy as np
 from brokenaxes import brokenaxes
 from . import Plotting as emplot
 from . import QubeSpec as IFU

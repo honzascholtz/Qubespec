@@ -252,11 +252,21 @@ class R1000:
             
 
 class R100:  
-    def __init__(self, path, z, ID, wave_custom=0):
+    def __init__(self, path, z, ID, wave_custom=0 ,version ='3.0', add='_extr3'):
         # Store basic stuff
         self.z = z
         self.ID = ID
         self.path = path
+        self.band = 'prism_clear'
+        if version != '':
+            version= '_v'+version
+        self.version = version
+
+        self.version = version
+        self.add = add
+        self.Hal_band = self.band
+        self.O3_band = self.band
+        self.custom_band = self.band
         
         # Set boundries of the R1000 boundries 
         B1M = [0.7, 1.88936]
@@ -272,9 +282,9 @@ class R100:
         
     def load_data(self):
         
-        
-        Full_path = self.path + 'prism_clear_3pix' +'/'+ self.ID + '_prism_clear_1D.fits'
-        with pyfits.open(Full_path, memmap=False) as hdulist:
+        self.Full_path = self.path +self.band +'/'+ self.ID + '_' + self.band +self.version+self.add+'_1D.fits'
+
+        with pyfits.open(self.Full_path, memmap=False) as hdulist:
             flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
             self.error =  hdulist['ERR'].data*1e-7*1e4*1e15
             self.flux = np.ma.masked_invalid(flux_orig.copy())
@@ -291,7 +301,7 @@ class R100:
                                                    'cont':[0,'loguniform',-3,1],\
                                                    'cont_grad':[0,'normal',0,0.3], \
                                                    'Hal_peak':[0,'loguniform',-3,1],\
-                                                   'Nar_fwhm':[300,'uniform',100,900],\
+                                                   'Nar_fwhm':[1000,'uniform',500,3000],\
                                                    'SIIr_peak':[0,'loguniform',-3,1],\
                                                    'SIIb_peak':[0,'loguniform',-3,1],\
                                                    'NII_peak':[0,'loguniform',-3,1]}):
@@ -299,11 +309,11 @@ class R100:
             priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
             
             
-            self.Hal_fits = emfit.Fitting(self.Hal_obs_wave, self.Hal_flux, self.Hal_error, self.z, N=N, progress=progress, priors=priors)
+            self.Hal_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
             self.Hal_fits.fitting_Halpha(model='gal')
             
             f,ax = plt.subplots(1)
-            emplot.plotting_Halpha(self.Hal_obs_wave, self.Hal_flux, ax, self.Hal_fits.props, self.Hal_fits.fitted_model)
+            emplot.plotting_Halpha(self.obs_wave, self.flux, ax, self.Hal_fits.props, self.Hal_fits.fitted_model)
             
             
             
@@ -329,14 +339,14 @@ class R100:
         
         if self.O3_band != None:  
             priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
-            self.O3_fits = emfit.Fitting(self.O3_obs_wave, self.O3_flux, self.O3_error, self.z, N=N, progress=progress, priors=priors)
+            self.O3_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
             
             self.O3_fits.fitting_OIII(model='gal')
             
             f,ax = plt.subplots(1)
             #ax.plot(self.O3_obs_wave, self.O3_flux)
             #ax.plot(self.O3_obs_wave, O3_fits.fitted_model(self.O3_obs_wave, *O3_fits.props['popt']), 'r--')
-            emplot.plotting_OIII(self.O3_obs_wave, self.O3_flux, ax, self.O3_fits.props, self.O3_fits.fitted_model)
+            emplot.plotting_OIII(self.obs_wave, self.flux, ax, self.O3_fits.props, self.O3_fits.fitted_model)
             
             self.O3_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'OIIIt', norm=1e-15)
             self.Hbeta_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'Hbeta', norm=1e-15)
