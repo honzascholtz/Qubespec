@@ -1065,3 +1065,7 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
             print('Error rescale is: ', error1/average_var1 )
 
     return error
+
+def where(array, lmin, lmax):
+    use = np.where( (array>lmin) & (array<lmax))
+    return use

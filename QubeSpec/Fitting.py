@@ -56,7 +56,7 @@ class Fitting:
         
     """
     def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
-                                                                                       'cont':[0,'loguniform',-3,1],\
+                                                                                       'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
                                                                                        'BLR_Hal_peak':[0,'loguniform',-3,1],\
@@ -134,10 +134,13 @@ class Fitting:
             self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak']
             
             self.fitted_model = H_models.Halpha_wBLR
-            self.log_prior_fce = H_models.log_prior_Halpha_BLR
+            self.log_prior_fce = logprior_general_scipy
             self.pr_code = self.prior_create()
             
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                 
@@ -145,18 +148,22 @@ class Fitting:
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
             
             self.res = {'name': 'Halpha_wth_BLR'}
+
+            
             
         
         elif self.model=='gal':
             self.fitted_model = H_models.Halpha
-            self.log_prior_fce = H_models.log_prior_Halpha
+            self.log_prior_fce = logprior_general_scipy
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak']
             self.pr_code = self.prior_create()
-            
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
-            
+
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
 
@@ -165,11 +172,14 @@ class Fitting:
                 
         elif self.model=='outflow':
             self.fitted_model = H_models.Halpha_outflow
-            self.log_prior_fce = H_models.log_prior_Halpha_outflow
+            self.log_prior_fce = logprior_general_scipy
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
             self.pr_code = self.prior_create()
             
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0] ])
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0] ])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
             
@@ -187,8 +197,10 @@ class Fitting:
                     'outflow_fwhm', 'outflow_vel', \
                     'BLR_Hal_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2', 'BLR_sig']
                 
-                
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],\
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],\
                               peak/6, peak/6,\
                               self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], \
                               peak, self.priors['zBLR'][0], self.priors['BLR_alp1'][0], self.priors['BLR_alp2'][0],self.priors['BLR_sig'][0], \
@@ -211,6 +223,12 @@ class Fitting:
         self.flux_fitloc = self.flux[self.fit_loc]
         self.wave_fitloc = self.wave[self.fit_loc]
         self.error_fitloc = self.error[self.fit_loc]
+        
+        if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf) | (self.log_prior_fce(pos_l, self.pr_code)== np.nan):
+            print(logprior_general_scipy_test(pos_l, self.pr_code))
+                
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible')
 
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(
@@ -785,7 +803,10 @@ class Fitting:
             self.chains[self.labels[i]] = self.flat_samples[:,i]
         
         self.props = self.prop_calc()
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        try:
+            self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        except:
+            self.yeval = np.zeros_like(self.wave)
 
     def fitting_custom(self, model_inputs,model_name, nwalkers=64, template=None):
         """ Fitting any custom model that you pass with a dictionary. You need to put in fitted_model, labels and
@@ -920,20 +941,20 @@ from scipy.stats import loguniform
 #import numba
 #@numba.njit
 def logprior_general_scipy_test(theta, priors):
-    results = 0.
+    results = []
     for t,p in zip( theta, priors):
         if p[0] ==0:
-            results+= norm.logpdf(t, p[1], p[2])
+            results.append(norm.logpdf(t, p[1], p[2]))
         elif p[0]==1:
-            results+= uniform.logpdf(t, p[1], p[2]-p[1])
+            results.append(uniform.logpdf(t, p[1], p[2]-p[1]))
         elif p[0]==2:
-            results+=  norm.logpdf(np.log10(t), p[1], p[2])
+            results.append(  norm.logpdf(np.log10(t), p[1], p[2]))
         elif p[0]==3:
-            results+= uniform.logpdf(np.log10(t), p[1], p[2]-p[1])
+            results.append( uniform.logpdf(np.log10(t), p[1], p[2]-p[1]))
         elif p[0]==4:
-            results += truncnorm.logpdf(t, a= (p[3]-p[1])/p[2], b= (p[4]-p[1])/p[2], loc=p[1], scale=p[2])
+            results.append(truncnorm.logpdf(t, a= (p[3]-p[1])/p[2], b= (p[4]-p[1])/p[2], loc=p[1], scale=p[2]))
         elif p[0]==4:
-            results += truncnorm.logpdf(np.log10(t),a= (p[3]-p[1])/p[2], b= (p[4]-p[1])/p[2], loc=p[1], scale=p[2])
+            results.append( truncnorm.logpdf(np.log10(t),a= (p[3]-p[1])/p[2], b= (p[4]-p[1])/p[2], loc=p[1], scale=p[2]))
     return results
 
 def logprior_general_scipy(theta, priors):
