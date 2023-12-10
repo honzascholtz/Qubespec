@@ -76,6 +76,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
         plt.plot(self.obs_wave, np.ma.array(data= Sky_smooth , mask=self.sky_clipped_1D), drawstyle='steps-mid')
         plt.ylabel('Flux')
         plt.xlabel('Observed wavelength')
+        plt.savefig(self.savepath+'Diagnostics/Background_spextrum.pdf')
 
 
 def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,\
@@ -114,6 +115,7 @@ def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip
         if any(wave_range):
             print('Using sextractor to find the source. ')
             obj, seg = dtn.source_detection(self.flux, self.error_cube, self.obs_wave, wave_range=wave_range,noise_type='nominal', detection_threshold=detection_threshold)
+            plt.savefig(self.savepath+'Diagnostics/Source_detection.pdf')
             source_mask = self.coverage_mask.copy()
             source_mask[seg !=0] = True
             source_mask[seg ==0] = False       
@@ -175,6 +177,7 @@ def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip
         ax.plot(self.obs_wave, np.median(self.background[:, int(n_x/2)-5:int(n_x/2)+5, int(n_y/2)-5:int(n_y/2)+5], axis=(1,2)), drawstyle='steps-mid')
         ax.set_xlabel('obs_wave')
         ax.set_ylabel('Flux density')
+        plt.savefig(self.savepath+'Diagnostics/Background_spectrum.pdf')
     
 
 def background_sub_spec_gnz11(Cube, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
@@ -245,6 +248,7 @@ def background_sub_spec_gnz11(Cube, center, rad=0.6, manual_mask=[],smooth=25, p
     plt.figure()
     plt.imshow(norm,vmin=0.5,vmax=1.5, origin='lower')
     plt.colorbar()
+    plt.savefig(Cube.savepath+'Diagnostics/1D_spectrum_Selected_pixel.pdf')
     Cube.flux_orig = Cube.flux.copy()
     for ix in range(shapes[0]):
         for iy in range(shapes[1]):

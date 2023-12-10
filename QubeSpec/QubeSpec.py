@@ -28,7 +28,7 @@ from brokenaxes import brokenaxes
 from astropy.utils.exceptions import AstropyWarning
 import astropy.constants, astropy.cosmology, astropy.units, astropy.wcs
 from astropy.table import Table
-
+import os
 
 nan= float('nan')
 
@@ -89,6 +89,11 @@ class Cube:
         self.band = Band
         self.Cube_path = Full_path
         self.flux_norm= norm
+
+        if not os.path.isdir(self.savepath+'Diagnostics'):
+            os.mkdir(self.savepath+'Diagnostics')
+
+        
         
         if self.Cube_path !='':
             
@@ -326,6 +331,7 @@ class Cube:
             plt.figure()
             plt.imshow(self.Median_stack_white,  origin='lower')
             plt.colorbar()
+            plt.savefig(self.savepath+'Diagnostics/Median_cont_image.pdf')
 
 
 
@@ -524,8 +530,7 @@ class Cube:
             data_fit = sp.twoD_Gaussian((x,y), *self.center_data)
 
             plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 8, colors='w')
-
-
+            plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Selected_pixel.pdf')
 
 
     def background_sub_spec_gnz11(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
@@ -595,6 +600,7 @@ class Cube:
 
             plt.ylabel('Flux')
             plt.xlabel('Observed wavelength')
+            plt.savefig(self.savepath+'Diagnostics/1D_spectrum.pdf')
                
         self.D1_spectrum_var = np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))
 
@@ -613,6 +619,7 @@ class Cube:
                 ax.legend(loc='best')
                 ax.set_xlabel(r'$\lambda_{\rm obs}$ $\mu$m')
                 ax.set_ylabel('Flux density')
+                plt.savefig(self.savepath+'Diagnostics/1D_spectrum_error_scaling.pdf')
 
         else:
             print('Other mode of error calc')
@@ -964,6 +971,8 @@ class Cube:
 
             ax1.set_ylim(-0.05,0.4)
 
+            plt.savefig(self.savepath+'Diagnostics/Sky_spectrum.pdf')
+
             plt.tight_layout()
 
     def fitting_collapse_Halpha(self, plot=1, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal_hat', 0,0,0,0],\
@@ -1194,6 +1203,9 @@ class Cube:
                 emplot.plotting_Halpha(wave, flux, ax2a, Fits_blr.props , Fits_blr.fitted_model)
             except:
                 emplot.plotting_Halpha(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
+        
+        plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Halpha_fit.pdf')
+
             
             
     def fitting_collapse_Halpha_OIII(self, plot=1, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal_hat', 0, 0.,0,0],\
@@ -1336,6 +1348,9 @@ class Cube:
                 
         emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')                             
         baxes.set_xlabel('Restframe wavelength (ang)')
+
+        plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Halpha_OIII_fit.pdf')
+
         
         g = plt.figure(figsize=(10,4))
         if models=='QSO_BKPL':
@@ -1546,7 +1561,8 @@ class Cube:
         ax2.yaxis.tick_left()
         
         emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2, template=template)
-        
+        plt.savefig(self.savepath+'Diagnostics/1D_spectrum_OIII_fit.pdf')
+
         self.fit_plot = [f,ax1,ax2]  
             
     
@@ -1566,6 +1582,13 @@ class Cube:
         self.D1_fit_chain = Fits_gen.chains
         self.D1_fit_model = Fits_gen.fitted_model
         self.z = Fits_gen.props['popt'][0]
+
+        f,ax = plt.subplots(1)
+
+        ax.plot(self.wave, self.flux, drawstyle='steps-mid')
+        ax.plot(self.wave, Fits_gen.yeval, 'r--')
+        plt.savefig(self.savepath+'Diagnostics/1D_spectrum_general_fit.pdf')
+
             
             
         fig = corner.corner(
