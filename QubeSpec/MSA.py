@@ -27,6 +27,19 @@ from . import Plotting as emplot
 from . import Fitting as emfit
 
 
+
+paths = {}
+paths['medium_jwst_gn'] = ['/Users/jansen/JADES/GOODS-N/NIRSpec/medium_jwst_gn/Final_products_v3.1/', '3.1','']
+paths['medium_hst_gn'] = ['/Users/jansen/JADES/GOODS-N/NIRSpec/medium_hst_gn/Final_products_v3.0/', '3.0','']
+
+
+paths['deep_hst_gs'] = ['/Users/jansen/JADES/GOODS-S/NIRSpec/deep_hst_gs/Final_products_v3.0/', '3.0','']
+paths['medium_hst_gs_shorts'] = ['/Users/jansen/JADES/GOODS-S/NIRSpec/medium_hst_gs_shorts/Final_products_v3.0_extr3/', '3.0','_extr3']
+paths['medium_jwst_gs_1180'] = ['/Users/jansen/JADES/GOODS-S/NIRSpec/medium_jwst_gs_1180/Final_products_v3.0_extr3/', '3.0','_extr3']
+paths['medium_jwst_gs'] = ['/Users/jansen/JADES/GOODS-S/NIRSpec/medium_jwst_gs/', '','']
+
+
+
 def gauss(x, k, mu, fwhm):
     sig= fwhm/3e5*mu/2.35482
     expo= -((x-mu)**2)/(2*sig*sig)
