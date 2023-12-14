@@ -12,7 +12,7 @@ __author__='Jan Scholtz, William M. Baker, Ignas'
 
 import numpy as np
 from numba import jit, float32
-
+from scipy.optimize import curve_fit
 
 Balmer_lines = {'Halpha': [6562.819e-10, 2.863]}
 Balmer_lines['Hbeta'] = [4861.333e-10, 1]
@@ -50,7 +50,7 @@ class Dust_cor:
         fb2_wave = self.Balmer_lines[fb2_name][0]
 
         Balmer_rat = self.Balmer_lines[fb1_name][1]/self.Balmer_lines[fb2_name][1]
-        if curve_fce !=None:
+        if curve_fce ==None:
             if curve=='smc':
                 curve_fce = self.smc
             elif curve=='calzetti2000':
@@ -58,9 +58,9 @@ class Dust_cor:
             elif curve=='cardonelli1989':
                 curve_fce = self.cardelli1989
 
-        Kb1=curve_fce(fb1_wave, R_v = R_v)
-        Kb2=curve_fce(fb2_wave, R_v = R_v)
-        K=curve_fce(wav*1e-10, R_v = R_v)
+        Kb1=curve_fce(fb1_wave, R_v = self.R_v)
+        Kb2=curve_fce(fb2_wave, R_v = self.R_v)
+        K= curve_fce(wav*1e-10, R_v = self.R_v)
         Av=[]
         f=[]
 
@@ -80,13 +80,15 @@ class Dust_cor:
     
     def flux_cor_fit(self, F, wav, ratios, fb_names,eratios=None, R_v=None, curve='smc', curve_fce=None):
 
-        if curve_fce !=None:
+        if curve_fce ==None:
             if curve=='smc':
-                curve_fce = self.smc
+                self.curve_fce = self.smc
             elif curve=='calzetti2000':
-                curve_fce = self.calzetti2000
+                self.curve_fce = self.calzetti2000
             elif curve=='cardonelli1989':
-                curve_fce = self.cardelli1989
+                self.curve_fce = self.cardelli1989
+        else:
+            self.curve_fce= curve_fce
         self.R_v = R_v
 
         Balmer_rats = []
