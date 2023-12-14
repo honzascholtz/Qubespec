@@ -484,7 +484,6 @@ class Cube:
         print('Pixel scale:', arc)
         print ('radius ', arc*rad)
 
-
         # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
         for ix in range(shapes[0]):
             for iy in range(shapes[1]):
@@ -496,25 +495,7 @@ class Cube:
             for i in range(shapes[2]):
                 mask_catch[i,:,:] = mask_manual.copy()
 
-        # 587 have special extended stuff that I dont want to mask
-        if flg=='K587':
-            mask_catch[:,11:29 ,3:36 ] = False
-            print ('extracting flux K band XID 587')
-
-        elif flg=='H587':
-            mask_catch[:,12:29 ,2:36 ] = False
-            print ('extracting flux H band XID 587')
-
-        elif flg=='K751':
-            mask_catch[:,3:31 ,5:34 ] = False
-            print ('extracting flux K band XID 751')
-
-        elif flg=='K587sin':
-            mask_catch[:,20:65 ,25:50 ] = False
-            print ('extracting flux H band XID 587 sinfoni')
-
         self.Signal_mask = mask_catch
-
 
         if plot==1:
             plt.figure()
@@ -1859,8 +1840,6 @@ class Cube:
         x = range(shapes[0]-upper_lim)
         y = range(shapes[1]-upper_lim)
 
-
-        print(rad/arc)
         h, w = self.dim[:2]
         center= self.center_data[1:3]
 
@@ -1946,30 +1925,29 @@ class Cube:
 
         '''
 
-        shapes = self.dim
-
-        print ('Center of cont', center)
-        print ('Extracting spectrum from diameter', rad*2, 'arcseconds')
-
         # Creating a mask for all spaxels.
         mask_catch = self.flux.mask.copy()
         mask_catch[:,:,:] = True
         header  = self.header
         #arc = np.round(1./(header['CD2_2']*3600))
         arc = np.round(1./(header['CDELT2']*3600))
-        print('Pixel scale:', arc)
-        print ('radius ', arc*rad)
+        
         
         if len(manual_mask)==0:
+            print ('Center of cont', center)
+            print ('Extracting spectrum from diameter', rad*2, 'arcseconds')
+            print('Pixel scale:', arc)
+            print ('radius ', arc*rad)
             # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels
-            for ix in range(shapes[0]):
-                for iy in range(shapes[1]):
+            for ix in range(self.dim[0]):
+                for iy in range(self.dim[1]):
                     dist = np.sqrt((ix- center[1])**2+ (iy- center[0])**2)
                     if dist< arc*rad:
                         mask_catch[:,ix,iy] = False
         else:
-            for ix in range(shapes[0]):
-                for iy in range(shapes[1]):
+            print('Selecting spaxel based on the supplied mask.')
+            for ix in range(self.dim[0]):
+                for iy in range(self.dim[1]):
                     
                     if manual_mask[ix,iy]==False:
                         mask_catch[:,ix,iy] = False
