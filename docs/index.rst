@@ -35,13 +35,12 @@ You should then be able to import QubeSpec in python as:
 Getting started
 ---------------
 
-The best place to get started is by looking at the `iPython notebook examples <https://github.com/ACCarnall/bagpipes/tree/master/examples>`_. It's a good idea to tackle them in order as the later examples build on the earlier ones. These documentation pages contain a more complete reference guide.
+The best place to get started is by looking at the `iPython notebook examples <https://github.com/honzascholtz/Qubespec/tree/main/IFS_tutorial>`_. The full tutorial is in:
 
-Bagpipes is structured around three core classes:
 
- - :ref:`model_galaxy <making-model-galaxies>`: for generating model galaxy spectra
- - :ref:`galaxy <inputting-observational-data>`: for loading observational data into Bagpipes
- - :ref:`fit <fitting-observational-data>`: for fitting models to observational data.
+ - :ref:`Loading a cube  <making-model-galaxies>`: For Loading the IFS cube into QubeSpec and preparing it to fit 
+ - :ref:`1D fitting <inputting-observational-data>`: Explanation of how fitting works. 
+ - :ref:`Spaxel-by-Spaxel fitting <fitting-observational-data>`: Fitting every spaxel in the cube. 
 
 
 Acknowledgements
