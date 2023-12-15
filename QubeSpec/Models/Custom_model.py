@@ -20,13 +20,26 @@ class Parameter:
         self.prior_params = prior
     def log_prior(self):
         match self.prior_params[0]:
-            case "uniform": return stats.uniform.logpdf(self.value, self.prior_params[1], self.prior_params[2]-self.prior_params[1])
-            case 'loguniform': return stats.uniform.logpdf(np.log10(self.value), self.prior_params[1], self.prior_params[2]-self.prior_params[1])
-            case 'normal': return stats.norm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
+            case "uniform": return stats.uniform.logpdf(self.value, loc = self.prior_params[1], scale= self.prior_params[2]-self.prior_params[1])
+            case 'loguniform': return stats.uniform.logpdf(np.log10(self.value), loc=self.prior_params[1], scale=self.prior_params[2]-self.prior_params[1])
+            case 'normal': return stats.norm.logpdf(self.value,loc= self.prior_params[1], scale= self.prior_params[2])
             case'lognormal':
-                return stats.lognorm.logpdf(self.value, self.prior_params[1], self.prior_params[2])
+                return stats.lognorm.logpdf(self.value, loc=self.prior_params[1], scale=self.prior_params[2])
             case 'normal_hat':
-                return stats.truncnorm.logpdf(self.value, self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4])
+                return stats.truncnorm.logpdf(self.value, a=(self.prior_params[3]-self.prior_params[1])/self.prior_params[2], b=(self.prior_params[4]-self.prior_params[1])/self.prior_params[2], loc=self.prior_params[1],\
+                                               scale = self.prior_params[2] )
+            case _:
+                raise NameError("Prior {} not found".format(self.prior_params[0]))
+    
+    def sample_prior(self, N):
+        match self.prior_params[0]:
+            case "uniform": return stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1], N )
+            case 'loguniform': return 10**stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1],N)
+            case 'normal': return stats.norm.rvs( self.prior_params[1], self.prior_params[2], N)
+            case'lognormal':
+                return stats.lognorm.logpdf( self.prior_params[1], self.prior_params[2], N)
+            case 'normal_hat':
+                return stats.truncnorm.logpdf(self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4],N)
             case _:
                 raise NameError("Prior {} not found".format(self.prior_params[0]))
 
@@ -59,7 +72,7 @@ class DoubletModel:
         self.rest_wav2 = rest_wav2
         self.parameters = parameters
         self.width_type = width_type
-
+        
     def gauss(self, x, k, mu, sig):
         expo = -((x-mu)**2)/(2*sig*sig)
         y = k * np.e**expo
@@ -68,20 +81,16 @@ class DoubletModel:
     def fwhm_conv(self, fwhm_in, central_wav):
         return (fwhm_in/2.355)*central_wav/(3*10**5)
 
-    def return_value(self, in_wavelenght):
-        if self.parameters[4] == -1:
-            peak1 = self.parameters[1]
-            peak2 = peak1/self.parameters[3]
-        else:
-            peak1 = self.parameters[1]
-            peak2 = self.parameters[4]
+    def return_value(self, in_wavelength):
+        peak1 = self.parameters[1]
+        peak2 = peak1/self.parameters[3]
 
         cen_wav1 = self.rest_wav1*(1+self.parameters[0])
         sigma1 = self.fwhm_conv(self.parameters[2], cen_wav1)
         cen_wav2 = self.rest_wav2*(1+self.parameters[0])
         sigma2 = self.fwhm_conv(self.parameters[2], cen_wav2)
-        flux = self.gauss(in_wavelenght, peak1, cen_wav1, sigma1)+\
-            self.gauss(in_wavelenght, peak2, cen_wav2, sigma2)
+        flux = self.gauss(in_wavelength, peak1, cen_wav1, sigma1)+\
+            self.gauss(in_wavelength, peak2, cen_wav2, sigma2)
         return flux
 
 ##############Generic 'build your own line' class:
@@ -93,7 +102,6 @@ class Model:
         #input_parameters key format: purpose_narrow/broad_name_type
         line_parameters = {}
         doublet_parameters = {}
-        ratio_parameters = {}
         for key in input_parameters.keys():
             split_key = key.split('_')
             value = input_parameters[key][0]
@@ -231,11 +239,12 @@ class Model:
         return logprior
     
     def log_prior_test(self):
+        l = []
         for param in self.theta.values():
-            l= param.log_prior()
-            if l==-np.inf:
-                print('Prior returned infinity', param.value,param.prior_params[0] ,param.prior_params[0:])
-                raise SyntaxError('Prior returned infinity - see above')
+            l.append( param.log_prior())
+            if (l[-1]==-np.inf) | (l[-1]==float('nan'))  | (l[-1]==float('nan')) :
+                print('Prior returned infinity', param.value,param.prior_params[0] ,param.prior_params[0:], l[-1])
+                raise SyntaxError('Prior returned infinity or nan - see above')
 
     #Chi2 log-likelihood
     def log_likelihood(self,):

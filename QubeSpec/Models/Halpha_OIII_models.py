@@ -203,13 +203,13 @@ def Halpha_OIII_BLR(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta
 
 
 
-    NLR = Halpha_OIII(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, OIIIn_peak, Hbeta_peak, 0)
+    NLR = Halpha_OIII(x, z, cont,cont_grad,  Hal_peak, NII_peak, Nar_fwhm, SII_rpk, SII_bpk, OIIIn_peak, Hbeta_peak)
 
 
     deltaz = outflow_vel/3e5*(1+z)
 
     zout = z+ deltaz
-    Outflow = Halpha_OIII(x, zout, 0,0,  Hal_out_peak, NII_out_peak, outflow_fwhm , 0, 0, OIII_out_peak, Hbeta_out_peak, 0)
+    Outflow = Halpha_OIII(x, zout, 0,0,  Hal_out_peak, NII_out_peak, outflow_fwhm , 0, 0, OIII_out_peak, Hbeta_out_peak)
 
     Hal_wv = 6564.52*(1+z)/1e4
     Hbe_wv = 4862.6*(1+z)/1e4

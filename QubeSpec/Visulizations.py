@@ -7,42 +7,21 @@ Created on Sun Dec 25 21:23:34 2022
 """
 
 #importing modules
-import numpy as np
-import matplotlib.pyplot as plt; plt.ioff()
-
 from astropy.io import fits as pyfits
-from astropy import wcs
-from astropy.table import Table, join, vstack
-from matplotlib.backends.backend_pdf import PdfPages
-import pickle
-from scipy.optimize import curve_fit
-
 from . import Graph_setup as gst
-
+import numpy as np
 nan= float('nan')
 
 pi= np.pi
 e= np.e
-
-plt.close('all')
 c= 3.*10**8
-h= 6.62*10**-34
-k= 1.38*10**-23
 
-Ken98= (4.5*10**-44)
-Conversion2Chabrier=1.7 # Also Madau
-Calzetti12= 2.8*10**-44
-arrow = u'$\u2193$'
-
-
-PATH='/Users/jansen/My Drive/Astro/'
 fsz = gst.graph_format()
 
 import matplotlib.pyplot as plt
 import matplotlib.patches
 import matplotlib.widgets
 import matplotlib.cm
-import numpy as np
 from brokenaxes import brokenaxes
 from . import Plotting as emplot
 from . import QubeSpec as IFU
@@ -75,6 +54,8 @@ class Visualize:
         axes.plot(self.obs_wave, fluxm, drawstyle='steps-mid')
         axes.plot(self.obs_wave, yevalm, 'r--')
         axes.plot(self.obs_wave, errorm, 'k:')
+        axes.text(self.obs_wave[10], 0.9*max(yevalm), 'x='+str(i)+', y='+str(j) )
+
         axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
 
     def showme(self, xlims= ((3,5.3)), vmax=1e-15):
