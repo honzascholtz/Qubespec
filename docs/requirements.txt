@@ -9,3 +9,4 @@ brokenaxes
 tqdm
 numba
 shutil
+sphinx_rtd_theme
