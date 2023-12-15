@@ -6,7 +6,7 @@ def readme():
     with open('README.md') as file:
         return(file.read())
 
-version = '0.1.0'
+version = '1.0.0'
 
 setup(name='QubeSpec',
       version=version,
