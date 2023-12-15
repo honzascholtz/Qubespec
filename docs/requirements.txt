@@ -1,0 +1,7 @@
+astropy
+corner
+numpy
+photoutils
+emcee
+multiprocess
+scipy
