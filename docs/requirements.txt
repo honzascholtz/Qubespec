@@ -7,8 +7,5 @@ multiprocess
 scipy
 brokenaxes
 tqdm
-pickle
-os
-warnings
 numba
 shutil
