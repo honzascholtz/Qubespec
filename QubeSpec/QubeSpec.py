@@ -57,7 +57,6 @@ try:
     print(has_FeII)
 
 except FileNotFoundError:
-    
     from .Models.FeII_comp import *
     its = preconvolve()
     print(its)
@@ -78,7 +77,7 @@ from . import Spaxel_fitting as Spaxel
 #  Main class
 # =============================================================================
 class Cube:
-    def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13):
+    def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13,):
         import importlib
         importlib.reload(emfit )
 
@@ -93,11 +92,7 @@ class Cube:
         if not os.path.isdir(self.savepath+'Diagnostics'):
             os.mkdir(self.savepath+'Diagnostics')
 
-        
-        
         if self.Cube_path !='':
-            
-
             #print (Full_path)
             if self.instrument=='KMOS':
                 filemarker = fits.open(Full_path)
@@ -210,11 +205,12 @@ class Cube:
             if self.instrument=='NIRSPEC_IFU_fl':
                 self.instrument= 'NIRSPEC_IFU'
             self.phys_size = np.array([Xph, Yph])
+            
 
         else:
             self.save_dummy = 0
 
-    def divider():
+    def divider(self):
         return np.nan
 
     background_subtraction = bkg.background_subtraction
@@ -641,7 +637,7 @@ class Cube:
 
 
 
-    def mask_JWST(self, plot, threshold=1e11, spe_ma=[]):
+    def mask_JWST(self, plot=0, threshold=100, spe_ma=[]):
         '''
         Masking bad pixels in JWST NIRSPEC and MIRI observations.
 
@@ -661,9 +657,13 @@ class Cube:
         None.
 
         '''
-
+        self.masking_threshold = threshold
+        self.channel_mask = spe_ma
         sky_clipped =  self.flux.mask.copy()
-        sky_clipped[self.error_cube>threshold] = True
+        median_error = np.nanmedian(self.error_cube)
+        std_error = np.nanmedian(self.error_cube)
+        limit = threshold*std_error+median_error
+        sky_clipped[self.error_cube>limit] = True
 
         sky_clipped_1D = self.flux.mask.copy()[:,10,10].copy()
         sky_clipped_1D[:] = False
@@ -1996,40 +1996,43 @@ class Cube:
 
         return D1_spectrum, D1_spectrum_er, mask_catch
 
-    def PSF_matching(self, psf_fce=sp.NIRSpec_IFU_PSF, wv_ref=5.2, theta=None):
-        from astropy.modeling.models import Gaussian2D 
-        from photutils.psf import create_matching_kernel
-        from photutils.psf import TopHatWindow, CosineBellWindow, HanningWindow, TukeyWindow, SplitCosineBellWindow
-        from astropy.convolution import convolve, convolve_fft  
+    def PSF_matching(self, PSF_match=True, psf_fce=sp.NIRSpec_IFU_PSF, wv_ref=0, theta=None):
+        from astropy.convolution import convolve_fft  
         from astropy.convolution import Gaussian2DKernel
+        if PSF_match==True:
+            print('Now PSF matching')
+            if wv_ref == 0:
+                wv_ref, = self.obs_wave[-1]
+        
+            theta = self.header['PA_V3']-138
+            psf_matched = self.flux.copy()
+            error_matched = self.error_cube.copy()
+            for its in tqdm.tqdm(enumerate(self.obs_wave[ self.obs_wave<wv_ref])):
+                i, wave = its
+                
+                sigma = np.sqrt(psf_fce(wv_ref)**2 - psf_fce(wave)**2)/0.05
+                if wave<wv_ref:
+                    kernel = Gaussian2DKernel( sigma[0],sigma[1], theta=theta)
 
-        #y, x = np.mgrid[0:104, 0:98]
-        #gf_match = Gaussian2D(100, 50, 50, psf_fce(wv_ref)[0], psf_fce(wv_ref)[1], theta=107)
-        #gmatch = gf_match(x, y)
-        #gmatch /= gmatch.sum()
-        #window = TopHatWindow(0.6)
-        #window = CosineBellWindow(alpha=0.99)
-        theta = self.header['PA_V3']-138
-        psf_matched = self.flux.copy()
-        error_matched = self.error_cube.copy()
-        for its in tqdm.tqdm(enumerate(self.obs_wave)):
-            i, wave = its
-            #gf_loc = Gaussian2D(100, 50, 50, PSF(wave)[0], PSF(wave)[1], theta=theta)
-            #g_loc = gf_loc(x,y)
-            #g_loc /=g_loc.sum()
-            #kernel = create_matching_kernel(g_loc, gmatch, window=window)
-            sigma = np.sqrt(psf_fce(wv_ref)**2 - psf_fce(wave)**2)/0.05
-            if wave<wv_ref:
-                kernel = Gaussian2DKernel( sigma[0],sigma[1], theta=theta)
+                    psf_matched[i,:,:] = convolve_fft(psf_matched[i,:,:], kernel)
+                    error_matched[i,:,:] = convolve_fft(error_matched[i,:,:], kernel)
 
-                psf_matched[i,:,:] = convolve_fft(psf_matched[i,:,:], kernel)
-                error_matched[i,:,:] = convolve_fft(error_matched[i,:,:], kernel)
+            primary_hdu = fits.PrimaryHDU(np.zeros(1), header=self.header)
 
-        primary_hdu = fits.PrimaryHDU(np.zeros(1), header=self.header)
+            hdus = [primary_hdu,fits.ImageHDU(psf_matched.data, name='SCI', header=self.header), fits.ImageHDU(error_matched, name='ERR', header=self.header)]
+            hdulist = fits.HDUList(hdus)
+            hdulist.writeto( self.Cube_path[:-4] +'psf_matched.fits', overwrite=True)
 
-        hdus = [primary_hdu,fits.ImageHDU(psf_matched.data, name='SCI', header=self.header), fits.ImageHDU(error_matched, name='ERR', header=self.header)]
-        hdulist = fits.HDUList(hdus)
-        hdulist.writeto( self.cube_path[-4] +'psf_matched.fits', overwrite=True)
+            psf_matched[np.isnan(self.flux.data)] = np.nan
+
+
+            self.flux = np.ma.masked_invalid(psf_matched.data.copy())
+            self.error = error_matched.copy()
+            
+            self.mask_JWST(plot=0, threshold=self.masking_threshold, spe_ma= self.channel_mask)
+        else:
+            print('You asked to do PSF matching, but PSF_match keyword is False. I am skipping PSF matching.')
+        
 
     def ppxf_fitting(self):
         x=1
