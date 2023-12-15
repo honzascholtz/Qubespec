@@ -47,3 +47,10 @@ Acknowledgements
 ----------------
 
 Loads of people.
+
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+
+    index.rst
+    QubeSpec_tutorial.rst
