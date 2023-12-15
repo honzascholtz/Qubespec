@@ -22,8 +22,6 @@ import QubeSpec
 ```
 
 
-You can see the documentation here:
-https://www.overleaf.com/read/vkpmctpzdhsc
 
 CHANGELOG:
 
