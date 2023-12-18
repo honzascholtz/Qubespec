@@ -1,3 +1,7 @@
+
+.. _Starting-with-QubeSpec:
+
+
 .. code:: ipython3
 
     #importing modules
@@ -20,18 +24,6 @@
     import QubeSpec.Fitting as emfit
     import yaml
     
-
-
-
-.. parsed-literal::
-
-    True
-
-
-.. parsed-literal::
-
-    /Users/jansen/My Drive/MyPython/Qubespec/QubeSpec/Support.py:1004: SyntaxWarning: "is not" with a literal. Did you mean "!="?
-      if proceed is not 'y':
 
 
 Initializing the QubeSpec and preparing the data for fitting
