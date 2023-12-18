@@ -1,3 +1,6 @@
+Spaxel-by-Spaxel fitting
+=======================================
+
 .. code:: ipython3
 
     #importing modules
@@ -29,7 +32,7 @@
 
 
 QubeSpec setup file - defining it again
-=======================================
+----------------------
 
 .. code:: ipython3
 
@@ -87,7 +90,7 @@ QubeSpec setup file - defining it again
     Cube.load('/Users/jansen/Test.txt')
 
 Preparing for Spaxel-by-spaxel fitting
-======================================
+----------------------
 
 .. code:: ipython3
 
@@ -228,19 +231,3 @@ Generating the maps
     fmaps = IFU.Maps.Map_creation_general(Cube, info,flux_max=1e-18, SNR_cut=4., fwhmrange=[200,600], velrange=[-200,200], \
                                       modelfce=Full_optical )
     plt.show()
-
-
-.. parsed-literal::
-
-    True
-
-
-.. parsed-literal::
-
-    100%|██████████| 832/832 [22:24<00:00,  1.62s/it]
-
-
-.. parsed-literal::
-
-    Failed fits 0
-

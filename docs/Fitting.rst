@@ -1,3 +1,6 @@
+Fitting a single spectrum
+===================================
+
 .. code:: ipython3
 
     #importing modules
@@ -30,7 +33,7 @@
 
 
 Defining the QubeSpec setup earlier
-===================================
+-----------------
 
 .. code:: ipython3
 
@@ -231,21 +234,6 @@ the spectrum.
     plt.show()
 
 
-.. parsed-literal::
-
-    100%|██████████| 6000/6000 [00:15<00:00, 384.13it/s]
-    100%|██████████| 6000/6000 [00:17<00:00, 341.91it/s]
-
-
-.. parsed-literal::
-
-    Delta BIC -11.754766864481326  
-    BICM 441.6970061605083
-    SNR hal  nan
-    SNR SII  nan
-
-
-
 .. image:: Fitting_files/Fitting_10_2.png
 
 
@@ -289,21 +277,6 @@ BLR models TBD
     plt.show()
 
 
-.. parsed-literal::
-
-    100%|██████████| 6000/6000 [00:36<00:00, 162.74it/s]
-    100%|██████████| 6000/6000 [00:39<00:00, 153.37it/s]
-
-
-.. parsed-literal::
-
-    Delta BIC -214.2223293240363  
-    BICM 493.34265009958676
-    ['name', 'z', 'cont', 'cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_out_peak', 'popt']
-    172.91534861276665
-    48.7616463286201
-
-
 
 .. image:: Fitting_files/Fitting_12_2.png
 
@@ -328,12 +301,6 @@ models - Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple
     plt.show()
 
 
-.. parsed-literal::
-
-    100%|██████████| 6000/6000 [01:10<00:00, 84.85it/s]
-
-
-
 .. image:: Fitting_files/Fitting_14_1.png
 
 
@@ -348,8 +315,6 @@ models - Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple
 .. code:: ipython3
 
     Cube.D1_fit_results
-
-
 
 .. parsed-literal::
 
@@ -392,11 +357,6 @@ models - Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple
 
     print(IFU.sp.flux_calc_mcmc( Cube.D1_fit_results,Cube.D1_fit_chain, 'OIIIt', Cube.flux_norm ))
 
-
-
-.. parsed-literal::
-
-    (3.253542536183512e-17, 1.6270474387885875e-19, 1.5798687294364714e-19)
 
 
 Fitting Custom Function
@@ -484,12 +444,6 @@ Fitting Custom Function
         optical = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=3) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
         optical.fitting_general( Full_optical, labels, emfit.logprior_general_scipy)
         
-
-
-
-.. parsed-literal::
-
-    100%|██████████| 5000/5000 [02:18<00:00, 36.06it/s]
 
 
 .. code:: ipython3
@@ -580,16 +534,6 @@ Flux Calc
     print('[OII]3729 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=3729, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='OII_rat' ))
 
 
-.. parsed-literal::
-
-    [OIII] flux from custom (3.1387569107604056e-17, 1.3718507995246631e-19, 1.3353784562299313e-19)
-    Hbeta flux from custom (4.1602221835920534e-18, 6.035833525769391e-20, 6.419844226378108e-20)
-    [NII] flux from custom (9.001025693275915e-19, 7.694436091530411e-20, 7.929111700076085e-20)
-    Halpha flux from custom (1.3376432772965773e-17, 1.2805384220949435e-19, 1.2550188320000215e-19)
-    [OIII]4363 flux from custom (4.809987819015428e-19, 5.1134461398169567e-20, 4.953209981348708e-20)
-    [OII]3727 flux from custom (3.0426013718450658e-18, 1.2015302705274191e-19, 1.1657934436713213e-19)
-    [OII]3729 flux from custom (2.0377102495909775e-18, 1.1767819816366564e-19, 1.1218929393300842e-19)
-
 
 Fitting a custom model by passing a dictionary of components
 ------------------------------------------------------------
@@ -653,13 +597,6 @@ Very highly experimental, still under development, use at your risk!
         optical_cus.fitting_custom(model_inputs, model_name='test')
     
 
-
-
-.. parsed-literal::
-
-    100%|██████████| 5000/5000 [04:31<00:00, 18.41it/s]
-
-
 .. code:: ipython3
 
     import corner
@@ -672,16 +609,6 @@ Very highly experimental, still under development, use at your risk!
                 title_kwargs={"fontsize": 12})
     #fig.savefig('~/corner_full.pdf')
     plt.show()
-
-
-.. parsed-literal::
-
-    WARNING:root:Too few points to create valid contours
-    WARNING:root:Too few points to create valid contours
-    WARNING:root:Too few points to create valid contours
-    WARNING:root:Too few points to create valid contours
-
-
 
 .. image:: Fitting_files/Fitting_27_1.png
 
