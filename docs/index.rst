@@ -54,3 +54,5 @@ Loads of people.
 
     index.rst
     QubeSpec_tutorial.rst
+    Fitting.rst
+    Spaxel_fitting.rst

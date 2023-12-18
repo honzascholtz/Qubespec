@@ -1,0 +1,687 @@
+.. code:: ipython3
+
+    #importing modules
+    import numpy as np
+    import matplotlib.pyplot as plt; plt.ioff()
+    
+    nan= float('nan')
+    pi= np.pi
+    e= np.e
+    
+    c= 3e8
+    h= 6.62*10**-34
+    k= 1.38*10**-23
+    
+    %load_ext autoreload
+    %autoreload 2
+    
+    import QubeSpec as IFU
+    import QubeSpec.Plotting as emplot
+    import QubeSpec.Fitting as emfit
+    import yaml
+    
+
+
+
+.. parsed-literal::
+
+    The autoreload extension is already loaded. To reload it, use:
+      %reload_ext autoreload
+
+
+Defining the QubeSpec setup earlier
+===================================
+
+.. code:: ipython3
+
+    # Lets define additional info
+    PATH='/Users/jansen/My Drive/Astro/'
+    
+    QubeSpec_setup = {}
+    ######################
+    # Basic Properties
+    QubeSpec_setup['z'] = 6.851 # Redshift of the object 
+    QubeSpec_setup['ID'] = 'COS30_R2700' # Name of the object
+    QubeSpec_setup['instrument'] = 'NIRSPEC_IFU_fl' # Name of the instrument - KMOS, SINFONI, NIRSPEC_IFU (when original units Fnu from pipeline), NIRSPEC_IFU_fl (for GTO pipeline Flambda)
+    QubeSpec_setup['band'] = 'R2700' # Or PRISM, doesnt matter for JWST - For KMOS and SINFONI it should H or K or HK or YJ or Hsin, Ksin for SINFONI
+    QubeSpec_setup['save_path'] = PATH+'COS30_IFS/Saves/' # Where to save all the info. 
+    QubeSpec_setup['file'] = PATH+'COS30_IFS/Data/COS30-COS-6.80-S_jw1217_o007_ff_px0.05_drizzle_ODfde95.0_VSC_MRC_MSA_EMSA_m2ff_xyspikes96_CTX1068.pmap_v1.8.2_g395h-f290lp_cgs_s3d.fits'# Path to the Data Cube
+    QubeSpec_setup['norm'] = 1e-15 # Normalization to make the integrated spectrum around 0.5-8
+    
+    #####################
+    # PSF Matching info
+    QubeSpec_setup['PSF_match'] = True
+    QubeSpec_setup['PSF_match_wv'] = 5.2
+    
+    #####################
+    # Masking Channels
+    QubeSpec_setup['mask_threshold'] = 6 # multiple of the median error to mask
+    QubeSpec_setup['mask_channels'] = []  # any particular channels to mask - with JWST not necessarily 
+    
+    #####################
+    # Background Subtraction
+    QubeSpec_setup['Source_mask'] = PATH+'COS30_IFS/Data/R2700_source.fits' # path to find the source mask to mask the source during background subtraction - Can be None but then you have to supply wavelength range around some emission line to construct a line map and let sextractor create the mask
+    QubeSpec_setup['line_map_wavelength'] = [3.92,3.94] # Wavelength range used to create a line map for source detection - only used if 'Source_mask' is None
+    
+    #####################
+    # Extracting spectrum 
+    QubeSpec_setup['Object_center'] = [59,50] # X,Y - center of the object 
+    QubeSpec_setup['Aperture_extraction'] = 0.2 # radius of the aperture to extract the the 1D spectrum
+    # Error stuff - explained below
+    QubeSpec_setup['err_range']=[3.95,4.05, 5,5.1] # err ranges for renormalising the error extension
+    QubeSpec_setup['err_boundary'] = 4.1 # where to switch - location of the detector gap
+    
+    #####################
+    # Fitting Spaxel by Spaxel
+    QubeSpec_setup['Spaxel_mask'] = PATH+'COS30_IFS/Data/R2700_source_mask.fits' # which spaxel to fit in spaxel-by-spaxel fitting - source mask and Spaxel mask can be the same
+    QubeSpec_setup['ncpu'] = 8 # number of cores to use for 
+    QubeSpec_setup['Spaxel_Binning'] = 'Nearest' # What binning option to use  - 'Nearest', 'Single'
+    
+    
+    with open(QubeSpec_setup['save_path']+'QubeSpec_setup.yml', 'w') as outfile:
+        yaml.dump(QubeSpec_setup, outfile, default_flow_style=False, allow_unicode=True)
+
+
+now lets load the Cube class from previous page.
+
+.. code:: ipython3
+
+    Cube = IFU.Cube()
+    Cube.load('/Users/jansen/Test.txt')
+
+Plotting spectrum
+-----------------
+
+Lets just have a look at all the emission lines in the spectrum.
+
+.. code:: ipython3
+
+    f, ax = plt.subplots(1, figsize=(12,5))
+    
+    ax.plot(Cube.obs_wave, Cube.D1_spectrum, drawstyle='steps-mid')
+    
+    ylow = -0.2
+    yhig = 10
+    
+    ax.vlines(0.5008*(1+Cube.z),ylow,yhig, linestyle='dashed',color='orange', alpha=0.8)
+    ax.vlines(0.3727*(1+Cube.z),ylow,yhig, linestyle='dashed',color='orange', alpha=0.8)
+    ax.vlines(0.6300*(1+Cube.z),ylow,yhig, linestyle='dashed',color='orange', alpha=0.8)
+    
+    
+    ax.vlines(0.6563*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
+    ax.vlines(0.4861*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
+    ax.vlines(0.4340*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
+    ax.vlines(0.4100*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
+    ax.vlines(0.1215*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
+    ax.vlines(0.6731*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
+    
+    ax.vlines(0.3869*(1+Cube.z),ylow,yhig, linestyle='dashed',color='magenta', alpha=0.5)
+    ax.vlines(0.3968*(1+Cube.z),ylow,yhig, linestyle='dashed',color='magenta', alpha=0.5)
+    ax.vlines(0.2424*(1+Cube.z),ylow,yhig, linestyle='dashed',color='magenta', alpha=0.5)
+    
+    
+    ax.vlines(0.4686*(1+Cube.z),ylow,yhig, linestyle='dashed',color='red', alpha=0.5)
+    ax.vlines(0.5877*(1+Cube.z),ylow,yhig, linestyle='dashed',color='red', alpha=0.5)
+    
+    ax.set_title('Black - H, Orange - O, Red - He, Green - N, Blue - C')
+    
+    ax.set_xlabel('wavelength (um)')
+    ax.set_ylabel(r'F$_\lambda$ ($\times 10^{-15}$ erg s$^{-1}$ cm$^{-2}$ $\mu$m$^{-1}$)')
+    
+    ax.set_xlim(min(Cube.obs_wave), max(Cube.obs_wave))
+    ax.set_ylim(-0.1, 1)
+    plt.show()
+
+
+
+.. image:: Fitting_files/Fitting_6_0.png
+
+
+Simple fit
+----------
+
+Ok so there will be/is a full tutorial/jupyer notebook, but I will
+briefly explain it here. Under the hood, QubeSpec is using emcee to fit
+the lines. As such you need to give it some model, initial conditions
+and priors. However, I written some methods in the QubeSpec and
+emfit.Fitting classes that do all of the work. However you can still
+change the priors by supplying new updated priors in a dictionary form.
+The shape of the dictionary should be as such:
+
+priors = {} priors[ ‘name of the variable’] = [ initial_value or 0,
+‘shape of the prior’, paramters of the prior]
+
+‘name of the variable’ - I will give a full list of variable for each
+models below.
+
+intial value - inital value for the fit - if you want the code to decide
+put 0
+
+‘shape of the prior’ - ‘uniform’, ‘loguniform’ (uniform in logspace),
+‘normal’, ‘normal_hat’ (truncated normal distribution)
+
+Example below:
+
+.. code:: ipython3
+
+    dvmax = 1000/3e5*(1+Cube.z)
+    dvstd = 200/3e5*(1+Cube.z)
+    priors = {}
+    priors['z'] = [Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]
+    priors['cont']=[0.1,'loguniform', -3,1]
+    priors['cont_grad']=[0.2,'normal', 0,0.2]
+    priors['Hal_peak']=[5.,'loguniform', -3,1]
+    priors['NII_peak']=[0.4,'loguniform', -3,1]
+    priors['Nar_fwhm']=[300,'uniform', 200,900]
+    priors['OIII_peak']=[6.,'loguniform', -3,1]
+    priors['OI_peak']=[1.,'loguniform', -3,1]
+    priors['HeI_peak']=[1.,'loguniform', -3,1]
+    priors['HeII_peak']=[1.,'loguniform', -3,1]
+    priors['Hbeta_peak']=[2,'loguniform', -3,1]
+    priors['Hgamma_peak'] = [1.,'loguniform',-3,1]
+    priors['Hdelta_peak'] = [0.5,'loguniform',-3,1]
+    priors['NeIII_peak'] = [0.3,'loguniform',-3,1]
+    priors['OII_peak'] = [0.4,'loguniform',-3,1]
+    priors['OII_rat']=[1,'normal_hat',1,0.2, 0.2,4]
+    priors['OIIIaur_peak']=[0.2,'loguniform', -3,1]
+    
+    # For variables:
+    labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
+
+In the few section I will describe fitting using these predefined models
+and how you can change some inputs.
+
+For each function you can also chnage:
+
+N - number of iterations in a chain (default= 6000) progress - default
+True (to see the progress bar)
+
+Fitting Halpha only
+~~~~~~~~~~~~~~~~~~~
+
+With this function you can fit the collapse 1D spectrum that you
+exctracted earlier. The main key word is models
+
+models - Single_only, Outflow_only, BLR_only, BLR, Outflow, QSO_BKPL
+
+which changes if you fit a single model:
+
+‘Single_only’ - single gaussian to Halpha, both [NII] and both [SII] -
+name of the free parameters: [‘z’, ‘cont’,‘cont_grad’, ‘Hal_peak’,
+‘NII_peak’, ‘Nar_fwhm’, ‘SIIr_peak’, ‘SIIb_peak’]
+
+‘Outflow_only’ - single gaussian to Halpha, both [NII] and both [SII]
+and additional gaussians to Halpha + [NII] to model an outflow - name of
+the free parameters: [‘z’, ‘cont’,‘cont_grad’, ‘Hal_peak’, ‘NII_peak’,
+‘Nar_fwhm’, ‘SIIr_peak’, ‘SIIb_peak’, ‘Hal_out_peak’, ‘NII_out_peak’,
+‘outflow_fwhm’, ‘outflow_vel’]
+
+‘BLR_only’ - single gaussian to Halpha, both [NII] and both [SII] and
+additional gaussians to Halpha to model an BLR - name of the free
+parameters [‘z’, ‘cont’,‘cont_grad’, ‘Hal_peak’,‘BLR_Hal_peak’,
+‘NII_peak’, ‘Nar_fwhm’, ‘BLR_fwhm’, ‘zBLR’, ‘SIIr_peak’, ‘SIIb_peak’]
+
+‘BLR’ and ‘Outflow’ models fit either ‘Single_only’ and ‘BLR_only’ or
+‘Single_only’ and ‘Outflow_only’ and decides which is the best model for
+the spectrum.
+
+.. code:: ipython3
+
+    Cube.fitting_collapse_Halpha(models='Outflow', plot=1) # priors=priors
+    plt.show()
+
+
+.. parsed-literal::
+
+    100%|██████████| 6000/6000 [00:15<00:00, 384.13it/s]
+    100%|██████████| 6000/6000 [00:17<00:00, 341.91it/s]
+
+
+.. parsed-literal::
+
+    Delta BIC -11.754766864481326  
+    BICM 441.6970061605083
+    SNR hal  nan
+    SNR SII  nan
+
+
+
+.. image:: Fitting_files/Fitting_10_2.png
+
+
+
+.. image:: Fitting_files/Fitting_10_3.png
+
+
+
+.. image:: Fitting_files/Fitting_10_4.png
+
+
+Fitting [OIII]
+~~~~~~~~~~~~~~
+
+simple = 0 or 1 when 1, we tie the Hbeta and OIII kinematics together.
+Please just use simple = 1 - Unless fitting high luminosity AGN and when
+you get a decent fit the Hbeta still looks wonky.
+
+models - Single_only, Outflow_only, BLR_only, BLR, Outflow, QSO_BKPL
+
+which changes if you fit a single model:
+
+‘Single_only’ - single gaussian to both [OIII] and [Hbeta] - name of the
+free parameters: [‘z’, ‘cont’,‘cont_grad’, ‘OIII_peak’, ‘Nar_fwhm’,
+‘Hbeta_peak’] if simple=1
+
+‘Outflow_only’ - single gaussian to both [OIII] and Hbeta and additional
+gaussians to [OIII]+Hbeta to model an outflow - name of the free
+parameters: [‘z’, ‘cont’,‘cont_grad’, ‘OIII_peak’, ‘OIII_out_peak’,
+‘Nar_fwhm’, ‘outflow_fwhm’, ‘outflow_vel’, ‘Hbeta_peak’,
+‘Hbeta_out_peak’] if simple=1
+
+‘Outflow’ - fits both above.
+
+BLR models TBD
+
+.. code:: ipython3
+
+    # B14 style
+    Cube.fitting_collapse_OIII(models='Outflow',simple=1, plot=1)
+    plt.show()
+
+
+.. parsed-literal::
+
+    100%|██████████| 6000/6000 [00:36<00:00, 162.74it/s]
+    100%|██████████| 6000/6000 [00:39<00:00, 153.37it/s]
+
+
+.. parsed-literal::
+
+    Delta BIC -214.2223293240363  
+    BICM 493.34265009958676
+    ['name', 'z', 'cont', 'cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_out_peak', 'popt']
+    172.91534861276665
+    48.7616463286201
+
+
+
+.. image:: Fitting_files/Fitting_12_2.png
+
+
+
+.. image:: Fitting_files/Fitting_12_3.png
+
+
+
+.. image:: Fitting_files/Fitting_12_4.png
+
+
+Fitting Halpha + [OIII]
+~~~~~~~~~~~~~~~~~~~~~~~
+
+models - Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple
+
+.. code:: ipython3
+
+    Cube.fitting_collapse_Halpha_OIII(models='Outflow_only', plot=1)
+    
+    plt.show()
+
+
+.. parsed-literal::
+
+    100%|██████████| 6000/6000 [01:10<00:00, 84.85it/s]
+
+
+
+.. image:: Fitting_files/Fitting_14_1.png
+
+
+
+.. image:: Fitting_files/Fitting_14_2.png
+
+
+
+.. image:: Fitting_files/Fitting_14_3.png
+
+
+.. code:: ipython3
+
+    Cube.D1_fit_results
+
+
+
+.. parsed-literal::
+
+    {'name': 'Halpha_OIII',
+     'z': array([6.85116725e+00, 2.03204746e-05, 2.06022340e-05]),
+     'cont': array([0.02071078, 0.0011421 , 0.00108475]),
+     'cont_grad': array([0.57569716, 0.15952445, 0.16641774]),
+     'Hal_peak': array([2.05873023, 0.03141959, 0.02928411]),
+     'NII_peak': array([0.05588214, 0.0224893 , 0.02229972]),
+     'OIII_peak': array([6.01924657, 0.05193788, 0.04386034]),
+     'Hbeta_peak': array([0.80358259, 0.02098687, 0.02182326]),
+     'SIIr_peak': array([4.85975487, 3.28775112, 3.54867816]),
+     'SIIb_peak': array([0.10152245, 0.07293367, 0.14231409]),
+     'Nar_fwhm': array([334.00870003,   2.53025628,   2.16633729]),
+     'outflow_fwhm': array([864.32384216,  46.58860245,  25.64656735]),
+     'outflow_vel': array([-36.11173108,  12.71851527,  11.92302719]),
+     'Hal_out_peak': array([0.04136641, 0.01852681, 0.02097545]),
+     'NII_out_peak': array([0.0595865 , 0.01557901, 0.01513639]),
+     'OIII_out_peak': array([0.37076566, 0.02936887, 0.04971108]),
+     'Hbeta_out_peak': array([0.06683298, 0.01292796, 0.01419942]),
+     'popt': [6.851167249383968,
+      0.02071078073913433,
+      0.575697155648603,
+      2.058730234744168,
+      0.05588214125659271,
+      6.019246572786187,
+      0.8035825903269642,
+      4.859754866099164,
+      0.10152245091531666,
+      334.0087000266313,
+      864.3238421593318,
+      -36.111731080828136,
+      0.041366410494547964,
+      0.05958649836943615,
+      0.370765664716306,
+      0.06683297866520112]}
+
+
+.. code:: ipython3
+
+    print(IFU.sp.flux_calc_mcmc( Cube.D1_fit_results,Cube.D1_fit_chain, 'OIIIt', Cube.flux_norm ))
+
+
+
+.. parsed-literal::
+
+    (3.253542536183512e-17, 1.6270474387885875e-19, 1.5798687294364714e-19)
+
+
+Fitting Custom Function
+-----------------------
+
+.. code:: ipython3
+
+    def gauss(x, k, mu,FWHM):
+        sig = FWHM/3e5*mu/2.35482
+        expo= -((x-mu)**2)/(2*sig*sig)
+    
+        y= k* e**expo
+    
+        return y
+    from astropy.modeling.powerlaws import PowerLaw1D
+    
+    def Full_optical(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, Hgamma_peak, Hdelta_peak, NeIII_peak, OII_peak, OII_rat,OIIIc_peak, HeI_peak,HeII_peak, Nar_fwhm):
+        # Halpha side of things
+        Hal_wv = 6564.52*(1+z)/1e4
+        NII_r = 6585.27*(1+z)/1e4
+        NII_b = 6549.86*(1+z)/1e4
+        
+        OIIIr = 5008.24*(1+z)/1e4
+        OIIIb = 4960.3*(1+z)/1e4
+        Hbeta = 4862.6*(1+z)/1e4
+    
+        Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_fwhm)
+        NII_nar_r = gauss(x, NII_peak, NII_r, Nar_fwhm)
+        NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_fwhm)
+        
+        Hgamma_wv = 4341.647191*(1+z)/1e4
+        Hdelta_wv = 4102.859855*(1+z)/1e4
+        
+        Hgamma_nar = gauss(x, Hgamma_peak, Hgamma_wv, Nar_fwhm)
+        Hdelta_nar = gauss(x, Hdelta_peak, Hdelta_wv, Nar_fwhm)
+        
+        
+        # [OIII] side of things
+        OIIIr = 5008.24*(1+z)/1e4
+        OIIIb = 4960.3*(1+z)/1e4
+        Hbeta = 4862.6*(1+z)/1e4
+    
+        OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
+        Hbeta_nar = gauss(x, Hbeta_peak, Hbeta, Nar_fwhm)
+        
+        NeIII = gauss(x, NeIII_peak, 3869.68*(1+z)/1e4, Nar_fwhm ) + gauss(x, 0.322*NeIII_peak, 3968.68*(1+z)/1e4, Nar_fwhm)
+        
+        OII = gauss(x, OII_peak, 3727.1*(1+z)/1e4, Nar_fwhm )  + gauss(x, OII_rat*OII_peak, 3729.875*(1+z)/1e4, Nar_fwhm) 
+        
+        OIIIc = gauss(x, OIIIc_peak, 4364.436*(1+z)/1e4, Nar_fwhm )
+        HeI = gauss(x, HeI_peak, 3889.73*(1+z)/1e4, Nar_fwhm )
+        HeII = gauss(x, HeII_peak, 4686.0*(1+z)/1e4, Nar_fwhm )
+    
+        contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
+    
+        return contm+Hal_nar+NII_nar_r+NII_nar_b + OIII_nar + Hbeta_nar + Hgamma_nar + Hdelta_nar + NeIII+ OII + OIIIc+ HeI+HeII
+
+
+.. code:: ipython3
+
+    dvmax = 1000/3e5*(1+Cube.z)
+    dvstd = 200/3e5*(1+Cube.z)
+    priors={'z':[Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]}
+    priors['cont']=[0.1,'loguniform', -3,1]
+    priors['cont_grad']=[0.2,'normal', 0,0.2]
+    priors['Hal_peak']=[5.,'loguniform', -3,1]
+    priors['NII_peak']=[0.4,'loguniform', -3,1]
+    priors['Nar_fwhm']=[300,'uniform', 200,900]
+    priors['OIII_peak']=[6.,'loguniform', -3,1]
+    priors['OI_peak']=[1.,'loguniform', -3,1]
+    priors['HeI_peak']=[1.,'loguniform', -3,1]
+    priors['HeII_peak']=[1.,'loguniform', -3,1]
+    priors['Hbeta_peak']=[2,'loguniform', -3,1]
+    priors['Hgamma_peak'] = [1.,'loguniform',-3,1]
+    priors['Hdelta_peak'] = [0.5,'loguniform',-3,1]
+    priors['NeIII_peak'] = [0.3,'loguniform',-3,1]
+    priors['OII_peak'] = [0.4,'loguniform',-3,1]
+    priors['OII_rat']=[1,'normal_hat',1,0.2, 0.2,4]
+    priors['OIIIaur_peak']=[0.2,'loguniform', -3,1]
+    
+    labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
+    
+    use = np.where( ( (Cube.obs_wave> 2.82) | (Cube.obs_wave<3.46) ) & ( (Cube.obs_wave>3.75) | (Cube.obs_wave<4.1) ) & ( (Cube.obs_wave>5) | (Cube.obs_wave<5.3) ) )[0]
+    if __name__ == '__main__':
+        optical = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=3) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
+        optical.fitting_general( Full_optical, labels, emfit.logprior_general_scipy)
+        
+
+
+
+.. parsed-literal::
+
+    100%|██████████| 5000/5000 [02:18<00:00, 36.06it/s]
+
+
+.. code:: ipython3
+
+    import corner
+    
+    fig = corner.corner(
+                IFU.sp.unwrap_chain(optical.chains), 
+                labels = labels,
+                quantiles=[0.16, 0.5, 0.84],
+                show_titles=True,
+                title_kwargs={"fontsize": 12})
+    #fig.savefig('./corner_full.pdf')
+    plt.show()
+
+
+
+.. image:: Fitting_files/Fitting_20_0.png
+
+
+.. code:: ipython3
+
+    f = plt.figure( figsize=(20,6))
+    from brokenaxes import brokenaxes
+    ax = brokenaxes(xlims=((2.820,3.45),(3.65,4.05),(5.0,5.3)),  hspace=.01)
+    
+    ax.plot(Cube.obs_wave, Cube.D1_spectrum, drawstyle='steps-mid')
+    ax.plot(Cube.obs_wave, Cube.D1_spectrum_er, drawstyle='steps-mid')
+    
+    ax.plot(Cube.obs_wave, Full_optical(Cube.obs_wave, *optical.props['popt']), 'r--')
+    
+    ax.set_xlabel('wavelength (um)')
+    ax.set_ylabel('Flux density')
+    
+    ax.set_ylim(-0.01, 1.2)
+    
+    plt.show()
+
+
+
+.. image:: Fitting_files/Fitting_21_0.png
+
+
+.. code:: ipython3
+
+    f,ax= plt.subplots(1, figsize=(8,5))
+    
+    ax.plot(Cube.obs_wave, Cube.D1_spectrum, drawstyle='steps-mid')
+    ax.plot(Cube.obs_wave, Full_optical(Cube.obs_wave, *optical.props['popt']), 'r--')
+    
+    OII_peak = optical.props['OII_peak'][0]
+    OII_rat = optical.props['OII_rat'][0]
+    zoii=optical.props['z'][0]
+    
+    OII3727 = gauss(Cube.obs_wave, OII_peak, 3727.1*(1+zoii)/1e4, optical.props['Nar_fwhm'][0])  
+    OII3729 = gauss(Cube.obs_wave, OII_rat*OII_peak, 3729.875*(1+zoii)/1e4,optical.props['Nar_fwhm'][0] ) 
+    
+    ax.plot(Cube.obs_wave, OII3727, 'g--')
+    ax.plot(Cube.obs_wave, OII3729, 'b--')
+    
+    
+    ax.set_xlim(3650.1*(1+zoii)/1e4, 3790.1*(1+zoii)/1e4)
+    
+    ax.set_xlabel('wavelength (um)')
+    ax.set_ylabel(r'F$_\lambda$ ($\times 10^{-15}$ erg s$^{-1}$ cm$^{-2}$ $\mu$m$^{-1}$)')
+    
+    ax.set_ylim(-0.01, 1.2)
+    
+    plt.show()
+
+
+
+.. image:: Fitting_files/Fitting_22_0.png
+
+
+Flux Calc
+~~~~~~~~~
+
+.. code:: ipython3
+
+    print('[OIII] flux from custom', IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=5008, peak_name='OIII_peak', fwhm_name='Nar_fwhm' ))
+    print('Hbeta flux from custom', IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=4861, peak_name='Hbeta_peak', fwhm_name='Nar_fwhm' ))
+    print('[NII] flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=6587, peak_name='NII_peak', fwhm_name='Nar_fwhm' ))
+    print('Halpha flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=6563, peak_name='Hal_peak', fwhm_name='Nar_fwhm' ))
+    print('[OIII]4363 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=4363, peak_name='OIIIaur_peak', fwhm_name='Nar_fwhm' ))
+    
+    print('[OII]3727 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=3727, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='' ))
+    print('[OII]3729 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=3729, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='OII_rat' ))
+
+
+.. parsed-literal::
+
+    [OIII] flux from custom (3.1387569107604056e-17, 1.3718507995246631e-19, 1.3353784562299313e-19)
+    Hbeta flux from custom (4.1602221835920534e-18, 6.035833525769391e-20, 6.419844226378108e-20)
+    [NII] flux from custom (9.001025693275915e-19, 7.694436091530411e-20, 7.929111700076085e-20)
+    Halpha flux from custom (1.3376432772965773e-17, 1.2805384220949435e-19, 1.2550188320000215e-19)
+    [OIII]4363 flux from custom (4.809987819015428e-19, 5.1134461398169567e-20, 4.953209981348708e-20)
+    [OII]3727 flux from custom (3.0426013718450658e-18, 1.2015302705274191e-19, 1.1657934436713213e-19)
+    [OII]3729 flux from custom (2.0377102495909775e-18, 1.1767819816366564e-19, 1.1218929393300842e-19)
+
+
+Fitting a custom model by passing a dictionary of components
+------------------------------------------------------------
+
+Very highly experimental, still under development, use at your risk!
+
+.. code:: ipython3
+
+    dvmax = 1000/3e5*(1+Cube.z)
+    dvstd = 200/3e5*(1+Cube.z)
+    
+    model_inputs = {}
+    model_inputs["m_z"] = [Cube.z, ['normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]]
+    model_inputs["m_fwhm_nr"] = [400, ['uniform' , 100, 900]]
+    model_inputs["m_ContSlope"] = [0.001, ['normal', 0, 1]]
+    model_inputs["m_ContNorm"] = [0.1, ['loguniform', -3, 1]]
+    
+    #model_inputs["m_fwhm_br"] = [700, ['uniform', 400, 1200]]
+    
+    model_inputs["l_nr_Ha_peak"]= [1, ['loguniform', -3, 1]]
+    model_inputs["l_nr_Ha_wav"] = [0.656452255]
+    
+    model_inputs["l_nr_Hb_peak"]= [1, ['loguniform', -3, 1]]
+    model_inputs["l_nr_Hb_wav"] = [0.4861]
+    
+    model_inputs["l_nr_Hg_peak"]= [1, ['loguniform', -3, 1]]
+    model_inputs["l_nr_Hg_wav"] = [0.4341647191]
+    
+    model_inputs["l_nr_Hd_peak"]= [1, ['loguniform', -3, 1]]
+    model_inputs["l_nr_Hd_wav"] = [0.410285985]
+    
+    model_inputs["l_nr_HeI_peak"]= [1, ['loguniform', -3, 1]]
+    model_inputs["l_nr_HeI_wav"] = [0.388973]
+    
+    model_inputs["l_nr_OIIIc_peak"]= [1,['loguniform', -3, 1]]
+    model_inputs["l_nr_OIIIc_wav"] = [0.43640436]
+    
+    model_inputs["d_nr_NeIII_wav1"] = [0.386968]
+    model_inputs["d_nr_NeIII_wav2"] = [0.396868]
+    model_inputs["d_nr_NeIII_peak1"] = [1.0,['loguniform', -3, 1]]
+    model_inputs["d_nr_NeIII_ratio"] = [3.1055]
+    
+    model_inputs["d_nr_NII_wav1"] = [0.6585273]
+    model_inputs["d_nr_NII_wav2"] = [0.654986]
+    model_inputs["d_nr_NII_peak1"] = [0.1,['loguniform', -3, 1]]
+    model_inputs["d_nr_NII_ratio"] = [3]
+    
+    model_inputs["d_nr_OIII_wav1"] = [0.5008]
+    model_inputs["d_nr_OIII_wav2"] = [0.4960]
+    model_inputs["d_nr_OIII_peak1"] = [1,['loguniform', -3,1]]
+    model_inputs["d_nr_OIII_ratio"] = [2.99]
+    
+    model_inputs["d_nr_OII_wav1"] = [0.3727]
+    model_inputs["d_nr_OII_wav2"] = [0.3729]
+    model_inputs["d_nr_OII_peak1"] = [0.9,['loguniform', -3, 1]]
+    model_inputs["d_nr_OII_ratio"] = [1,['uniform',0.2, 4]]
+    
+    
+    if __name__ == '__main__':
+        optical_cus = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=1) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
+        optical_cus.fitting_custom(model_inputs, model_name='test')
+    
+
+
+
+.. parsed-literal::
+
+    100%|██████████| 5000/5000 [04:31<00:00, 18.41it/s]
+
+
+.. code:: ipython3
+
+    import corner
+    
+    fig = corner.corner(
+                IFU.sp.unwrap_chain(optical_cus.chains), 
+                labels = optical_cus.labels,
+                quantiles=[0.16, 0.5, 0.84],
+                show_titles=True,
+                title_kwargs={"fontsize": 12})
+    #fig.savefig('~/corner_full.pdf')
+    plt.show()
+
+
+.. parsed-literal::
+
+    WARNING:root:Too few points to create valid contours
+    WARNING:root:Too few points to create valid contours
+    WARNING:root:Too few points to create valid contours
+    WARNING:root:Too few points to create valid contours
+
+
+
+.. image:: Fitting_files/Fitting_27_1.png
+
