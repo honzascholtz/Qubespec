@@ -576,7 +576,10 @@ class Fitting:
             self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak')
             self.pr_code = self.prior_create()
             
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, self.priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
+            cont_init = np.median(self.flux[self.fit_loc])
+            if cont_init<0:
+                cont_init = abs(cont_init)
+            pos_l = np.array([self.z, cont_init, -0.1, peak_hal*0.7, peak_hal*0.3, self.priors['Nar_fwhm'][0], peak_hal*0.15, peak_hal*0.2, peak_OIII*0.8,\
                               peak_hal*0.2])  
             
             for i in enumerate(self.labels):
@@ -603,8 +606,11 @@ class Fitting:
             
             self.pr_code = self.prior_create()
             self.log_prior_fce = logprior_general
-            
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+            cont_init = np.median(self.flux[self.fit_loc])
+            if cont_init<0:
+                cont_init = abs(cont_init)
+
+            pos_l = np.array([self.z,cont_init, -0.1, peak_hal*0.7, peak_hal*0.3, \
                               peak_OIII*0.8, peak_hal*0.2, peak_hal*0.2, peak_hal*0.2, \
                               self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],
                               peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.05])
@@ -640,8 +646,10 @@ class Fitting:
             self.pr_code = self.prior_create()
             self.log_prior_fce = logprior_general
             self.fitted_model = HO_models.Halpha_OIII_BLR
-            
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+            cont_init = np.median(self.flux[self.fit_loc])
+            if cont_init<0:
+                cont_init = abs(cont_init)
+            pos_l = np.array([self.z,cont_init, -0.1, peak_hal*0.7, peak_hal*0.3, \
                               peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
                               self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],
                               peak_hal*0.3, peak_hal*0.3, peak_OIII*0.2, peak_hal*0.1,\
@@ -679,7 +687,11 @@ class Fitting:
             self.log_prior_fce = logprior_general
             self.fitted_model = HO_models.Halpha_OIII_BLR_simple
             
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+            cont_init = np.median(self.flux[self.fit_loc])
+            if cont_init<0:
+                cont_init = abs(cont_init)
+
+            pos_l = np.array([self.z,cont_init, -0.1, peak_hal*0.7, peak_hal*0.3, \
                               peak_OIII*0.8, peak_hal*0.3 , peak_hal*0.2, peak_hal*0.2,\
                               self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0], self.priors['zBLR'][0], peak_hal*0.3, peak_hal*0.1])
                 
@@ -710,7 +722,11 @@ class Fitting:
             self.pr_code = self.prior_create(self.labels, self.priors)   
             self.log_prior_fce = logprior_general
             self.fitted_model =  QSO_models.Halpha_OIII_QSO_BKPL
-            pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]), -0.1, peak_hal*0.7, peak_hal*0.3, \
+            cont_init = np.median(self.flux[self.fit_loc])
+            if cont_init<0:
+                cont_init = abs(cont_init)
+
+            pos_l = np.array([self.z,cont_init, -0.1, peak_hal*0.7, peak_hal*0.3, \
                               peak_OIII*0.8, peak_OIII*0.3,self.priors['Nar_fwhm'][0],\
                               peak_hal*0.2, peak_hal*0.3, peak_OIII*0.4, peak_OIII*0.2   ,\
                               self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0],\
@@ -1036,6 +1052,16 @@ class Fitting:
         res_dict['popt'] = res_plt
         return res_dict
     
+    def corner(self,):
+        import corner
+
+        fig = corner.corner(
+            sp.unwrap_chain(self.chains), 
+            labels = self.labels,
+            quantiles=[0.16, 0.5, 0.84],
+            show_titles=True,
+            title_kwargs={"fontsize": 12})
+    
         
 from scipy.stats import norm
 from scipy.stats import uniform
@@ -1159,7 +1185,8 @@ def Fitting_Halpha_OIII_unwrap(lst, progress=False):
         Fits_sig.fitted_model = 0
         
         cube_res  = [i,j, Fits_sig]
-    except:
+    except Exception as _exc_:
+        print(_exc_)
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
 
@@ -1176,7 +1203,8 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
         
         cube_res  = [i,j, Fits_sig]
         
-    except:
+    except Exception as _exc_:
+        print(_exc_)
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
     return cube_res
 
@@ -1198,7 +1226,8 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
         Fits_out.fitted_model = 0
         
         cube_res  = [i,j,Fits_sig, Fits_out ]
-    except:
+    except Exception as _exc_:
+        print(_exc_)
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
     return cube_res
@@ -1219,7 +1248,8 @@ def Fitting_OIII_2G_unwrap(lst):
         Fits_out.fitted_model = 0
         
         cube_res  = [i,j, Fits_sig, Fits_out ]
-    except:
+    except Exception as _exc_:
+        print(_exc_)
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
     return cube_res
@@ -1262,7 +1292,8 @@ def Fitting_general_unwrap(lst, progress=False):
       
             
         cube_res  = [i,j,Fits_sig ]
-    except:
+    except Exception as _exc_:
+        print(_exc_)
         cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
         print('Failed fit')
     '''

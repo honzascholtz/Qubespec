@@ -104,7 +104,9 @@ class Visualize:
             #axspec = brokenaxes(xlims=xlims,  hspace=.01, subplot_spec=gs[1, :])
             #axspec = fig.add_subplot(gs[1, :])
             self.plot_general(i,j , axspec)
-            selector0.set_xy((i-.5, j-.5)),selector1.set_xy((i-.5, j-.5)),selector2.set_xy((i-.5, j-.5))
+            selector0.set_xy((i-.5, j-.5))
+            selector1.set_xy((i-.5, j-.5))
+            selector2.set_xy((i-.5, j-.5))
 
         def hover(event):
             if (event.inaxes != ax0):

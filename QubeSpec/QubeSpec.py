@@ -1200,7 +1200,7 @@ class Cube:
                                                                                                      'OIII_peak':[0,'loguniform', -3,1],\
                                                                                                      'Hbeta_peak':[0,'loguniform', -3,1],\
                                                                                                      'OI_peak':[0,'loguniform', -3,1],\
-                                                                                                     'outflow_fwhm':[450,'uniform', 300,900],\
+                                                                                                     'outflow_fwhm':[450,'uniform', 300,1500],\
                                                                                                      'outflow_vel':[-50,'normal', -50,100],\
                                                                                                      'Hal_out_peak':[0,'loguniform', -3,1],\
                                                                                                      'NII_out_peak':[0,'loguniform', -3,1],\

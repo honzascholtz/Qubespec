@@ -115,18 +115,32 @@ def Spaxel_fitting_Halpha_MCMC_mp(Cube, add='',Ncores=(mp.cpu_count() - 1),prior
 
     print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-def Spaxel_fitting_Halpha_OIII_MCMC_mp(Cube,add='',Ncores=(mp.cpu_count() - 2),models='Single', priors= {'cont':[0,-3,1],\
-                                                        'cont_grad':[0,-10.,10], \
-                                                        'OIII_peak':[0,-3,1],\
-                                                        'Nar_fwhm':[300,100,900],\
-                                                        'OIII_vel':[-100,-600,600],\
-                                                        'Hbeta_peak':[0,-3,1],\
-                                                        'Hal_peak':[0,-3,1],\
-                                                        'NII_peak':[0,-3,1],\
-                                                        'Nar_fwhm':[300,150,900],\
-                                                        'SIIr_peak':[0,-3,1],\
-                                                        'SIIb_peak':[0,-3,1],\
-                                                        'OI_peak':[0,-3,1]}):
+def Spaxel_fitting_Halpha_OIII_MCMC_mp(Cube,add='',Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-4,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'NII_peak':[0,'loguniform',-3,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-3,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+                                       
+                                       
+                                       
+                                      
     import pickle
     start_time = time.time()
     with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -144,16 +158,32 @@ def Spaxel_fitting_Halpha_OIII_MCMC_mp(Cube,add='',Ncores=(mp.cpu_count() - 2),m
 
     if Ncores<1:
         Ncores=1
+    
+    progress = kwargs.get('progress', True)
+    progress = tqdm.tqdm if progress else lambda x, total=0: x
+
     if models=='Single':
         with Pool(Ncores) as pool:
-            cube_res =pool.map(emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube)
+            cube_res = list(progress(
+                pool.imap(
+                    emfit.Fitting_Halpha_OIII_unwrap, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
+            
     elif models=='BLR':
-        with Pool(Ncores) as pool:
-            cube_res =pool.map(emfit.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube)
+         with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    emfit.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
 
     elif models=='outflow_both':
         with Pool(Ncores) as pool:
-            cube_res =pool.map(emfit.Fitting_Halpha_OIII_outflowboth_unwrap, Unwrapped_cube)
+            cube_res = list(progress(
+                pool.imap(
+                    emfit.Fitting_Halpha_OIII_outflowboth_unwrap, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
+            
+
     else:
         raise Exception('models variable not understood. Options are: Single, BLR and outflow_both')
 
@@ -286,6 +316,81 @@ def Spaxel_fitting_general_toptup(Cube, to_fit ,fitted_model, labels, priors, lo
     
         
             Cube_res[i]  = [x,y,Fits_sig ]
+
+            f,ax = plt.subplots(1, figsize=(10,5))
+            ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+            ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
+
+            ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
+
+            break
+    
+            
+    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
+        pickle.dump( Cube_res,fp)  
+    
+    print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+
+def Spaxel_fitting_Halpha_OIII_toptup(Cube, to_fit ,add='',Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-4,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
+                                                                                       'NII_peak':[0,'loguniform',-3,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-3,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+    import pickle
+    start_time = time.time()
+    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
+        Cube_res= pickle.load(fp)
+        
+    print('import of the unwrap cube - done')
+    
+
+    for i, row in enumerate(Cube_res):
+        y,x, res = row
+        if to_fit[0]==x and to_fit[1]==y:
+            flx_spax_m, error, wave = res.fluxs, res.error, res.wave
+
+            if models=='Single':
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=True, priors=priors)
+                Fits_sig.fitting_Halpha_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                Cube_res[i]  = [x,y,Fits_sig ]
+            
+            elif models=='BLR':
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=True, priors=priors)
+                Fits_sig.fitting_Halpha_OIII(model='BLR' )
+                Fits_sig.fitted_model = 0
+                Cube_res[i]  = [x,y,Fits_sig ]
+
+            elif models=='outflow_both':
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
+                Fits_sig.fitting_Halpha_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
+                Fits_out.fitting_Halpha_OIII(model='outflow' )
+                Fits_out.fitted_model = 0
+
+                Cube_res[i]  = [x,y,Fits_sig, Fits_out]
+                
 
             f,ax = plt.subplots(1, figsize=(10,5))
             ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')

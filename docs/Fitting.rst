@@ -25,13 +25,6 @@ Fitting a single spectrum
     
 
 
-
-.. parsed-literal::
-
-    The autoreload extension is already loaded. To reload it, use:
-      %reload_ext autoreload
-
-
 Defining the QubeSpec setup earlier
 -----------------
 

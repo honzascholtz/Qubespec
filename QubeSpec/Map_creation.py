@@ -365,7 +365,7 @@ def Map_creation_ppxf(Cube, info, add=''):
     hdulist.writeto(Cube.savepath+Cube.ID+'_ppxf_fits_maps'+add+'.fits', overwrite=True)
 
 
-def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = HaO_models.Halpha_OIII):
+def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='', dbic=10):
     z0 = Cube.z
     failed_fits=0
     wv_hal = 6564.52*(1+z0)/1e4
@@ -373,11 +373,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     # =============================================================================
     #         Importing all the data necessary to post process
     # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
+    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "rb") as fp:
         results= pickle.load(fp)
-
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
-        Unwrapped_cube= pickle.load(fp)
 
     # =============================================================================
     #         Setting up the maps
@@ -412,29 +409,54 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     # =============================================================================
     #        Filling these maps
     # =============================================================================
+    Result_cube = np.zeros_like(Cube.flux.data)
+    Result_cube_data = Cube.flux.data
+    Result_cube_error = Cube.error_cube.data
 
-
-    from . import Plotting_tools_v2 as emplot
+    from . import Plotting as emplot
 
     Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only.pdf')
 
-    from . import Halpha_OIII_models as HO_models
+    from .Models import Halpha_OIII_models as HO_models
     for row in tqdm.tqdm(range(len(results))):
 
         try:
             i,j, res_spx,chains,wave,flx_spax_m,error = results[row]
+
         except:
-            i,j, res_spx,chains= results[row]
-            i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+            if len(results[row])==3:
+                i,j, Fits= results[row]
+                if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                    failed_fits+=1
+                    continue
 
-        lists = list(res_spx.keys())
-        if 'Failed fit' in lists:
-            failed_fits+=1
-            continue
+            else:
+                i,j, Fits_sig, Fits_out= results[row]
 
-        z = res_spx['popt'][0]
+                if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                    failed_fits+=1
+                    continue
+
+                if (Fits_sig.BIC-Fits_out.BIC) >10:
+                    Fits = Fits_out
+                else:
+                    Fits = Fits_sig
+
+        Result_cube_data[:,i,j] = Fits.fluxs.data
+        try:
+            Result_cube_error[:,i,j] = Fits.error.data
+        except:
+            lds=0
+        Result_cube[:,i,j] = Fits.yeval
+
+        z = Fits.props['popt'][0]
+        res_spx = Fits.props
+        chains = Fits.chains
+        flx_spax_m = Fits.fluxs
+        error = Fits.error
+        lists= Fits.props.keys()
     
-    
+        from .Models import Halpha_OIII_models as HO_models
         if 'zBLR' in lists:
             modelfce = HO_models.Halpha_OIII_BLR
         elif 'outflow_vel' not in lists:
@@ -598,10 +620,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     print('Failed fits', failed_fits)
     Spax.close()
-# =============================================================================
-#         Calculating Avs
-# =============================================================================
-    Av = sp.Av_calc(map_hal[1,:,:],map_hb[1,:,:])
+
 # =============================================================================
 #         Plotting maps
 # =============================================================================
@@ -620,7 +639,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     lim_sc = lim*arc_per_pix
 
     if flux_max==0:
-        flx_max = map_hal[y,x]
+        flx_max = map_hal[1,y,x]
     else:
         flx_max = flux_max
 
@@ -794,6 +813,10 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     hdr['Y_cent'] = y
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
+    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
+    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
+    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
+
     hal_hdu = fits.ImageHDU(map_hal, name='Halpha')
     nii_hdu = fits.ImageHDU(map_nii, name='NII')
     nii_kin_hdu = fits.ImageHDU(map_nii_ki, name='NII_kin')
@@ -805,9 +828,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     hal_kin_hdu = fits.ImageHDU(map_hal_ki, name='Hal_kin')
     oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
-    Av_hdu = fits.ImageHDU(Av, name='Av')
 
-    hdulist = fits.HDUList([primary_hdu, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,siir_hdu,oiii_kin_hdu, siib_hdu, Av_hdu ])
+    hdulist = fits.HDUList([primary_hdu, hdu_data, hdu_err, hdu_yeval, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,siir_hdu,oiii_kin_hdu, siib_hdu ])
     hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
 
     return f
