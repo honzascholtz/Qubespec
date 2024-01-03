@@ -1,22 +1,15 @@
 Fitting a single spectrum
 ===================================
+In this section we will fit the extracted spectrum from the previous section. First we will quickly import some modules. 
+
 
 .. code:: ipython3
 
     #importing modules
     import numpy as np
     import matplotlib.pyplot as plt; plt.ioff()
-    
-    nan= float('nan')
-    pi= np.pi
-    e= np.e
-    
+
     c= 3e8
-    h= 6.62*10**-34
-    k= 1.38*10**-23
-    
-    %load_ext autoreload
-    %autoreload 2
     
     import QubeSpec as IFU
     import QubeSpec.Plotting as emplot
@@ -25,60 +18,7 @@ Fitting a single spectrum
     
 
 
-Defining the QubeSpec setup earlier
------------------
-
-.. code:: ipython3
-
-    # Lets define additional info
-    PATH='/Users/jansen/My Drive/Astro/'
-    
-    QubeSpec_setup = {}
-    ######################
-    # Basic Properties
-    QubeSpec_setup['z'] = 6.851 # Redshift of the object 
-    QubeSpec_setup['ID'] = 'COS30_R2700' # Name of the object
-    QubeSpec_setup['instrument'] = 'NIRSPEC_IFU_fl' # Name of the instrument - KMOS, SINFONI, NIRSPEC_IFU (when original units Fnu from pipeline), NIRSPEC_IFU_fl (for GTO pipeline Flambda)
-    QubeSpec_setup['band'] = 'R2700' # Or PRISM, doesnt matter for JWST - For KMOS and SINFONI it should H or K or HK or YJ or Hsin, Ksin for SINFONI
-    QubeSpec_setup['save_path'] = PATH+'COS30_IFS/Saves/' # Where to save all the info. 
-    QubeSpec_setup['file'] = PATH+'COS30_IFS/Data/COS30-COS-6.80-S_jw1217_o007_ff_px0.05_drizzle_ODfde95.0_VSC_MRC_MSA_EMSA_m2ff_xyspikes96_CTX1068.pmap_v1.8.2_g395h-f290lp_cgs_s3d.fits'# Path to the Data Cube
-    QubeSpec_setup['norm'] = 1e-15 # Normalization to make the integrated spectrum around 0.5-8
-    
-    #####################
-    # PSF Matching info
-    QubeSpec_setup['PSF_match'] = True
-    QubeSpec_setup['PSF_match_wv'] = 5.2
-    
-    #####################
-    # Masking Channels
-    QubeSpec_setup['mask_threshold'] = 6 # multiple of the median error to mask
-    QubeSpec_setup['mask_channels'] = []  # any particular channels to mask - with JWST not necessarily 
-    
-    #####################
-    # Background Subtraction
-    QubeSpec_setup['Source_mask'] = PATH+'COS30_IFS/Data/R2700_source.fits' # path to find the source mask to mask the source during background subtraction - Can be None but then you have to supply wavelength range around some emission line to construct a line map and let sextractor create the mask
-    QubeSpec_setup['line_map_wavelength'] = [3.92,3.94] # Wavelength range used to create a line map for source detection - only used if 'Source_mask' is None
-    
-    #####################
-    # Extracting spectrum 
-    QubeSpec_setup['Object_center'] = [59,50] # X,Y - center of the object 
-    QubeSpec_setup['Aperture_extraction'] = 0.2 # radius of the aperture to extract the the 1D spectrum
-    # Error stuff - explained below
-    QubeSpec_setup['err_range']=[3.95,4.05, 5,5.1] # err ranges for renormalising the error extension
-    QubeSpec_setup['err_boundary'] = 4.1 # where to switch - location of the detector gap
-    
-    #####################
-    # Fitting Spaxel by Spaxel
-    QubeSpec_setup['Spaxel_mask'] = PATH+'COS30_IFS/Data/R2700_source_mask.fits' # which spaxel to fit in spaxel-by-spaxel fitting - source mask and Spaxel mask can be the same
-    QubeSpec_setup['ncpu'] = 8 # number of cores to use for 
-    QubeSpec_setup['Spaxel_Binning'] = 'Nearest' # What binning option to use  - 'Nearest', 'Single'
-    
-    
-    with open(QubeSpec_setup['save_path']+'QubeSpec_setup.yml', 'w') as outfile:
-        yaml.dump(QubeSpec_setup, outfile, default_flow_style=False, allow_unicode=True)
-
-
-now lets load the Cube class from previous page.
+now lets load the Cube object from previous page.
 
 .. code:: ipython3
 

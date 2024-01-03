@@ -38,9 +38,9 @@ Getting started
 The best place to get started is by looking at the `iPython notebook examples <https://github.com/honzascholtz/Qubespec/tree/main/IFS_tutorial>`_. The full tutorial is in:
 
 
- - :ref:`Loading a cube  <making-model-galaxies>`: For Loading the IFS cube into QubeSpec and preparing it to fit 
- - :ref:`1D fitting <inputting-observational-data>`: Explanation of how fitting works. 
- - :ref:`Spaxel-by-Spaxel fitting <fitting-observational-data>`: Fitting every spaxel in the cube. 
+ - :ref:`Loading a cube  <QubeSpec_tutorial>`: For Loading the IFS cube into QubeSpec and preparing it to fit 
+ - :ref:`1D fitting <Fitting>`: Explanation of how fitting works. 
+ - :ref:`Spaxel-by-Spaxel fitting <Spaxel_fitting>`: Fitting every spaxel in the cube. 
 
 
 Acknowledgements
