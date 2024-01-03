@@ -1,3 +1,5 @@
+.. _spaxel_fitting:
+
 Spaxel-by-Spaxel fitting
 =======================================
 

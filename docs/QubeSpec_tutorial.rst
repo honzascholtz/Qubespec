@@ -117,12 +117,11 @@ minor preps. You will need:
 Masking
 -------
 
-Here we are going to make some some obvious outliers. In JWST data, they
-have often obvious spikes in the error extension. By defining typical
-value of the error extension and some scale threshold (10 000) seems
-good we can caluclate a value above which the code will flag any
-outliers. We can also give a list of indices representing channels that
-need some manual masking.
+Here we are going to mask some of the obvious outliers. In JWST data, they
+have often obvious spikes in the error extension. The code caluclates the median
+error value and then masks any pixels that are higher than mask_threshold* this meadian. 
+We can also give a list of indices representing channels that need some manual masking.
+The recommended mask_threshold value of 6
 
 .. code:: ipython3
 
@@ -313,5 +312,15 @@ Lets just have a look at all the emission lines in the spectrum.
 
 
 .. image:: QubeSpec_tutorial_files/QubeSpec_tutorial_15_0.png
+
+
+After these steps, the ``Cube`` instance should have the following attributes:
+
+* ``Cube.flux`` - Flux data cube
+* ``Cube.error`` - Error data cube
+* ``Cube.obs_wave`` - observed wavelength
+* ``Cube.D1_spectrum`` - Collapsed 1D spectrum
+* ``Cube.D1_spectrum_er`` - error on the collapsed 1D spectrum
+* ``Cube.collapse_white`` - continuum image
 
 
