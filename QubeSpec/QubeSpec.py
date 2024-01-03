@@ -956,22 +956,29 @@ class Cube:
 
             plt.tight_layout()
 
-    def fitting_collapse_Halpha(self, plot=1, models = 'BLR', progress=True,er_scale=1, N=6000, priors= {'z':[0, 'normal_hat', 0,0,0,0],\
-                                                                                       'cont':[0,'loguniform',-3,1],\
-                                                                                       'cont_grad':[0,'normal',0,0.3], \
-                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'zBLR':[0, 'normal', 0,0.003],\
-                                                                                        'NII_peak':[0,'loguniform',-3,1],\
-                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
-                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
-                                                                                       'BLR_offset':[-100,'normal',0,200],\
-                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
-                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
-                                                                                        'outflow_vel':[-50,'normal', 0,300]}):
+    def fitting_collapse_Halpha(self, plot=1, models = 'BLR', progress=True,er_scale=1, N=6000, prior_update= {'z': [0,'normal_hat',0, 0, 0,0]}):
+        
+        priors= {'z':[0, 'normal_hat', 0,0,0,0],\
+                'cont':[0,'loguniform',-3,1],\
+                'cont_grad':[0,'normal',0,0.3], \
+                'Hal_peak':[0,'loguniform',-3,1],\
+                'BLR_Hal_peak':[0,'loguniform',-3,1],\
+                'zBLR':[0, 'normal', 0,0.003],\
+                'NII_peak':[0,'loguniform',-3,1],\
+                'Nar_fwhm':[300,'uniform',100,900],\
+                'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                'BLR_offset':[-100,'normal',0,200],\
+                'SIIr_peak':[0,'loguniform',-3,1],\
+                'SIIb_peak':[0,'loguniform',-3,1],\
+                'Hal_out_peak':[0,'loguniform',-3,1],\
+                'NII_out_peak':[0,'loguniform',-3,1],\
+                'outflow_fwhm':[600,'uniform', 300,1500],\
+                'outflow_vel':[-50,'normal', 0,300]}
+
+        
+        for name in list(prior_update.keys()):
+            priors[name] = prior_update[name]
+
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()/er_scale
@@ -985,11 +992,11 @@ class Cube:
         
         if models=='BLR':
             
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha(model='gal')
             
             
-            Fits_blr = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_blr = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_blr.fitting_Halpha(model='BLR')
             
             
@@ -1053,11 +1060,11 @@ class Cube:
                  self.dBIC = BICM-BICS
             '''       
         elif models=='Outflow':
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha(model='gal')
             
             
-            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_out.fitting_Halpha(model='outflow')
             
             
@@ -1091,7 +1098,7 @@ class Cube:
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
                 
         elif models=='Single_only':
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha(model='gal')
         
             self.D1_fit_results = Fits_sig.props
@@ -1106,7 +1113,7 @@ class Cube:
             self.dBIC = 3
         
         elif models=='Outflow_only':
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha(model='outflow')
         
             self.D1_fit_results = Fits_sig.props
@@ -1122,7 +1129,7 @@ class Cube:
             
         elif models=='BLR_only':
             
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha(model='BLR')
         
             self.D1_fit_results = Fits_sig.props
@@ -1138,7 +1145,7 @@ class Cube:
             
         elif models=='QSO_BKPL':
             
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha(model='QSO_BKPL')
         
             self.D1_fit_results = Fits_sig.props
@@ -1189,29 +1196,33 @@ class Cube:
 
             
             
-    def fitting_collapse_Halpha_OIII(self, plot=1, progress=True,N=6000,models='Single_only', priors={'z':[0,'normal_hat', 0, 0.,0,0],\
-                                                                                                     'cont':[0,'loguniform', -3,1],\
-                                                                                                     'cont_grad':[0,'normal', 0,0.2],\
-                                                                                                     'Hal_peak':[0,'loguniform', -3,1],\
-                                                                                                     'NII_peak':[0,'loguniform', -3,1],\
-                                                                                                     'Nar_fwhm':[300,'uniform', 200,900],\
-                                                                                                     'SIIr_peak':[0,'loguniform', -3,1],\
-                                                                                                     'SIIb_peak':[0,'loguniform', -3,1],\
-                                                                                                     'OIII_peak':[0,'loguniform', -3,1],\
-                                                                                                     'Hbeta_peak':[0,'loguniform', -3,1],\
-                                                                                                     'OI_peak':[0,'loguniform', -3,1],\
-                                                                                                     'outflow_fwhm':[450,'uniform', 300,1500],\
-                                                                                                     'outflow_vel':[-50,'normal', -50,100],\
-                                                                                                     'Hal_out_peak':[0,'loguniform', -3,1],\
-                                                                                                     'NII_out_peak':[0,'loguniform', -3,1],\
-                                                                                                     'OIII_out_peak':[0,'loguniform', -3,1],\
-                                                                                                     'OI_out_peak':[0,'loguniform', -3,1],\
-                                                                                                     'Hbeta_out_peak':[0,'loguniform', -3,1],\
-                                                                                                     'zBLR':[0,'normal', 0,0.003],\
-                                                                                                     'BLR_fwhm':[4000,'normal', 5000,500],\
-                                                                                                     'BLR_Hal_peak':[0,'loguniform', -3,1],\
-                                                                                                     'BLR_Hbeta_peak':[0,'loguniform', -3,1],\
-                                                                                                     }):
+    def fitting_collapse_Halpha_OIII(self, plot=1, progress=True,N=6000,models='Single_only', prior_update= {'z': [0,'normal_hat',0, 0, 0,0]}):
+        
+        priors={'z':[0,'normal_hat', 0, 0.,0,0],\
+            'cont':[0,'loguniform', -3,1],\
+            'cont_grad':[0,'normal', 0,0.2],\
+            'Hal_peak':[0,'loguniform', -3,1],\
+            'NII_peak':[0,'loguniform', -3,1],\
+            'Nar_fwhm':[300,'uniform', 200,900],\
+            'SIIr_peak':[0,'loguniform', -3,1],\
+            'SIIb_peak':[0,'loguniform', -3,1],\
+            'OIII_peak':[0,'loguniform', -3,1],\
+            'Hbeta_peak':[0,'loguniform', -3,1],\
+            'outflow_fwhm':[450,'uniform', 300,1500],\
+            'outflow_vel':[-50,'normal', -50,100],\
+            'Hal_out_peak':[0,'loguniform', -3,1],\
+            'NII_out_peak':[0,'loguniform', -3,1],\
+            'OIII_out_peak':[0,'loguniform', -3,1],\
+            'Hbeta_out_peak':[0,'loguniform', -3,1],\
+            'zBLR':[0,'normal', 0,0.003],\
+            'BLR_fwhm':[4000,'normal', 5000,500],\
+            'BLR_Hal_peak':[0,'loguniform', -3,1],\
+            'BLR_Hbeta_peak':[0,'loguniform', -3,1] }
+
+        for name in list(prior_update.keys()):
+            priors[name] = prior_update[name]
+            
+        
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
@@ -1224,7 +1235,7 @@ class Cube:
         
         if models=='Single_only':   
             
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha_OIII(model='gal' )
             
             self.D1_fit_results = Fits_sig.props
@@ -1242,7 +1253,7 @@ class Cube:
             
             
         elif models=='Outflow_only':   
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_Halpha_OIII(model='outflow' )
             
             self.D1_fit_results = Fits_sig.props
@@ -1260,7 +1271,7 @@ class Cube:
             self.dBIC = 3
             
         elif (models=='BLR') | (models=='BLR_only'):   
-             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
              Fits_sig.fitting_Halpha_OIII(model='BLR' )
              
              self.D1_fit_results = Fits_sig.props
@@ -1277,7 +1288,7 @@ class Cube:
              self.dBIC = 3
 
         elif models=='BLR_simple':   
-             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
              Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
              
              self.D1_fit_results = Fits_sig.props
@@ -1294,7 +1305,7 @@ class Cube:
              self.dBIC = 3
 
         elif models=='QSO_BKPL':   
-             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
              Fits_sig.fitting_Halpha_OIII(model='QSO_BKPL' )
              
              self.D1_fit_results = Fits_sig.props
@@ -1347,46 +1358,48 @@ class Cube:
          
         self.fit_plot = [f,baxes]
         
-    def fitting_collapse_OIII(self, plot=1, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0],\
-                                                                                                    'cont':[0,'loguniform',-3,1],\
-                                                                                                    'cont_grad':[0,'normal',0,0.2], \
-                                                                                                    'OIII_peak':[0,'loguniform',-3,1],\
-                                                                                                    'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                                                                    'Nar_fwhm':[300,'uniform', 100,900],\
-                                                                                                    'outflow_fwhm':[700,'uniform',600,2500],\
-                                                                                                    'outflow_vel':[-50,'normal',0,200],\
-                                                                                                    'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                                                    'Hbeta_fwhm':[400,'uniform',120,7000],\
-                                                                                                    'Hbeta_vel':[10,'normal', 0,200],\
-                                                                                                    'Hbetan_peak':[0,'loguniform',-3,1],\
-                                                                                                    'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                                                    'Hbeta_out_peak':[0,'loguniform',-3,1],\
-                                                                                                    'Hbetan_fwhm':[300,'uniform',120,700],\
-                                                                                                    'Hbetan_vel':[10,'normal', 0,100],\
-                                                                                                    'Fe_peak':[0,'loguniform',-3,1],\
-                                                                                                    'Fe_fwhm':[3000,'uniform',2000,6000]}):
+    def fitting_collapse_OIII(self, plot=1, models='Outflow',simple=1, template=0, Hbeta_dual=0,progress=True, N=6000,prior_update= {'z': [0,'normal_hat',0, 0, 0,0]}):
         
+        priors= {'z': [0,'normal_hat',0, 0, 0,0],\
+                'cont':[0,'loguniform',-3,1],\
+                'cont_grad':[0,'normal',0,0.2], \
+                'OIII_peak':[0,'loguniform',-3,1],\
+                'OIII_out_peak':[0,'loguniform',-3,1],\
+                'Nar_fwhm':[300,'uniform', 100,900],\
+                'outflow_fwhm':[700,'uniform',600,2500],\
+                'outflow_vel':[-50,'normal',0,200],\
+                'Hbeta_peak':[0,'loguniform',-3,1],\
+                'Hbeta_fwhm':[400,'uniform',120,7000],\
+                'Hbeta_vel':[10,'normal', 0,200],\
+                'Hbetan_peak':[0,'loguniform',-3,1],\
+                'Hbeta_peak':[0,'loguniform',-3,1],\
+                'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                'Hbetan_fwhm':[300,'uniform',120,700],\
+                'Hbetan_vel':[10,'normal', 0,100],\
+                'Fe_peak':[0,'loguniform',-3,1],\
+                'Fe_fwhm':[3000,'uniform',2000,6000]}
+        
+        for name in list(prior_update.keys()):
+            priors[name] = prior_update[name]
+
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
         error = self.D1_spectrum_er.copy()
-        z = self.z
-        ID = self.ID
-        
-        
+    
         if models=='Outflow':
             if simple==0:
-                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
                 
                 
-                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
             elif simple==1:
-                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_sig.fitting_OIII(model='gal_simple' )
                 
                 
-                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_out.fitting_OIII(model='outflow_simple' )
             
             if Fits_out.BIC-Fits_sig.BIC <-2:
@@ -1402,7 +1415,6 @@ class Cube:
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
-                
                 
             else:
                 print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
@@ -1449,10 +1461,10 @@ class Cube:
             
         elif models=='Single_only':
             if simple==0:
-                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
             elif simple==1:
-                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_sig.fitting_OIII(model='gal_simple' )
                
             self.D1_fit_results = Fits_sig.props
@@ -1468,10 +1480,10 @@ class Cube:
             
         elif models=='Outflow_only':
             if simple==0:
-                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
             elif simple==1:
-                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+                Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_out.fitting_OIII(model='outflow_simple')
                
             print('BICM', Fits_out.BIC)
@@ -1487,7 +1499,7 @@ class Cube:
             self.dBIC = 3
             
         elif models=='QSO':
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_OIII(model='QSO', template=template)
               
                
@@ -1505,7 +1517,7 @@ class Cube:
             
         
         elif models=='QSO_bkp':
-            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_OIII(model='QSO_BKPL', template=template)
               
                
@@ -1556,7 +1568,7 @@ class Cube:
         if len(use)==0:
             use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
             
-        Fits_gen = emfit.Fitting(wave[use], flux[use], error[use], z, priors=priors, N=10000)
+        Fits_gen = emfit.Fitting(wave[use], flux[use], error[use], z, prior_update=priors, N=10000)
         Fits_gen.fitting_general(fitted_model, labels, logprior, nwalkers=nwalkers)
         
         self.D1_fit_results = Fits_gen.props

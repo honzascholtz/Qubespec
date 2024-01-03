@@ -1,7 +1,11 @@
 
 .. _Starting-with-QubeSpec:
 
+Starting with QubeSpec
+============================================================
 
+
+First lets just quickly import some basic modules and QubeSpec. 
 .. code:: ipython3
 
     #importing modules
@@ -157,7 +161,9 @@ subtracted flux cube (Cube.flux)
     if any(QubeSpec_setup['Source_mask']) !=None:
         print('Loading source mask from file')
         source_bkg = IFU.sp.QFitsview_mask(QubeSpec_setup['Source_mask']) # Loading background mask
-    Cube.background_subtraction( source_mask=source_bkg, wave_range=QubeSpec_setup['line_map_wavelength'], plot=1) # Doing background subtraction
+    Cube.background_subtraction( source_mask=source_bkg,\
+     wave_range=QubeSpec_setup['line_map_wavelength'],\
+      plot=1) # Doing background subtraction
     
     plt.show()
 
@@ -230,7 +236,10 @@ interest of in case of R2700 - the detector gap
     Cube.collapse_white(1)
     
     Cube.find_center(1, manual=QubeSpec_setup['Object_center'])
-    Cube.D1_spectra_collapse(1, addsave='',rad=QubeSpec_setup['Aperture_extraction'], err_range=QubeSpec_setup['err_range'], boundary=QubeSpec_setup['err_boundary'], plot_err=1)
+    Cube.D1_spectra_collapse(1, addsave='',rad=QubeSpec_setup['Aperture_extraction'],\
+     err_range=QubeSpec_setup['err_range'],\
+      boundary=QubeSpec_setup['err_boundary'],\
+       plot_err=1)
     plt.show()
 
 
@@ -317,10 +326,12 @@ Lets just have a look at all the emission lines in the spectrum.
 After these steps, the ``Cube`` instance should have the following attributes:
 
 * ``Cube.flux`` - Flux data cube
-* ``Cube.error`` - Error data cube
+* ``Cube.error_cube`` - Error data cube
 * ``Cube.obs_wave`` - observed wavelength
 * ``Cube.D1_spectrum`` - Collapsed 1D spectrum
 * ``Cube.D1_spectrum_er`` - error on the collapsed 1D spectrum
-* ``Cube.collapse_white`` - continuum image
+* ``Cube.Median_stack_white`` - continuum image
+* ``Cube.header`` - Header of the data cube from the fits file
+* ``Cube.save_path`` - path where we are saving stuff
 
 

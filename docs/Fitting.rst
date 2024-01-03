@@ -75,8 +75,45 @@ Lets just have a look at all the emission lines in the spectrum.
 .. image:: Fitting_files/Fitting_6_0.png
 
 
-Simple fit
+Core Fitting module
 ----------
+
+At first we will look into the Fitting class, how it works, what results it generates and how can we calculate other quantities. Then I will introduce the wrapper function I wrote in order to speed up things when fitting.
+
+First lets initalize the Fitting class:
+
+.. code:: ipython3
+
+    Fits = emfit.Fitting(wave= '', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]})
+
+where:
+
+* ``wave`` - observed wavelength in microns
+* ``flux`` - flux of the spectrum
+* ``error`` - error on the spectrum
+* ``z`` - redshift of the source
+* ``N`` - number of points in the chain - default 5000
+* ``ncpu`` - number of cpus used to fit - I find that the overheads can be bigger what using multipleprocessing then the speed up. Experiment ok keep to 1
+* ``progress`` - progress bar for the emcee bit
+* ``prior_update`` - dictionary with all of the priors - explained later. 
+
+The prior update function should be in a format: 
+
+.. code:: ipython3
+    priors = {}
+
+    priors[‘name of the variable’] = [ initial_value or 0, ‘shape of the prior’, parameters of the prior]
+
+‘name of the variable’ - I will give a full list of variable for each models below.
+
+intial value - inital value for the fit - if you want the code to decide put 0
+
+‘shape of the prior’ - ‘uniform’, ‘loguniform’ (uniform in logspace),
+‘normal’, ‘normal_hat’ (truncated normal distribution)
+
+
+once this is initialized, we can use some of the prewritten models or use a custom function fitting. Lets go over each of them. 
+
 
 Ok so there will be/is a full tutorial/jupyer notebook, but I will
 briefly explain it here. Under the hood, QubeSpec is using emcee to fit
@@ -165,7 +202,7 @@ the spectrum.
 
 .. code:: ipython3
 
-    Cube.fitting_collapse_Halpha(models='Outflow', plot=1) # priors=priors
+    Cube.fitting_collapse_Halpha(models='Outflow', plot=1) # prior_update=priors
     plt.show()
 
 
@@ -339,7 +376,7 @@ Fitting Custom Function
     
     use = np.where( ( (Cube.obs_wave> 2.82) | (Cube.obs_wave<3.46) ) & ( (Cube.obs_wave>3.75) | (Cube.obs_wave<4.1) ) & ( (Cube.obs_wave>5) | (Cube.obs_wave<5.3) ) )[0]
     if __name__ == '__main__':
-        optical = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=3) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
+        optical = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, prior_update=priors, N=5000, ncpu=3) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
         optical.fitting_general( Full_optical, labels, emfit.logprior_general_scipy)
         
 
@@ -491,7 +528,7 @@ Very highly experimental, still under development, use at your risk!
     
     
     if __name__ == '__main__':
-        optical_cus = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=1) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
+        optical_cus = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, prior_update=priors, N=5000, ncpu=1) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
         optical_cus.fitting_custom(model_inputs, model_name='test')
     
 

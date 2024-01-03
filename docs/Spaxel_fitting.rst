@@ -28,11 +28,6 @@ Spaxel-by-Spaxel fitting
 
 
 
-.. parsed-literal::
-
-    True
-
-
 QubeSpec setup file - defining it again
 ----------------------
 

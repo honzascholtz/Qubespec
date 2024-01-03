@@ -57,36 +57,41 @@ class Fitting:
     number of points in the chains, number of cpus to fit, progress bar and priors
         
     """
-    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
-                                                                                       'cont':[0,'loguniform',-4,1],\
-                                                                                       'cont_grad':[0,'normal',0,0.3], \
-                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'NII_peak':[0,'loguniform',-3,1],\
-                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
-                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
-                                                                                       'zBLR':[0, 'normal', 0,0.003],\
-                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
-                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
-                                                                                        'outflow_vel':[-50,'normal', 0,300],\
-                                                                                        'OIII_peak':[0,'loguniform',-3,1],\
-                                                                                        'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hbeta_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hbeta_fwhm':[200,'uniform',120,7000],\
-                                                                                        'Hbeta_vel':[10,'normal', 0,200],\
-                                                                                        'Hbetan_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hbetan_fwhm':[300,'uniform',120,700],\
-                                                                                        'Hbetan_vel':[10,'normal', 0,100],\
-                                                                                        'Fe_peak':[0,'loguniform',-3,1],\
-                                                                                        'Fe_fwhm':[3000,'uniform',2000,6000],\
-                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
-                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
-                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}):
+    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]}):
         
+        priors= {'z':[0, 'normal', 0,0.003],\
+                'cont':[0,'loguniform',-4,1],\
+                'cont_grad':[0,'normal',0,0.3], \
+                'Hal_peak':[0,'loguniform',-3,1],\
+                'BLR_Hal_peak':[0,'loguniform',-3,1],\
+                'NII_peak':[0,'loguniform',-3,1],\
+                'Nar_fwhm':[300,'uniform',100,900],\
+                'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                'zBLR':[0, 'normal', 0,0.003],\
+                'SIIr_peak':[0,'loguniform',-3,1],\
+                'SIIb_peak':[0,'loguniform',-3,1],\
+                'Hal_out_peak':[0,'loguniform',-3,1],\
+                'NII_out_peak':[0,'loguniform',-3,1],\
+                'outflow_fwhm':[600,'uniform', 300,1500],\
+                'outflow_vel':[-50,'normal', 0,300],\
+                'OIII_peak':[0,'loguniform',-3,1],\
+                'OIII_out_peak':[0,'loguniform',-3,1],\
+                'Hbeta_peak':[0,'loguniform',-3,1],\
+                'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                'Hbeta_fwhm':[200,'uniform',120,7000],\
+                'Hbeta_vel':[10,'normal', 0,200],\
+                'Hbetan_peak':[0,'loguniform',-3,1],\
+                'Hbetan_fwhm':[300,'uniform',120,700],\
+                'Hbetan_vel':[10,'normal', 0,100],\
+                'Fe_peak':[0,'loguniform',-3,1],\
+                'Fe_fwhm':[3000,'uniform',2000,6000],\
+                'SIIr_peak':[0,'loguniform', -3,1],\
+                'SIIb_peak':[0,'loguniform', -3,1],\
+                'BLR_Hbeta_peak':[0,'loguniform', -3,1]}
+        
+        for name in list(prior_update.keys()):
+            priors[name] = prior_update[name]
+
         self.N = N # Number of points in the chains
         self.priors = priors # storing priors
         self.progress = progress # progress bar?
@@ -1166,7 +1171,7 @@ def Fitting_OIII_unwrap(lst):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     
-    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
     Fits_sig.fitting_OIII(model='gal_simple')
     Fits_sig.fitted_model = 0
     
@@ -1180,7 +1185,7 @@ def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         Fits_sig.fitted_model = 0
         
@@ -1197,7 +1202,7 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
         Fits_sig.fitting_Halpha_OIII(model='BLR' )
         Fits_sig.fitted_model = 0
         
@@ -1217,11 +1222,11 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         Fits_sig.fitted_model = 0
         
-        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
+        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
         Fits_out.fitting_Halpha_OIII(model='outflow' )
         Fits_out.fitted_model = 0
         
@@ -1239,11 +1244,11 @@ def Fitting_OIII_2G_unwrap(lst):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
         Fits_sig.fitting_OIII(model='gal_simple')
         Fits_sig.fitted_model = 0
         
-        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
         Fits_out.fitting_OIII(model='outflow_simple')
         Fits_out.fitted_model = 0
         
@@ -1266,7 +1271,7 @@ def Fitting_Halpha_unwrap(lst):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     
-    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
     Fits_sig.fitting_Halpha(model='gal')
     Fits_sig.fitted_model = 0
     
