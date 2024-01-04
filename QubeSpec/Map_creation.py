@@ -61,7 +61,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             
             z = Fits.props['popt'][0]
             SNR = sp.SNR_calc(Fits.wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
-            flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'OIIIt', Cube.flux_norm)
+            flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
 
             map_oiii[0,i,j]= SNR
 
@@ -468,7 +468,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 #             Halpha
 # =============================================================================
 
-        flux_hal, p16_hal,p84_hal = sp.flux_calc_mcmc(res_spx, chains, 'Hat', Cube.flux_norm)
+        flux_hal, p16_hal,p84_hal = sp.flux_calc_mcmc(Fits, 'Hat', Cube.flux_norm)
         SNR_hal = flux_hal/p16_hal
         map_hal[0,i,j]= SNR_hal
 
@@ -514,7 +514,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 #             NII
 # =============================================================================
         #SNR = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
-        flux_NII, p16_NII,p84_NII = sp.flux_calc_mcmc(res_spx, chains, 'NIIt', Cube.flux_norm)
+        flux_NII, p16_NII,p84_NII = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
 
         map_nii[0,i,j]= SNR_nii
         if SNR_nii>SNR_cut:
@@ -535,7 +535,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 # =============================================================================
 #             OIII
 # =============================================================================
-        flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(res_spx, chains, 'OIIIt', Cube.flux_norm)
+        flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
 
         map_oiii[0,i,j]= SNR_oiii
 
@@ -565,7 +565,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 # =============================================================================
 #             Hbeta
 # =============================================================================
-        flux_hb, p16_hb,p84_hb = sp.flux_calc_mcmc(res_spx, chains, 'Hbeta', Cube.flux_norm)
+        flux_hb, p16_hb,p84_hb = sp.flux_calc_mcmc(Fits, 'Hbeta', Cube.flux_norm)
 
         map_hb[0,i,j]= SNR_hb.copy()
         if SNR_hb>SNR_cut:
@@ -582,8 +582,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 # =============================================================================
 #           SII
 # =============================================================================
-        fluxr, p16r,p84r = sp.flux_calc_mcmc(res_spx, chains, 'SIIr', Cube.flux_norm)
-        fluxb, p16b,p84b = sp.flux_calc_mcmc(res_spx, chains, 'SIIb', Cube.flux_norm)
+        fluxr, p16r,p84r = sp.flux_calc_mcmc(Fits, 'SIIr', Cube.flux_norm)
+        fluxb, p16b,p84b = sp.flux_calc_mcmc(Fits, 'SIIb', Cube.flux_norm)
 
         SNR_SII = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'SII')
 
@@ -907,7 +907,7 @@ def Map_creation_general_comparison(Cube,info,path1, path2, SNR_cut = 3 ,deltabi
             info[key]['flux_map'][0,i,j] = SNR
             
             if SNR>SNR_cut:
-                flux, p16,p84 = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'general', Cube.flux_norm,\
+                flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
                                                     wv_cent = info[key]['wv'],\
                                                     peak_name = key+'_peak', \
                                                         fwhm_name = info[key]['fwhm'])
@@ -1035,7 +1035,7 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             info[key]['flux_map'][0,i,j] = SNR
             
             if SNR>SNR_cut:
-                flux, p16,p84 = sp.flux_calc_mcmc(Fits.props, Fits.chains, 'general', Cube.flux_norm,\
+                flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
                                                     wv_cent = info[key]['wv'],\
                                                     peak_name = key+'_peak', \
                                                         fwhm_name = info[key]['fwhm'])

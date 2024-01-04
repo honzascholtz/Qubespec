@@ -2,7 +2,7 @@
 
 .. contents::
    :local:
-   
+
 Fitting a single spectrum
 ===================================
 In this section we will fit the extracted spectrum from the previous section. First we will quickly import some modules. 
@@ -23,16 +23,8 @@ In this section we will fit the extracted spectrum from the previous section. Fi
     
 
 
-now lets load the Cube object from previous page.
-
-.. code:: ipython3
-
-    Cube = IFU.Cube()
-    Cube.load('/Users/jansen/Test.txt')
-
-
 Core Fitting module
-----------
+--------------------
 
 At first we will look into the Fitting class, how it works, what results it generates and how can we calculate other quantities. Then I will introduce the wrapper function I wrote in order to speed up things when fitting.
 
@@ -162,28 +154,58 @@ Regardless of method we use to fit the spectrum, the ``Fitting`` as ``optical`` 
 * ``optical.error`` - error on flux used for the fit
 * ``optical.corner()`` - method - plots a corner plot
 
-In order to calculate integrated fluxes of each emission line we can use the ``IFU.sp.flux_calc_mcmc`` with the following:
+In order to calculate integrated fluxes of each emission line we can use the ``IFU.sp.flux_calc_mcmc()`` with the following:
 
 
 .. automethod:: QubeSpec.sp.flux_calc_mcmc
 
 
+Examples:
 
 .. code:: ipython3
 
-    flux = IFU.sp.flux_calc_mcmc(optical.props, optical.chains, mode, norm, )
+    print('[OIII] flux from custom', IFU.sp.flux_calc_mcmc(optical, 'general', Cube.flux_norm, wv_cent=5008, peak_name='OIII_peak', fwhm_name='Nar_fwhm' ))
+    print('[OII]3727 flux from custom',IFU.sp.flux_calc_mcmc(optical, 'general', Cube.flux_norm, wv_cent=3727, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='' ))
+    print('[OII]3729 flux from custom',IFU.sp.flux_calc_mcmc(optical, 'general', Cube.flux_norm, wv_cent=3729, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='OII_rat' ))
+
+
+
+Finally we can also save the results of the fitting like this:
+
+.. code:: ipython3
+
+    optical.save(path)
+
+and then load the results as:
+
+.. code:: ipython3
+    optical = emfit.Fitting()
+    optical.load(path)
+
+Fitting 1D collpased spectrum from a cube. 
+----------------------------------------
+now lets load the Cube object from previous page.
+
+.. code:: ipython3
+
+    Cube = IFU.Cube()
+    Cube.load('/Users/jansen/Test.txt')
+
+
+The main The QubeSpec class contains few methods that are designed to fit the 
+collapsed 1D spectra that were extracted in the previous section. The next few 
+sub sections will describe them and show them in action. All of the functions 
+
 
 Fitting Halpha only
 ~~~~~~~~~~~~~~~~~~~
 
-With this function you can fit the collapse 1D spectrum that you
-exctracted earlier. The main key word is models
 
 models - Single_only, Outflow_only, BLR_only, BLR, Outflow, QSO_BKPL
 
 .. code:: ipython3
 
-    Cube.fitting_collapse_Halpha(models='Outflow', plot=1) # prior_update=priors
+    Cube.fitting_collapse_Halpha(models='Outflow') # prior_update=priors
     plt.show()
 
 
@@ -254,188 +276,6 @@ models - Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple
 .. code:: ipython3
 
     Cube.D1_fit_results
-
-.. code:: ipython3
-
-    print(IFU.sp.flux_calc_mcmc( Cube.D1_fit_results,Cube.D1_fit_chain, 'OIIIt', Cube.flux_norm ))
-
-
-
-Fitting Custom Function
------------------------
-
-.. code:: ipython3
-
-    def gauss(x, k, mu,FWHM):
-        sig = FWHM/3e5*mu/2.35482
-        expo= -((x-mu)**2)/(2*sig*sig)
-    
-        y= k* e**expo
-    
-        return y
-    from astropy.modeling.powerlaws import PowerLaw1D
-    
-    def Full_optical(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, Hgamma_peak, Hdelta_peak, NeIII_peak, OII_peak, OII_rat,OIIIc_peak, HeI_peak,HeII_peak, Nar_fwhm):
-        # Halpha side of things
-        Hal_wv = 6564.52*(1+z)/1e4
-        NII_r = 6585.27*(1+z)/1e4
-        NII_b = 6549.86*(1+z)/1e4
-        
-        OIIIr = 5008.24*(1+z)/1e4
-        OIIIb = 4960.3*(1+z)/1e4
-        Hbeta = 4862.6*(1+z)/1e4
-    
-        Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_fwhm)
-        NII_nar_r = gauss(x, NII_peak, NII_r, Nar_fwhm)
-        NII_nar_b = gauss(x, NII_peak/3, NII_b, Nar_fwhm)
-        
-        Hgamma_wv = 4341.647191*(1+z)/1e4
-        Hdelta_wv = 4102.859855*(1+z)/1e4
-        
-        Hgamma_nar = gauss(x, Hgamma_peak, Hgamma_wv, Nar_fwhm)
-        Hdelta_nar = gauss(x, Hdelta_peak, Hdelta_wv, Nar_fwhm)
-        
-        
-        # [OIII] side of things
-        OIIIr = 5008.24*(1+z)/1e4
-        OIIIb = 4960.3*(1+z)/1e4
-        Hbeta = 4862.6*(1+z)/1e4
-    
-        OIII_nar = gauss(x, OIIIn_peak, OIIIr, Nar_fwhm) + gauss(x, OIIIn_peak/3, OIIIb, Nar_fwhm)
-        Hbeta_nar = gauss(x, Hbeta_peak, Hbeta, Nar_fwhm)
-        
-        NeIII = gauss(x, NeIII_peak, 3869.68*(1+z)/1e4, Nar_fwhm ) + gauss(x, 0.322*NeIII_peak, 3968.68*(1+z)/1e4, Nar_fwhm)
-        
-        OII = gauss(x, OII_peak, 3727.1*(1+z)/1e4, Nar_fwhm )  + gauss(x, OII_rat*OII_peak, 3729.875*(1+z)/1e4, Nar_fwhm) 
-        
-        OIIIc = gauss(x, OIIIc_peak, 4364.436*(1+z)/1e4, Nar_fwhm )
-        HeI = gauss(x, HeI_peak, 3889.73*(1+z)/1e4, Nar_fwhm )
-        HeII = gauss(x, HeII_peak, 4686.0*(1+z)/1e4, Nar_fwhm )
-    
-        contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
-    
-        return contm+Hal_nar+NII_nar_r+NII_nar_b + OIII_nar + Hbeta_nar + Hgamma_nar + Hdelta_nar + NeIII+ OII + OIIIc+ HeI+HeII
-
-
-.. code:: ipython3
-
-    dvmax = 1000/3e5*(1+Cube.z)
-    dvstd = 200/3e5*(1+Cube.z)
-    priors={'z':[Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]}
-    priors['cont']=[0.1,'loguniform', -3,1]
-    priors['cont_grad']=[0.2,'normal', 0,0.2]
-    priors['Hal_peak']=[5.,'loguniform', -3,1]
-    priors['NII_peak']=[0.4,'loguniform', -3,1]
-    priors['Nar_fwhm']=[300,'uniform', 200,900]
-    priors['OIII_peak']=[6.,'loguniform', -3,1]
-    priors['OI_peak']=[1.,'loguniform', -3,1]
-    priors['HeI_peak']=[1.,'loguniform', -3,1]
-    priors['HeII_peak']=[1.,'loguniform', -3,1]
-    priors['Hbeta_peak']=[2,'loguniform', -3,1]
-    priors['Hgamma_peak'] = [1.,'loguniform',-3,1]
-    priors['Hdelta_peak'] = [0.5,'loguniform',-3,1]
-    priors['NeIII_peak'] = [0.3,'loguniform',-3,1]
-    priors['OII_peak'] = [0.4,'loguniform',-3,1]
-    priors['OII_rat']=[1,'normal_hat',1,0.2, 0.2,4]
-    priors['OIIIaur_peak']=[0.2,'loguniform', -3,1]
-    
-    labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
-    
-    use = np.where( ( (Cube.obs_wave> 2.82) | (Cube.obs_wave<3.46) ) & ( (Cube.obs_wave>3.75) | (Cube.obs_wave<4.1) ) & ( (Cube.obs_wave>5) | (Cube.obs_wave<5.3) ) )[0]
-    if __name__ == '__main__':
-        optical = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, prior_update=priors, N=5000, ncpu=3) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
-        optical.fitting_general( Full_optical, labels, emfit.logprior_general_scipy)
-        
-
-
-.. code:: ipython3
-
-    import corner
-    
-    fig = corner.corner(
-                IFU.sp.unwrap_chain(optical.chains), 
-                labels = labels,
-                quantiles=[0.16, 0.5, 0.84],
-                show_titles=True,
-                title_kwargs={"fontsize": 12})
-    #fig.savefig('./corner_full.pdf')
-    plt.show()
-
-
-
-.. image:: Fitting_files/Fitting_20_0.png
-
-
-.. code:: ipython3
-
-    f = plt.figure( figsize=(20,6))
-    from brokenaxes import brokenaxes
-    ax = brokenaxes(xlims=((2.820,3.45),(3.65,4.05),(5.0,5.3)),  hspace=.01)
-    
-    ax.plot(Cube.obs_wave, Cube.D1_spectrum, drawstyle='steps-mid')
-    ax.plot(Cube.obs_wave, Cube.D1_spectrum_er, drawstyle='steps-mid')
-    
-    ax.plot(Cube.obs_wave, Full_optical(Cube.obs_wave, *optical.props['popt']), 'r--')
-    
-    ax.set_xlabel('wavelength (um)')
-    ax.set_ylabel('Flux density')
-    
-    ax.set_ylim(-0.01, 1.2)
-    
-    plt.show()
-
-
-
-.. image:: Fitting_files/Fitting_21_0.png
-
-
-.. code:: ipython3
-
-    f,ax= plt.subplots(1, figsize=(8,5))
-    
-    ax.plot(Cube.obs_wave, Cube.D1_spectrum, drawstyle='steps-mid')
-    ax.plot(Cube.obs_wave, Full_optical(Cube.obs_wave, *optical.props['popt']), 'r--')
-    
-    OII_peak = optical.props['OII_peak'][0]
-    OII_rat = optical.props['OII_rat'][0]
-    zoii=optical.props['z'][0]
-    
-    OII3727 = gauss(Cube.obs_wave, OII_peak, 3727.1*(1+zoii)/1e4, optical.props['Nar_fwhm'][0])  
-    OII3729 = gauss(Cube.obs_wave, OII_rat*OII_peak, 3729.875*(1+zoii)/1e4,optical.props['Nar_fwhm'][0] ) 
-    
-    ax.plot(Cube.obs_wave, OII3727, 'g--')
-    ax.plot(Cube.obs_wave, OII3729, 'b--')
-    
-    
-    ax.set_xlim(3650.1*(1+zoii)/1e4, 3790.1*(1+zoii)/1e4)
-    
-    ax.set_xlabel('wavelength (um)')
-    ax.set_ylabel(r'F$_\lambda$ ($\times 10^{-15}$ erg s$^{-1}$ cm$^{-2}$ $\mu$m$^{-1}$)')
-    
-    ax.set_ylim(-0.01, 1.2)
-    
-    plt.show()
-
-
-
-.. image:: Fitting_files/Fitting_22_0.png
-
-
-Flux Calc
-~~~~~~~~~
-
-.. code:: ipython3
-
-    print('[OIII] flux from custom', IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=5008, peak_name='OIII_peak', fwhm_name='Nar_fwhm' ))
-    print('Hbeta flux from custom', IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=4861, peak_name='Hbeta_peak', fwhm_name='Nar_fwhm' ))
-    print('[NII] flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=6587, peak_name='NII_peak', fwhm_name='Nar_fwhm' ))
-    print('Halpha flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=6563, peak_name='Hal_peak', fwhm_name='Nar_fwhm' ))
-    print('[OIII]4363 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=4363, peak_name='OIIIaur_peak', fwhm_name='Nar_fwhm' ))
-    
-    print('[OII]3727 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=3727, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='' ))
-    print('[OII]3729 flux from custom',IFU.sp.flux_calc_mcmc(optical.props,optical.chains, 'general', Cube.flux_norm, wv_cent=3729, peak_name='OII_peak', fwhm_name='Nar_fwhm', ratio_name='OII_rat' ))
-
-
 
 Fitting a custom model by passing a dictionary of components
 ------------------------------------------------------------

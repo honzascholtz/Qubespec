@@ -471,18 +471,15 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     return Flux
 
 import random
-def flux_calc_mcmc(res,chains, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
+def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
     """
     Calculates flux and 68% confidence iterval. 
 
     Parameters
     ----------
 
-        res - dic
-            dictionary from fits class with all the properties.
-
-        chains - dic
-            dictionary from fits class with all the chains
+        fit_obj - object
+            Fitting class object
         
         mode - string
             modes: general, OIIIn, OIIIw, OIIIt, Han, NII, Hbeta, SIIr, SIIb
@@ -510,6 +507,8 @@ def flux_calc_mcmc(res,chains, mode, norm=1, N=2000, wv_cent=5008, peak_name='',
 
     array of median value and +- 1sigma
     """
+    chains = fit_obj.chains
+    res = fit_obj.props
     labels = list(chains.keys())
 
     popt = np.zeros_like(res['popt'])
