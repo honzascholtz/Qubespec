@@ -52,11 +52,20 @@ from . import Support as sp
 
 
 class Fitting:
-    """ 
-    This is the base class for the fitting. The main inputs are: wavelength, flux density, error, redshift, 
-    number of points in the chains, number of cpus to fit, progress bar and priors
-        
+    """ Simple class containing everything that we need to fit a spectrum and also all of its results. 
+
+    Parameters
+    ----------
+    wave - observed wavelength in microns
+    flux - flux of the spectrum
+    error` - error on the spectrum
+    z - redshift of the source
+    N - number of points in the chain - default 5000
+    ncpu - number of cpus used to fit - I find that the overheads can be bigger what using multipleprocessing then the speed up. Experiment ok keep to 1
+    progress - progress bar for the emcee bit
+    prior_update - dictionary with all of the priors 
     """
+       
     def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]}):
         
         priors= {'z':[0, 'normal', 0,0.003],\

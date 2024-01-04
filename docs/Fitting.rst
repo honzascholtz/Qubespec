@@ -27,53 +27,6 @@ now lets load the Cube object from previous page.
     Cube = IFU.Cube()
     Cube.load('/Users/jansen/Test.txt')
 
-Plotting spectrum
------------------
-
-Lets just have a look at all the emission lines in the spectrum.
-
-.. code:: ipython3
-
-    f, ax = plt.subplots(1, figsize=(12,5))
-    
-    ax.plot(Cube.obs_wave, Cube.D1_spectrum, drawstyle='steps-mid')
-    
-    ylow = -0.2
-    yhig = 10
-    
-    ax.vlines(0.5008*(1+Cube.z),ylow,yhig, linestyle='dashed',color='orange', alpha=0.8)
-    ax.vlines(0.3727*(1+Cube.z),ylow,yhig, linestyle='dashed',color='orange', alpha=0.8)
-    ax.vlines(0.6300*(1+Cube.z),ylow,yhig, linestyle='dashed',color='orange', alpha=0.8)
-    
-    
-    ax.vlines(0.6563*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
-    ax.vlines(0.4861*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
-    ax.vlines(0.4340*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
-    ax.vlines(0.4100*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
-    ax.vlines(0.1215*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
-    ax.vlines(0.6731*(1+Cube.z),ylow,yhig, linestyle='dashed',color='k', alpha=0.5)
-    
-    ax.vlines(0.3869*(1+Cube.z),ylow,yhig, linestyle='dashed',color='magenta', alpha=0.5)
-    ax.vlines(0.3968*(1+Cube.z),ylow,yhig, linestyle='dashed',color='magenta', alpha=0.5)
-    ax.vlines(0.2424*(1+Cube.z),ylow,yhig, linestyle='dashed',color='magenta', alpha=0.5)
-    
-    
-    ax.vlines(0.4686*(1+Cube.z),ylow,yhig, linestyle='dashed',color='red', alpha=0.5)
-    ax.vlines(0.5877*(1+Cube.z),ylow,yhig, linestyle='dashed',color='red', alpha=0.5)
-    
-    ax.set_title('Black - H, Orange - O, Red - He, Green - N, Blue - C')
-    
-    ax.set_xlabel('wavelength (um)')
-    ax.set_ylabel(r'F$_\lambda$ ($\times 10^{-15}$ erg s$^{-1}$ cm$^{-2}$ $\mu$m$^{-1}$)')
-    
-    ax.set_xlim(min(Cube.obs_wave), max(Cube.obs_wave))
-    ax.set_ylim(-0.1, 1)
-    plt.show()
-
-
-
-.. image:: Fitting_files/Fitting_6_0.png
-
 
 Core Fitting module
 ----------
@@ -81,7 +34,12 @@ Core Fitting module
 At first we will look into the Fitting class, how it works, what results it generates and how can we calculate other quantities. Then I will introduce the wrapper function I wrote in order to speed up things when fitting.
 
 First lets initalize the Fitting class:
+.. _model-galaxy-api:
 
+.. autoclass:: QubeSpec.Fitting
+
+	:members:
+    
 .. code:: ipython3
 
     Fits = emfit.Fitting(wave= '', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]})
@@ -97,7 +55,7 @@ where:
 * ``progress`` - progress bar for the emcee bit
 * ``prior_update`` - dictionary with all of the priors - explained later. 
 
-The prior update function should be in a format: 
+The prior_update variable should be in a form of a dictionary like: 
 
 .. code:: ipython3
     priors = {}
@@ -113,6 +71,12 @@ intial value - inital value for the fit - if you want the code to decide put 0
 
 
 once this is initialized, we can use some of the prewritten models or use a custom function fitting. Lets go over each of them. 
+
+There are couple of prewritten functions for each sections of emission line - H:math:`$\alpha$`+[NII] + [SII], [OIII] + H:math:`$\beta$` or alternatively both those spectral region at once. These are handled in two of   
+
+* ``wave`` - observed wavelength in microns
+* ``flux`` - flux of the spectrum
+* ``error`` - error on the spectrum
 
 
 Ok so there will be/is a full tutorial/jupyer notebook, but I will
