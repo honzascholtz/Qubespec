@@ -36,10 +36,10 @@ At first we will look into the Fitting class, how it works, what results it gene
 First lets initalize the Fitting class:
 .. _model-galaxy-api:
 
-.. autoclass:: QubeSpec.Fitting
+.. autoclass:: QubeSpec.Fitting.Fitting
 
 	:members:
-    
+
 .. code:: ipython3
 
     Fits = emfit.Fitting(wave= '', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]})
