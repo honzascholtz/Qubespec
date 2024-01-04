@@ -35,9 +35,9 @@ At first we will look into the Fitting class, how it works, what results it gene
 
 First lets initalize the Fitting class:
 
-.. autoclass:: QubeSpec.Fitting.Fitting
+.. autoclass:: QubeSpec.Fitting.Fitting.
 
-	:members: fitting_collapse_OIII, fitting_collapse_Halpha, fitting_Halpha_OIII
+	:members: 
 
 
 The prior_update variable should be in a form of a dictionary like: 
@@ -55,36 +55,8 @@ intial value - inital value for the fit - if you want the code to decide put 0
 ‘normal’, ‘normal_hat’ (truncated normal distribution)
 
 
-once this is initialized, we can use some of the prewritten models or use a custom function fitting. Lets go over each of them. 
+once this is initialized, we can use some of the prewritten models or use a custom function fitting. Once you ran those  
 
-There are couple of prewritten functions for each sections of emission line - H:math:`$\alpha$`+[NII] + [SII], [OIII] + H:math:`$\beta$` or alternatively both those spectral region at once. These are handled in two of   
-
-* ``wave`` - observed wavelength in microns
-* ``flux`` - flux of the spectrum
-* ``error`` - error on the spectrum
-
-
-Ok so there will be/is a full tutorial/jupyer notebook, but I will
-briefly explain it here. Under the hood, QubeSpec is using emcee to fit
-the lines. As such you need to give it some model, initial conditions
-and priors. However, I written some methods in the QubeSpec and
-emfit.Fitting classes that do all of the work. However you can still
-change the priors by supplying new updated priors in a dictionary form.
-The shape of the dictionary should be as such:
-
-priors = {} priors[ ‘name of the variable’] = [ initial_value or 0,
-‘shape of the prior’, paramters of the prior]
-
-‘name of the variable’ - I will give a full list of variable for each
-models below.
-
-intial value - inital value for the fit - if you want the code to decide
-put 0
-
-‘shape of the prior’ - ‘uniform’, ‘loguniform’ (uniform in logspace),
-‘normal’, ‘normal_hat’ (truncated normal distribution)
-
-Example below:
 
 .. code:: ipython3
 
@@ -128,27 +100,6 @@ exctracted earlier. The main key word is models
 
 models - Single_only, Outflow_only, BLR_only, BLR, Outflow, QSO_BKPL
 
-which changes if you fit a single model:
-
-‘Single_only’ - single gaussian to Halpha, both [NII] and both [SII] -
-name of the free parameters: [‘z’, ‘cont’,‘cont_grad’, ‘Hal_peak’,
-‘NII_peak’, ‘Nar_fwhm’, ‘SIIr_peak’, ‘SIIb_peak’]
-
-‘Outflow_only’ - single gaussian to Halpha, both [NII] and both [SII]
-and additional gaussians to Halpha + [NII] to model an outflow - name of
-the free parameters: [‘z’, ‘cont’,‘cont_grad’, ‘Hal_peak’, ‘NII_peak’,
-‘Nar_fwhm’, ‘SIIr_peak’, ‘SIIb_peak’, ‘Hal_out_peak’, ‘NII_out_peak’,
-‘outflow_fwhm’, ‘outflow_vel’]
-
-‘BLR_only’ - single gaussian to Halpha, both [NII] and both [SII] and
-additional gaussians to Halpha to model an BLR - name of the free
-parameters [‘z’, ‘cont’,‘cont_grad’, ‘Hal_peak’,‘BLR_Hal_peak’,
-‘NII_peak’, ‘Nar_fwhm’, ‘BLR_fwhm’, ‘zBLR’, ‘SIIr_peak’, ‘SIIb_peak’]
-
-‘BLR’ and ‘Outflow’ models fit either ‘Single_only’ and ‘BLR_only’ or
-‘Single_only’ and ‘Outflow_only’ and decides which is the best model for
-the spectrum.
-
 .. code:: ipython3
 
     Cube.fitting_collapse_Halpha(models='Outflow', plot=1) # prior_update=priors
@@ -175,21 +126,7 @@ you get a decent fit the Hbeta still looks wonky.
 
 models - Single_only, Outflow_only, BLR_only, BLR, Outflow, QSO_BKPL
 
-which changes if you fit a single model:
-
-‘Single_only’ - single gaussian to both [OIII] and [Hbeta] - name of the
-free parameters: [‘z’, ‘cont’,‘cont_grad’, ‘OIII_peak’, ‘Nar_fwhm’,
-‘Hbeta_peak’] if simple=1
-
-‘Outflow_only’ - single gaussian to both [OIII] and Hbeta and additional
-gaussians to [OIII]+Hbeta to model an outflow - name of the free
-parameters: [‘z’, ‘cont’,‘cont_grad’, ‘OIII_peak’, ‘OIII_out_peak’,
-‘Nar_fwhm’, ‘outflow_fwhm’, ‘outflow_vel’, ‘Hbeta_peak’,
-‘Hbeta_out_peak’] if simple=1
-
-‘Outflow’ - fits both above.
-
-BLR models TBD
+which changes if you fit a single model.
 
 .. code:: ipython3
 
