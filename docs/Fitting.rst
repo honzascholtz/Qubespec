@@ -36,7 +36,7 @@ At first we will look into the Fitting class, how it works, what results it gene
 First lets initalize the Fitting class:
 
 .. autoclass:: QubeSpec.Fitting.Fitting
-	:members: 
+	:members: fitting_halpha, fitting_OIII, fitting_Halpha_OIII, fitting_general
 
 
 The prior_update variable should be in a form of a dictionary like: 
