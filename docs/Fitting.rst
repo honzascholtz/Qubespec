@@ -34,26 +34,11 @@ Core Fitting module
 At first we will look into the Fitting class, how it works, what results it generates and how can we calculate other quantities. Then I will introduce the wrapper function I wrote in order to speed up things when fitting.
 
 First lets initalize the Fitting class:
-.. _model-galaxy-api:
 
 .. autoclass:: QubeSpec.Fitting.Fitting
 
 	:members:
 
-.. code:: ipython3
-
-    Fits = emfit.Fitting(wave= '', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]})
-
-where:
-
-* ``wave`` - observed wavelength in microns
-* ``flux`` - flux of the spectrum
-* ``error`` - error on the spectrum
-* ``z`` - redshift of the source
-* ``N`` - number of points in the chain - default 5000
-* ``ncpu`` - number of cpus used to fit - I find that the overheads can be bigger what using multipleprocessing then the speed up. Experiment ok keep to 1
-* ``progress`` - progress bar for the emcee bit
-* ``prior_update`` - dictionary with all of the priors - explained later. 
 
 The prior_update variable should be in a form of a dictionary like: 
 

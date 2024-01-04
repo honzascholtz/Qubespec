@@ -67,7 +67,7 @@ class Fitting:
     error : array
         error on the spectrum
     z : float
-      - redshift of the source
+        redshift of the source
 
     N: int - optional 
         number of points in the chain - default 5000
@@ -131,7 +131,21 @@ class Fitting:
     #  Primary function to fit Halpha both with or without BLR - data prep and fit 
     # =============================================================================
     def fitting_Halpha(self, model='gal'):
-        """ ok lets fit Halpha only - Models - gal, BLR, outflow, QSO_BKPL
+        """ Method to fit Halpha+[NII +[SII]]
+        
+        Parameters
+        ----------
+
+        model - str
+            current valid models names and their variable names/also prior names:
+            gal -  'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak'
+            outflow - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel'
+            BLR - 'z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak'
+            QSO_BKPL - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
+                    'Hal_out_peak', 'NII_out_peak', \
+                    'outflow_fwhm', 'outflow_vel', \
+                    'BLR_Hal_peak', 'zBLR', 'BLR_alp1', 'BLR_alp2', 'BLR_sig'
+        
         
         """
         self.model= model
@@ -284,9 +298,21 @@ class Fitting:
     # =============================================================================
     
     def fitting_OIII(self, model, template=0, Hbeta_dual=0, plot=0):
-        """ Lets fit the OIII
+        """ Method to fit [OIII] + Hbeta
         
+        Parameters
+        ----------
+
+        model - str
+            current valid models names and their variable names/also prior names:
+            gal_simple - 'z', 'cont','cont_grad', 'OIII_peak', 'Nar_fwhm', 'Hbeta_peak' - Hbeta and [OIII] kinematics are linked together
+            outflow_simple - 'z', 'cont','cont_grad', 'OIII_peak', 'OIII_out_peak', 'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hbeta_peak', 'Hbeta_out_peak' - Hbeta and [OIII] kinematics are linked together
+        
+        template - str
+            name of the FeII template you want to fit - Tsuzuki, BG92, 
+
         """
+        
         self.model = model
         self.template = template
         self.Hbeta_dual = Hbeta_dual
@@ -545,7 +571,21 @@ class Fitting:
         
         
     def fitting_Halpha_OIII(self, model, template=None):
-        """ Lets fit both OIII and Halpha at the same time. 
+        """ Method to fit Halpha + [OIII] + Hbeta+ [NII] + [SII]
+        
+        Parameters
+        ----------
+
+        model - str
+            current valid models names and their variable names/also prior names:
+            gal - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak'
+            outflow - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak','Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' 
+            BLR - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
+                    'Nar_fwhm', 'outflow_fwhm', 'outflow_vel', 'Hal_out_peak','NII_out_peak', 'OIII_out_peak', 'Hbeta_out_peak' ,\
+                    'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak'
+
+            BLR_simple - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak','OIII_peak', 'Hbeta_peak','SIIr_peak', 'SIIb_peak',\
+                    'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'BLR_Hal_peak', 'BLR_Hbeta_peak'
         
         """
         self.template = template
@@ -604,7 +644,7 @@ class Fitting:
             nwalkers=64
             self.fitted_model = HO_models.Halpha_OIII
             self.log_prior_fce = logprior_general
-            self.labels=('z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak')
+            self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'OIII_peak', 'Hbeta_peak']
             self.pr_code = self.prior_create()
             
             cont_init = np.median(self.flux[self.fit_loc])
