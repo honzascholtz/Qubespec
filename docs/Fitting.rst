@@ -35,8 +35,7 @@ At first we will look into the Fitting class, how it works, what results it gene
 
 First lets initalize the Fitting class:
 
-.. autoclass:: QubeSpec.Fitting.Fitting.
-
+.. autoclass:: QubeSpec.Fitting.Fitting
 	:members: 
 
 
@@ -59,7 +58,7 @@ once this is initialized, we can use some of the prewritten models or use a cust
 but once understood, it is in no way complicated or long. In order fit a custom function you need to use the ``Fitting.fitting_general`` method of the ``Fitting`` class. 
 
 Fitting Custom Function
------------------------
+~~~~~~~~~~~~~~
 
 Once we initialize the ``Fitting`` class we need to define couple of things:
 
@@ -137,11 +136,15 @@ Below I will show an example of such function that fits a spectrum from [OII] to
 
 Then we can initialize the ``Fitting`` class as variable ``optical`` and then run it in the following manner: 
 
-.. code:: ipython3  
+.. code:: ipython3 
     if __name__ == '__main__':
         optical = emfit.Fitting(obs_wave, flux, error, z, prior_update=priors, N=5000, ncpu=3) 
         optical.fitting_general( Full_optical, labels)
-        
+
+
+Getting useful info out of the fit:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 Fitting Halpha only
