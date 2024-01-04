@@ -37,7 +37,7 @@ First lets initalize the Fitting class:
 
 .. autoclass:: QubeSpec.Fitting.Fitting
 
-	:members:
+	:members: fitting_collapse_OIII, fitting_collapse_Halpha, fitting_Halpha_OIII
 
 
 The prior_update variable should be in a form of a dictionary like: 
