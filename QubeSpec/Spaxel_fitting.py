@@ -310,7 +310,7 @@ def Spaxel_fitting_general_toptup(Cube, to_fit ,fitted_model, labels, priors, lo
             z = Cube.z
             use = data['use'] 
 
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=data['N'],progress=True, priors=data['priors'])
+            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=data['N'],progress=True, prior_update=data['priors'])
             Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
             Fits_sig.fitted_model = 0
     

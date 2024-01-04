@@ -969,7 +969,7 @@ def Map_creation_general_comparison(Cube,info,path1, path2, SNR_cut = 3 ,deltabi
 
     return f
 '''
-def Map_creation_general(Cube,info, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',modelfce = None,\
+def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                             brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
     z0 = Cube.z
     failed_fits=0
@@ -983,7 +983,6 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , fwhmrange = [100,500], velrang
     # =============================================================================
     #         Setting up the maps
     # =============================================================================
-
     Result_cube = np.zeros_like(Cube.flux.data)
     Result_cube_data = Cube.flux.data
     Result_cube_error = Cube.error_cube.data
@@ -1012,7 +1011,8 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , fwhmrange = [100,500], velrang
         try:
             i,j, Fits = results[row]
         except:
-            print('Loading old fits? I am sorry no longer compatible...')
+            ls=0
+            
 
         if str(type(Fits)) == "<class 'dict'>":
             failed_fits+=1

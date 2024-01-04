@@ -1291,7 +1291,7 @@ def Fitting_general_unwrap(lst, progress=False):
         use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
     try:
-        Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
+        Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, prior_update=data['priors'])
         Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
         Fits_sig.fitted_model = 0
       
