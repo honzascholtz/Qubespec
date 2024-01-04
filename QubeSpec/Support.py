@@ -451,11 +451,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
         return flx*norm
     elif mode=='Hbetan':
         flx = flux_calc_general(Hbe, res, 'Hbetan_fwhm', 'Hbetan_peak')
-        return flx*norm
-    
-    elif mode=='OI':
-        flx = flux_calc_general(6302, res, 'Nar_fwhm', 'OI_peak')
-        return flx*norm      
+        return flx*norm  
     
     elif mode=='SIIr':
         flx = flux_calc_general(6732, res, 'Nar_fwhm', 'SIIr_peak')
@@ -466,7 +462,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
         return flx*norm
     
     else:
-        raise Exception('Sorry mode in Flux not understood')
+        raise Exception('Sorry mode in Flux calc not understood')
         
     import scipy.integrate as scpi
     
@@ -475,8 +471,41 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     return Flux
 
 import random
-def flux_calc_mcmc(res,chains, mode, norm=1e-13, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
-    
+def flux_calc_mcmc(res,chains, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
+    """
+    Calculates flux and 68% confidence iterval. 
+
+    Parameters
+    ----------
+
+        res - dic
+            dictionary from fits class with all the properties.
+
+        chains - dic
+            dictionary from fits class with all the chains
+        
+        mode - string
+            modes: general, OIIIn, OIIIw, OIIIt, Han, NII, Hbeta, SIIr, SIIb
+        
+        norm - value
+            normalization used in the QubeSpec cube class 
+
+        N - int
+            number of sampling of the chains
+        
+        wv_cent - float
+            rest-frame wavelength in ang of the line if mode='general'
+        
+        peak_name - string
+          if mode='general' name of the peak name to use
+
+        fwhm_name - string
+            if mode='general' name of the fwhm name to use
+
+        ratio_name - string
+            if mode='general' name of the ratio to use (e.g. in [OII])
+          
+    """
     labels = list(chains.keys())
 
     popt = np.zeros_like(res['popt'])

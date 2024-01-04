@@ -159,6 +159,17 @@ Regardless of method we use to fit the spectrum, the ``Fitting`` as ``optical`` 
 * ``optical.error`` - error on flux used for the fit
 * ``optical.corner()`` - method - plots a corner plot
 
+In order to calculate integrated fluxes of each emission line we can use the ``IFU.sp.flux_calc_mcmc`` with the following:
+
+
+.. automethod:: QubeSpec.sp.flux_calc_mcmc
+
+
+
+.. code:: ipython3
+
+    flux = IFU.sp.flux_calc_mcmc(optical.props, optical.chains, mode, norm, )
+
 Fitting Halpha only
 ~~~~~~~~~~~~~~~~~~~
 
