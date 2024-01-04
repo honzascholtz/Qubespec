@@ -504,7 +504,11 @@ def flux_calc_mcmc(res,chains, mode, norm=1, N=2000, wv_cent=5008, peak_name='',
 
         ratio_name - string
             if mode='general' name of the ratio to use (e.g. in [OII])
-          
+
+    Returns
+    -------
+
+    array of median value and +- 1sigma
     """
     labels = list(chains.keys())
 

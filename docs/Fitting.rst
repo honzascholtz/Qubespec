@@ -1,5 +1,8 @@
 .. _Fitting:
 
+.. contents::
+   :local:
+   
 Fitting a single spectrum
 ===================================
 In this section we will fit the extracted spectrum from the previous section. First we will quickly import some modules. 
