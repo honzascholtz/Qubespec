@@ -55,15 +55,68 @@ intial value - inital value for the fit - if you want the code to decide put 0
 ‘normal’, ‘normal_hat’ (truncated normal distribution)
 
 
-once this is initialized, we can use some of the prewritten models or use a custom function fitting. Once you ran those  
+once this is initialized, we can use some of the prewritten models or use a custom function fitting. Setting up a custom function fitting is a little bit more complex,
+but once understood, it is in no way complicated or long. In order fit a custom function you need to use the ``Fitting.fitting_general`` method of the ``Fitting`` class. 
+
+Fitting Custom Function
+-----------------------
+
+Once we initialize the ``Fitting`` class we need to define couple of things:
+
+* calllable function with variable: ``wavelength``, ``z`` (redshift) and rest of the free parameters and it will return a 1D array of flux values. 
+* name of the parameters in a list - ``labels``
+* prior dictionary with initial values - ``priors``
+
+Below I will show an example of such function that fits a spectrum from [OII] to [SII] with one Gaussian component with tied kinematics plus a continuum described as power law. 
 
 
 .. code:: ipython3
 
-    dvmax = 1000/3e5*(1+Cube.z)
-    dvstd = 200/3e5*(1+Cube.z)
-    priors = {}
-    priors['z'] = [Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]
+    def gauss(x, k, mu,FWHM):
+        sig = FWHM/3e5*mu/2.35482
+        expo= -((x-mu)**2)/(2*sig*sig)
+    
+        y= k* e**expo
+    
+        return y
+    from astropy.modeling.powerlaws import PowerLaw1D
+    
+    def Full_optical(x, z, cont,cont_grad,  Hal_peak, NII_peak, OIIIn_peak, Hbeta_peak, Hgamma_peak, Hdelta_peak, NeIII_peak, OII_peak, OII_rat,OIIIc_peak, HeI_peak,HeII_peak, Nar_fwhm):
+        # Halpha side of things
+        Hal_nar = gauss(x, Hal_peak, 6564.52*(1+z)/1e4, Nar_fwhm)
+        NII_nar_r = gauss(x, NII_peak, 6585.27*(1+z)/1e4, Nar_fwhm)
+        NII_nar_b = gauss(x, NII_peak/3, 6549.86*(1+z)/1e4, Nar_fwhm)
+    
+        Hgamma_nar = gauss(x, Hgamma_peak, 4341.647191*(1+z)/1e4, Nar_fwhm)
+        Hdelta_nar = gauss(x, Hdelta_peak, 4102.859855*(1+z)/1e4, Nar_fwhm)
+        
+        
+        # [OIII] side of things
+    
+        OIII_nar = gauss(x, OIIIn_peak, 5008.24*(1+z)/1e4, Nar_fwhm) + gauss(x, OIIIn_peak/3, 4960.3*(1+z)/1e4, Nar_fwhm)
+        Hbeta_nar = gauss(x, Hbeta_peak, 4862.6*(1+z)/1e4, Nar_fwhm)
+        
+        NeIII = gauss(x, NeIII_peak, 3869.68*(1+z)/1e4, Nar_fwhm ) + gauss(x, 0.322*NeIII_peak, 3968.68*(1+z)/1e4, Nar_fwhm)
+        
+        OII = gauss(x, OII_peak, 3727.1*(1+z)/1e4, Nar_fwhm )  + gauss(x, OII_rat*OII_peak, 3729.875*(1+z)/1e4, Nar_fwhm) 
+        
+        OIIIc = gauss(x, OIIIc_peak, 4364.436*(1+z)/1e4, Nar_fwhm )
+        HeI = gauss(x, HeI_peak, 3889.73*(1+z)/1e4, Nar_fwhm )
+        HeII = gauss(x, HeII_peak, 4686.0*(1+z)/1e4, Nar_fwhm )
+    
+        contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
+    
+        return contm+Hal_nar+NII_nar_r+NII_nar_b + OIII_nar + Hbeta_nar + Hgamma_nar + Hdelta_nar + NeIII+ OII + OIIIc+ HeI+HeII
+    
+    # list of variable in the right order as in the function above. 
+    labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
+
+    
+    z = 6.4
+    dvmax = 1000/3e5*(1+z)
+    dvstd = 200/3e5*(1+z)
+
+    priors={'z':[z,'normal_hat', z, dvstd, z-dvmax, z+dvmax]}
     priors['cont']=[0.1,'loguniform', -3,1]
     priors['cont_grad']=[0.2,'normal', 0,0.2]
     priors['Hal_peak']=[5.,'loguniform', -3,1]
@@ -81,16 +134,15 @@ once this is initialized, we can use some of the prewritten models or use a cust
     priors['OII_rat']=[1,'normal_hat',1,0.2, 0.2,4]
     priors['OIIIaur_peak']=[0.2,'loguniform', -3,1]
     
-    # For variables:
-    labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
 
-In the few section I will describe fitting using these predefined models
-and how you can change some inputs.
+Then we can initialize the ``Fitting`` class as variable ``optical`` and then run it in the following manner: 
 
-For each function you can also chnage:
+.. code:: ipython3  
+    if __name__ == '__main__':
+        optical = emfit.Fitting(obs_wave, flux, error, z, prior_update=priors, N=5000, ncpu=3) 
+        optical.fitting_general( Full_optical, labels)
+        
 
-N - number of iterations in a chain (default= 6000) progress - default
-True (to see the progress bar)
 
 Fitting Halpha only
 ~~~~~~~~~~~~~~~~~~~
