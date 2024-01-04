@@ -36,7 +36,7 @@ At first we will look into the Fitting class, how it works, what results it gene
 First lets initalize the Fitting class:
 
 .. autoclass:: QubeSpec.Fitting.Fitting
-	:members: fitting_halpha, fitting_OIII, fitting_Halpha_OIII, fitting_general
+	:members: fitting_Halpha, fitting_OIII, fitting_Halpha_OIII, fitting_general
 
 
 The prior_update variable should be in a form of a dictionary like: 
@@ -103,7 +103,7 @@ Below I will show an example of such function that fits a spectrum from [OII] to
         HeI = gauss(x, HeI_peak, 3889.73*(1+z)/1e4, Nar_fwhm )
         HeII = gauss(x, HeII_peak, 4686.0*(1+z)/1e4, Nar_fwhm )
     
-        contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
+        contm = PowerLaw1D.evaluate(x, cont,6564.52*(1+z)/1e4, alpha=cont_grad)
     
         return contm+Hal_nar+NII_nar_r+NII_nar_b + OIII_nar + Hbeta_nar + Hgamma_nar + Hdelta_nar + NeIII+ OII + OIIIc+ HeI+HeII
     
@@ -136,7 +136,8 @@ Below I will show an example of such function that fits a spectrum from [OII] to
 
 Then we can initialize the ``Fitting`` class as variable ``optical`` and then run it in the following manner: 
 
-.. code:: ipython3 
+.. code:: ipython3
+
     if __name__ == '__main__':
         optical = emfit.Fitting(obs_wave, flux, error, z, prior_update=priors, N=5000, ncpu=3) 
         optical.fitting_general( Full_optical, labels)
@@ -145,7 +146,18 @@ Then we can initialize the ``Fitting`` class as variable ``optical`` and then ru
 Getting useful info out of the fit:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Regardless of method we use to fit the spectrum, the ``Fitting`` as ``optical`` class should now have few attributes with all of the results that we need: 
 
+* ``optical.fitted_model`` - returns model/function that was used to fit the spectrum
+* ``optical.yeval`` - return evaluated best fitted model
+* ``optical.chains`` - return dictionary with burned it chains - each variable has an array with all of the chain values (the names are either supplied by user as labels or are described by each of the fitting functions)
+* ``optical.like_chains`` - return likelihod evaluation for each of the chain value
+* ``optical.props`` - return a dictionary containing each variable (median) and the 68\% confidence interval. It also contains an array of best fit parameters ``optical.props['popt']`` that can be directly used to evaluate the ``fitted_model`` 
+* ``optical.BIC``, ``optical.chi2`` - BIC and chi2 value of the fit
+* ``optical.wave`` - wavelength used for the fit
+* ``optical.flux`` - flux used for the fit
+* ``optical.error`` - error on flux used for the fit
+* ``optical.corner()`` - method - plots a corner plot
 
 Fitting Halpha only
 ~~~~~~~~~~~~~~~~~~~
