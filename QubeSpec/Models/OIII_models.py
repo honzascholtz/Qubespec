@@ -11,12 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt; plt.ioff()
 
 from astropy.io import fits as pyfits
-from astropy import wcs
 from astropy.table import Table, join, vstack
-from matplotlib.backends.backend_pdf import PdfPages
-import pickle
 from astropy.modeling.powerlaws import PowerLaw1D
-
 
 pi= np.pi
 e= np.e
@@ -34,13 +30,7 @@ arrow = u'$\u2193$'
 from . import FeII_templates as pth
 PATH_TO_FeII = pth.__path__[0]+ '/'
 
-def find_nearest(array, value):
-    """ Find the location of an array closest to a value
-
-	"""
-    array = np.asarray(array)
-    idx = (np.abs(array - value)).argmin()
-    return idx
+from . import FeII_models as Fem
 
 def gauss(x, k, mu,FWHM):
     sig = FWHM/3e5*mu/2.35482
@@ -88,54 +78,7 @@ def OIII_outflow_BLR(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OI
 
     return y
 
-# =============================================================================
-# FeII code
-# =============================================================================
-from astropy.convolution import Gaussian1DKernel
-from astropy.convolution import convolve
-from scipy.interpolate import interp1d
-#Loading the template
-Veron_d = pyfits.getdata(PATH_TO_FeII+ 'Veron-cetty_2004.fits')
-Veron_hd = pyfits.getheader(PATH_TO_FeII+'Veron-cetty_2004.fits')
-Veron_wv = np.arange(Veron_hd['CRVAL1'], Veron_hd['CRVAL1']+ Veron_hd['NAXIS1'])
 
-Tsuzuki = np.loadtxt(PATH_TO_FeII+'FeII_Tsuzuki_opttemp.txt')
-Tsuzuki_d = Tsuzuki[:,1]
-Tsuzuki_wv = Tsuzuki[:,0]
-
-BG92 = np.loadtxt(PATH_TO_FeII+'bg92.con')
-BG92_d = BG92[:,1]
-BG92_wv = BG92[:,0]
-
-with open(PATH_TO_FeII+'Preconvolved_FeII.txt', "rb") as fp:
-    Templates= pickle.load(fp)
-
-def FeII_Veron(wave,z, FWHM_feii):
-
-    index = find_nearest(Templates['FWHMs'],FWHM_feii)
-    convolved = Templates['Veron_dat'][:,index]
-
-    fce = interp1d(Veron_wv*(1+z)/1e4, convolved , kind='cubic')
-
-    return fce(wave)
-
-def FeII_Tsuzuki(wave,z, FWHM_feii):
-
-    index = find_nearest(Templates['FWHMs'],FWHM_feii)
-    convolved = Templates['Tsuzuki_dat'][:,index]
-
-    fce = interp1d(Tsuzuki_wv*(1+z)/1e4, convolved , kind='cubic')
-
-    return fce(wave)
-
-def FeII_BG92(wave,z, FWHM_feii):
-
-    index = find_nearest(Templates['FWHMs'],FWHM_feii)
-    convolved = Templates['BG92_dat'][:,index]
-
-    fce = interp1d(BG92_wv*(1+z)/1e4, convolved , kind='cubic')
-
-    return fce(wave)
 
 def OIII_gal_BLR_Fe(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak,\
                   zBLR, Hbeta_blr_peak, BLR_fwhm,\
@@ -146,11 +89,11 @@ def OIII_gal_BLR_Fe(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak,\
     y += gauss(x, Hbeta_blr_peak, Hbeta_blr, BLR_fwhm )
 
     if template=='BG92':
-        FeII_fce = FeII_BG92
+        FeII_fce = Fem.FeII_BG92
     if template=='Tsuzuki':
-        FeII_fce = FeII_Tsuzuki
+        FeII_fce = Fem.FeII_Tsuzuki
     if template=='Veron':
-        FeII_fce = FeII_Veron
+        FeII_fce = Fem.FeII_Veron
 
     y += FeII_peak*FeII_fce(x, z, FeII_fwhm)
 
@@ -168,11 +111,11 @@ def OIII_outflow_BLR_Fe(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm,
     y += gauss(x, Hbeta_blr_peak, Hbeta_blr, BLR_fwhm )
 
     if template=='BG92':
-        FeII_fce = FeII_BG92
+        FeII_fce = Fem.FeII_BG92
     if template=='Tsuzuki':
-        FeII_fce = FeII_Tsuzuki
+        FeII_fce = Fem.FeII_Tsuzuki
     if template=='Veron':
-        FeII_fce = FeII_Veron
+        FeII_fce = Fem.FeII_Veron
 
     y += FeII_peak*FeII_fce(x, z, FeII_fwhm)
 

@@ -92,14 +92,6 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
 
     y_tot = res.yeval[fit_loc]
     y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
-    
-
-    try:
-        if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
-            y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],4862.6, sol['Hbeta_fwhm'][0])
-            sol['Hbeta_peak'][0] = 0
-    except:
-        QSOflags=1
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 
@@ -118,19 +110,9 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
                  ,color= 'green', linestyle ='dashed')
 
     if 'Hbeta_peak' in keys:
-        if 'Hbeta_fwhm' in keys:
-            Hbeta= 4862.6*(1+z)/1e4
-            Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
-            fwhm = sol['Hbeta_fwhm'][0]
-            ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
-                        color= 'orange', linestyle ='dashed')
-
-            #ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
-        else:
-            Hbeta= 4862.6*(1+z)/1e4
-            
-            fwhm = sol['Nar_fwhm'][0]
-            ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
+        Hbeta= 4862.6*(1+z)/1e4    
+        fwhm = sol['Nar_fwhm'][0]
+        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
                         color= 'orange', linestyle ='dashed')
 
 
@@ -152,28 +134,18 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
             ax.plot(wv_rest[fit_loc] ,  gauss(wave[fit_loc], sol['Hbeta_out_peak'][0],Hbeta_out_wv, fwhm),\
                         color= 'blue', linestyle ='dashed')
 
-
-    if 'Hbetan_fwhm' in keys:
-        Hbeta= 4862.6*(1+z)/1e4
-        Hbeta= Hbeta + sol['Hbetan_vel'][0]/3e5*Hbeta
-
-        fwhm = sol['Hbetan_fwhm'][0]
-        ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbetan_peak'][0],Hbeta, fwhm),\
-                     color= 'orange', linestyle ='dotted')
-
-
     if 'Fe_peak' in keys:
         ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
 
-        import Fitting_tools_mcmc as emfit
+        from . import Fitting as emfit
         if template=='BG92':
-            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_BG92(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_BG92(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
 
         if template=='Tsuzuki':
-            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_Tsuzuki(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_Tsuzuki(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
 
         if template=='Veron':
-            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
 
 
     if 'Hb_nar_peak' in keys:
@@ -203,13 +175,10 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
             Hbeta= 4862.6*(1+z)/1e4
             Hbeta_BLR_wv = 4862.6*(1+sol['zBLR'][0])/1e4
 
-            Hbeta_BLR = gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm1'][0])
-            Hbeta_BLR2= gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm2'][0])
-
+            Hbeta_BLR = gauss(wave[fit_loc], sol['BLR_Hbeta_peak'][0],Hbeta, sol['BLR_fwhm'][0])
 
             ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
             #ax.plot(wv_rest[fit_loc] , Hbeta_BLR2, color= 'orange', linestyle ='dashed')
-            ax.plot(wv_rest[fit_loc] , Hbeta_BLR+Hbeta_BLR2, color= 'orange', linestyle ='dashed')
 
     if residual !='none':
         resid_OIII = flux[fit_loc_sc]-y_tot_rs
@@ -327,9 +296,10 @@ def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
 
 
-def plotting_Halpha_OIII(res, ax,error=np.array([1]), residual='none', axres=None):
+def plotting_Halpha_OIII(res, ax,error=np.array([1]), residual='none', axres=None, template=0):
     sol = res.props
     popt = sol['popt']
+    keys = list(res.keys())
     z = popt[0]
 
     wave = res.wave
@@ -395,6 +365,19 @@ def plotting_Halpha_OIII(res, ax,error=np.array([1]), residual='none', axres=Non
     fwhm = sol['Nar_fwhm'][0]
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
             color= 'orange', linestyle ='dashed')
+    
+    if 'Fe_peak' in keys:
+        ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
+
+        import Fitting as emfit
+        if template=='BG92':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_BG92(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+
+        if template=='Tsuzuki':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_Tsuzuki(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+
+        if template=='Veron':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
 
     if 'OI_peak' in list(sol.keys()):
         OI = 6302.0*(1+z)/1e4
@@ -488,7 +471,7 @@ def plotting_general(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resi
         elif residual=='error':
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
 
-def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
+def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None, template=0):
 
     popt = sol['popt']
     z = popt[0]
@@ -554,6 +537,19 @@ def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([
     fwhm = sol['Nar_fwhm'][0]/3e5/2.35*Hbeta
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
             color= 'orange', linestyle ='dashed')
+
+    if 'Fe_peak' in keys:
+        ax.plot(wv_rest[fit_loc], PowerLaw1D.evaluate(wave[fit_loc], sol['cont'][0],OIIIr, alpha=sol['cont_grad'][0]), linestyle='dashed', color='limegreen')
+
+        import Fitting as emfit
+        if template=='BG92':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_BG92(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+
+        if template=='Tsuzuki':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_Tsuzuki(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
+
+        if template=='Veron':
+            ax.plot(wv_rest[fit_loc] , sol['Fe_peak'][0]*emfit.O_models.Fem.FeII_Veron(wave[fit_loc], z, sol['Fe_fwhm'][0]) , linestyle='dashed', color='magenta' )
 
     if 'HeII_peak' in list(sol.keys()):
         OI = 2224.*(1+z)/1e4

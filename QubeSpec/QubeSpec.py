@@ -1433,7 +1433,7 @@ class Cube:
                 'outflow_fwhm':[700,'uniform',600,2500],\
                 'outflow_vel':[-50,'normal',0,200],\
                 'Hbeta_peak':[0,'loguniform',-3,1],\
-                'Hbeta_blr_peak':[0,'loguniform',-3,1],\
+                'BLR_Hbeta_peak':[0,'loguniform',-3,1],\
                 'Hbeta_out_peak':[0,'loguniform',-3,1],\
                 'zBLR': [0,'normal_hat',0, 0, 0,0],\
                 'Fe_peak':[0,'loguniform',-3,1],\
@@ -1596,14 +1596,7 @@ class Cube:
             Exception('Sorry, models keyword not understood: QSO, QSO_BKPL, Outflow_only, Single_only, Outflow')
         
         
-        labels= list(self.D1_fit_results.keys())
-        print(labels)
-        fig = corner.corner(
-            sp.unwrap_chain(self.D1_fit_chain), 
-            labels=labels[1:],
-            quantiles=[0.16, 0.5, 0.84],
-            show_titles=True,
-            title_kwargs={"fontsize": 12})
+        self.D1_fit_full.corner()
         
         print(self.SNR)
         print(self.SNR_hb)
