@@ -73,12 +73,68 @@ from . import Map_creation as Maps
 from . import Spaxel_fitting as Spaxel
 
 
+def Shortcut(QubeSpec_setup):
+    """Quick function which does most of the prep of a of the data for fitting. 
+
+    :param QubeSpec_setup: dict - setup file for QubeSpec
+
+    :return: QubeSpec Cube object
+    """
+
+    print('Loading the data')
+    obj = Cube( Full_path = QubeSpec_setup['file'],\
+                z =  QubeSpec_setup['z'], \
+                ID =  QubeSpec_setup['ID'] ,\
+                flag =  QubeSpec_setup['instrument'] ,\
+                savepath = QubeSpec_setup['save_path'] ,\
+                Band = 'NIRSPEC',\
+                norm = QubeSpec_setup['norm'])
+    
+    print('Masking JWST')
+    obj.mask_JWST(0, threshold= QubeSpec_setup['mask_threshold'], spe_ma=QubeSpec_setup['mask_channels'])
+
+    print('Performing background subtraction')
+    if any(QubeSpec_setup['Source_mask']) !=None:
+        print('Loading source mask from file')
+        source_bkg = sp.QFitsview_mask(QubeSpec_setup['Source_mask']) # Loading background mask
+    
+    obj.background_subtraction( source_mask=source_bkg, wave_range=QubeSpec_setup['line_map_wavelength'], plot=1) # Doing 
+
+    print('PSF matching')
+    obj.PSF_matching(PSF_match = QubeSpec_setup['PSF_match'],\
+                    wv_ref= QubeSpec_setup['PSF_match_wv'])
+    
+    print('Creating Continuum map')
+    obj.collapse_white(1)
+
+    print('Extracting 1D collapsed spectrum')
+    obj.find_center(1, manual=QubeSpec_setup['Object_center'])
+    obj.D1_spectra_collapse(1, addsave='',rad=QubeSpec_setup['Aperture_extraction'], err_range=QubeSpec_setup['err_range'], boundary=QubeSpec_setup['err_boundary'], plot_err=1)
+    
+
+    return obj
+
 # ============================================================================
 #  Main class
 # =============================================================================
 class Cube:
-    
+    """Main Class for QubeSpec
+    """
     def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13,):
+        """_summary_
+
+        Args:
+            Full_path (str, optional): _description_. Defaults to ''.
+            z (str, optional): _description_. Defaults to ''.
+            ID (str, optional): _description_. Defaults to ''.
+            flag (str, optional): _description_. Defaults to ''.
+            savepath (str, optional): _description_. Defaults to ''.
+            Band (str, optional): _description_. Defaults to ''.
+            norm (_type_, optional): _description_. Defaults to 1e-13.
+
+        Raises:
+            Exception: _description_
+        """
         import importlib
         importlib.reload(emfit )
 
@@ -1079,7 +1135,7 @@ class Cube:
                 
                 self.z = self.D1_fit_results['popt'][0]
                 
-                self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
+                self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
                 self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
                 
@@ -1109,7 +1165,7 @@ class Cube:
             
             self.z = self.D1_fit_results['popt'][0]
             
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
             self.dBIC = 3
         
@@ -1124,7 +1180,7 @@ class Cube:
             
             self.z = self.D1_fit_results['popt'][0]
             
-            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hblr')
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
             self.dBIC = 3
             
@@ -1181,17 +1237,17 @@ class Cube:
         ax1.yaxis.tick_left()
         ax2.yaxis.tick_left()
         
-        emplot.plotting_Halpha(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2)
+        emplot.plotting_Halpha(self.D1_fit_full, ax1, error=error, residual='error', axres=ax2)
         
         self.fit_plot = [f,ax1,ax2]
         
         if (models=='BLR') | (models=='Outflow'):
             g, (ax1a,ax2a) = plt.subplots(2)
-            emplot.plotting_Halpha(wave, flux, ax1a, Fits_sig.props , Fits_sig.fitted_model)
+            emplot.plotting_Halpha(Fits_sig, ax1a)
             try:
-                emplot.plotting_Halpha(wave, flux, ax2a, Fits_blr.props , Fits_blr.fitted_model)
+                emplot.plotting_Halpha(Fits_blr, ax2a)
             except:
-                emplot.plotting_Halpha(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
+                emplot.plotting_Halpha(Fits_out, ax2a)
         
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Halpha_fit.pdf')
 
@@ -1242,6 +1298,8 @@ class Cube:
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
             self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+
             self.z = Fits_sig.props['popt'][0]
             
             self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
@@ -1261,7 +1319,8 @@ class Cube:
             self.D1_fit_chain = Fits_sig.chains
             self.D1_fit_model = Fits_sig.fitted_model
             self.z = Fits_sig.props['popt'][0]
-            
+            self.D1_fit_full = Fits_sig
+
             self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
             self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
             self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
@@ -1279,7 +1338,8 @@ class Cube:
              self.D1_fit_chain = Fits_sig.chains
              self.D1_fit_model = Fits_sig.fitted_model
              self.z = Fits_sig.props['popt'][0]
-             
+             self.D1_fit_full = Fits_sig
+
              self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
              self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
              self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
@@ -1296,7 +1356,8 @@ class Cube:
              self.D1_fit_chain = Fits_sig.chains
              self.D1_fit_model = Fits_sig.fitted_model
              self.z = Fits_sig.props['popt'][0]
-             
+             self.D1_fit_full = Fits_sig
+
              self.SNR_hal =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hn')
              self.SNR_sii =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'SII')
              self.SNR_OIII =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
@@ -1309,6 +1370,7 @@ class Cube:
              Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
              Fits_sig.fitting_Halpha_OIII(model='QSO_BKPL' )
              
+             self.D1_fit_full = Fits_sig
              self.D1_fit_results = Fits_sig.props
              self.D1_fit_chain = Fits_sig.chains
              self.D1_fit_model = Fits_sig.fitted_model
@@ -1339,7 +1401,7 @@ class Cube:
         else:
             baxes = brokenaxes(xlims=((4800,5050),(6400,6800)),  hspace=.01)
                 
-        emplot.plotting_Halpha_OIII(wave, flux, baxes, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error')                             
+        emplot.plotting_Halpha_OIII(self.D1_fit_full, baxes, error=error, residual='error')                             
         baxes.set_xlabel('Restframe wavelength (ang)')
 
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Halpha_OIII_fit.pdf')
@@ -1392,13 +1454,11 @@ class Cube:
                 Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_sig.fitting_OIII(model='gal', template=template,Hbeta_dual=Hbeta_dual )
                 
-                
                 Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_out.fitting_OIII(model='outflow', template=template,Hbeta_dual=Hbeta_dual )
             elif simple==1:
                 Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_sig.fitting_OIII(model='gal_simple' )
-                
                 
                 Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
                 Fits_out.fitting_OIII(model='outflow_simple' )
@@ -1456,8 +1516,8 @@ class Cube:
                 self.dBIC = BICM-BICS
             '''
             g, (ax1a,ax2a) = plt.subplots(2)
-            emplot.plotting_OIII(wave, flux, ax1a, Fits_sig.props , Fits_sig.fitted_model)
-            emplot.plotting_OIII(wave, flux, ax2a, Fits_out.props , Fits_out.fitted_model)
+            emplot.plotting_OIII(Fits_sig, ax1a)
+            emplot.plotting_OIII(Fits_out, ax2a)
             
             
         elif models=='Single_only':
@@ -1502,8 +1562,7 @@ class Cube:
         elif models=='QSO':
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_OIII(model='QSO', template=template)
-              
-               
+                 
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
             self.D1_fit_model = Fits_sig.fitted_model
@@ -1514,14 +1573,11 @@ class Cube:
             self.SNR =  3
             self.SNR_hb =  3
             self.dBIC = 3
-            
-            
-        
+           
         elif models=='QSO_bkp':
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, prior_update=priors)
             Fits_sig.fitting_OIII(model='QSO_BKPL', template=template)
-              
-               
+                
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
             self.D1_fit_model = Fits_sig.fitted_model
@@ -1554,7 +1610,7 @@ class Cube:
         ax1.yaxis.tick_left()
         ax2.yaxis.tick_left()
         
-        emplot.plotting_OIII(wave, flux, ax1, self.D1_fit_results ,self.D1_fit_model, error=error, residual='error', axres=ax2, template=template)
+        emplot.plotting_OIII(self.D1_fit_full, ax1, error=error, residual='error', axres=ax2, template=template)
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_OIII_fit.pdf')
 
         self.fit_plot = [f,ax1,ax2]  

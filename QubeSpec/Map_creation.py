@@ -87,7 +87,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             
             if SNR>SNR_cut:
                 try:
-                    emplot.plotting_OIII(Cube.obs_wave, Fits.fluxs, ax, Fits.props, Fits.fitted_model)
+                    emplot.plotting_OIII(Fits, ax)
                 except:
                     print(Fits.props, Fits.fitted_model)
                     break
@@ -501,7 +501,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 # =============================================================================
         f = plt.figure(figsize=(10,4))
         baxes = brokenaxes(xlims=((4800,5050),(6500,6800)),  hspace=.01)
-        emplot.plotting_Halpha_OIII(Cube.obs_wave, flx_spax_m, baxes, res_spx, modelfce)
+        emplot.plotting_Halpha_OIII(Fits,  baxes)
 
         #if res_spx['Hal_peak'][0]<3*error[0]:
         #    baxes.set_ylim(-error[0], 5*error[0])

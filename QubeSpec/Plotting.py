@@ -37,12 +37,10 @@ arrow = u'$\u2193$'
 
 from . import Fitting_tools_mcmc as emfit
 
-def gauss(x, k, mu,sig):
-
+def gauss(x, k, mu,FWHM):
+    sig = FWHM/3e5*mu/2.35482
     expo= -((x-mu)**2)/(2*sig*sig)
-
     y= k* e**expo
-
     return y
 
 def smooth(image,sm):
@@ -70,10 +68,14 @@ def twoD_Gaussian(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), template=0, residual='none',axres=None):
+def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axres=None):
+    sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
     z = popt[0]
+    wave = res.wave
+    fluxs = res.fluxs
+    error = res.error
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>4700)&(wv_rest<5200))[0]
 
@@ -88,22 +90,13 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     if len(error) !=1:
         ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
 
-
-    if template==0:
-        y_tot = fitted_model(wave[fit_loc], *popt)
-        y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt)
-    else:
-        y_tot = fitted_model(wave[fit_loc], *popt, template)
-        y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt, template)
-
+    y_tot = res.yeval[fit_loc]
+    y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
+    
 
     try:
         if sol['Hbeta_peak'][1]>(sol['Hbeta_peak'][0]*0.6):
-            Hbeta= 4862.6*(1+z)/1e4
-            fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
-
-            y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],4862.6, fwhm)
-
+            y_tot = y_tot- gauss(wv_rest[fit_loc], sol['Hbeta_peak'][0],4862.6, sol['Hbeta_fwhm'][0])
             sol['Hbeta_peak'][0] = 0
     except:
         QSOflags=1
@@ -116,23 +109,19 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     ax.tick_params(direction='in')
     ax.set_xlim(4700,5050 )
 
-
-
     OIIIr = 5008.24*(1+z)/1e4
     OIIIb = 4960.3*(1+z)/1e4
 
-    fwhm = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+    fwhm = sol['Nar_fwhm'][0]
 
-
-    ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIII_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_peak'][0],OIIIr, fwhm) \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['OIII_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_peak'][0],OIIIr, fwhm) \
                  ,color= 'green', linestyle ='dashed')
-
 
     if 'Hbeta_peak' in keys:
         if 'Hbeta_fwhm' in keys:
             Hbeta= 4862.6*(1+z)/1e4
             Hbeta= Hbeta + sol['Hbeta_vel'][0]/3e5*Hbeta
-            fwhm = sol['Hbeta_fwhm'][0]/3e5/2.35*Hbeta
+            fwhm = sol['Hbeta_fwhm'][0]
             ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
                         color= 'orange', linestyle ='dashed')
 
@@ -140,7 +129,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         else:
             Hbeta= 4862.6*(1+z)/1e4
             
-            fwhm = sol['Nar_fwhm'][0]/3e5/2.35*Hbeta
+            fwhm = sol['Nar_fwhm'][0]
             ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
                         color= 'orange', linestyle ='dashed')
 
@@ -149,7 +138,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         OIIIr = OIIIr+ sol['outflow_vel'][0]/3e5*OIIIr
         OIIIb = OIIIb + sol['outflow_vel'][0]/3e5*OIIIb
 
-        fwhm = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        fwhm = sol['outflow_fwhm'][0]
 
         ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['OIII_out_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_out_peak'][0],OIIIr, fwhm),\
                      color= 'blue', linestyle ='dashed')
@@ -158,7 +147,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
             Hbeta_wv = 4862.6*(1+z)/1e4
             Hbeta_out_wv = Hbeta_wv + sol['outflow_vel'][0]/3e5*Hbeta_wv
 
-            fwhm = sol['outflow_fwhm'][0]/3e5/2.35*Hbeta_out_wv
+            fwhm = sol['outflow_fwhm'][0]
 
             ax.plot(wv_rest[fit_loc] ,  gauss(wave[fit_loc], sol['Hbeta_out_peak'][0],Hbeta_out_wv, fwhm),\
                         color= 'blue', linestyle ='dashed')
@@ -168,7 +157,7 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
         Hbeta= 4862.6*(1+z)/1e4
         Hbeta= Hbeta + sol['Hbetan_vel'][0]/3e5*Hbeta
 
-        fwhm = sol['Hbetan_fwhm'][0]/3e5/2.35*Hbeta
+        fwhm = sol['Hbetan_fwhm'][0]
         ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbetan_peak'][0],Hbeta, fwhm),\
                      color= 'orange', linestyle ='dotted')
 
@@ -190,8 +179,8 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
     if 'Hb_nar_peak' in keys:
         Hbeta= 4862.6*(1+z)/1e4
 
-        Hbeta_NLR = gauss(wave[fit_loc], sol['Hb_nar_peak'][0],Hbeta, sol['Nar_fwhm'][0]/3e5/2.35*Hbeta)
-        Hbeta_NLR2= gauss(wave[fit_loc], sol['Hb_out_peak'][0],Hbeta+ sol['outflow_vel'][0]/3e5*Hbeta, sol['outflow_fwhm'][0]/3e5/2.35*Hbeta)
+        Hbeta_NLR = gauss(wave[fit_loc], sol['Hb_nar_peak'][0],Hbeta, sol['Nar_fwhm'][0])
+        Hbeta_NLR2= gauss(wave[fit_loc], sol['Hb_out_peak'][0],Hbeta+ sol['outflow_vel'][0]/3e5*Hbeta, sol['outflow_fwhm'][0])
 
 
         ax.plot(wv_rest[fit_loc] , Hbeta_NLR , color= 'orange', linestyle ='dotted')
@@ -214,8 +203,8 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
             Hbeta= 4862.6*(1+z)/1e4
             Hbeta_BLR_wv = 4862.6*(1+sol['zBLR'][0])/1e4
 
-            Hbeta_BLR = gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm1'][0]/3e5/2.35*Hbeta)
-            Hbeta_BLR2= gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm2'][0]/3e5/2.35*Hbeta)
+            Hbeta_BLR = gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm1'][0])
+            Hbeta_BLR2= gauss(wave[fit_loc], sol['Hb_BLR1_peak'][0],Hbeta, sol['Hb_BLR_fwhm2'][0])
 
 
             ax.plot(wv_rest[fit_loc] , Hbeta_BLR , color= 'orange', linestyle ='dashed')
@@ -237,9 +226,14 @@ def plotting_OIII(wave, fluxs, ax, sol,fitted_model, error=np.array([1]), templa
 
 
 
-def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
+def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
+    sol = res.props
     popt = sol['popt']
     z = popt[0]
+
+    wave = res.wave
+    fluxs = res.fluxs
+
     keys = list(sol.keys())
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
@@ -254,11 +248,10 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
     if len(error) !=1:
         ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
 
-    y_tot = fitted_model(wave[fit_loc], *popt)
-    y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt)
+    y_tot = res.yeval[fit_loc]
+    y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
-
 
     ax.set_ylim(-0.1*max(y_tot), max(y_tot)*1.1)
     ax.set_xlim(6564.52-250,6564.52+250 )
@@ -272,30 +265,30 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
     SII_b = 6718.29*(1+z)/1e4
 
 
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]), \
             color='orange', linestyle='dashed')
 
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]/3e5*NII_r/2.35), \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]), \
             color='darkgreen', linestyle='dashed')
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]/3e5*NII_b/2.35), \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]), \
             color='darkgreen', linestyle='dashed')
 
     if 'SIIr_peak' in keys:
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]/3e5*SII_r/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]), \
                 color='darkblue', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]/3e5*SII_b/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]), \
                 color='darkblue', linestyle='dashed')
 
     if 'zBLR' in keys:
         BLR_wv = 6564.52*(1+sol['zBLR'][0])/1e4
 
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['BLR_Hal_peak'][0], BLR_wv, sol['BLR_fwhm'][0]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['BLR_Hal_peak'][0], BLR_wv, sol['BLR_fwhm'][0]), \
                 color='magenta', linestyle='dashed')
 
     if 'Hal_out_peak' in keys:
-        out_vel_hal = sol['outflow_fwhm'][0]/3e5*Hal_wv/2.35482
-        out_vel_niir = sol['outflow_fwhm'][0]/3e5*NII_r/2.35482
-        out_vel_niib = sol['outflow_fwhm'][0]/3e5*NII_b/2.35482
+        out_vel_hal = sol['outflow_fwhm'][0]
+        out_vel_niir = sol['outflow_fwhm'][0]
+        out_vel_niib = sol['outflow_fwhm'][0]
 
         Hal_wv_vel = 6564.52*(1+z)/1e4+ sol['outflow_vel'][0]/3e5*Hal_wv
         NII_r_vel = 6585.27*(1+z)/1e4 + sol['outflow_vel'][0]/3e5*Hal_wv
@@ -334,10 +327,13 @@ def plotting_Halpha(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), resid
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
 
 
-def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), residual='none', axres=None):
-
+def plotting_Halpha_OIII(res, ax,error=np.array([1]), residual='none', axres=None):
+    sol = res.props
     popt = sol['popt']
     z = popt[0]
+
+    wave = res.wave
+    fluxs = res.fluxs
 
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>100.)&(wv_rest<16000.))[0]
@@ -354,9 +350,8 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
     #if len(error) !=1:
     #    ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
     #    ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
-
-    y_tot = fitted_model(wave[fit_loc], *popt)
-    y_tot_rs = fitted_model(wv_rst_sc[fit_loc_sc]*(1+z)/1e4, *popt)
+    y_tot = res.yeval[fit_loc]
+    y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 
@@ -371,24 +366,24 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
     SII_r = 6732.67*(1+z)/1e4
     SII_b = 6718.29*(1+z)/1e4
 
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]), \
             color='orange', linestyle='dashed')
 
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]), \
             color='darkgreen', linestyle='dashed')
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]), \
             color='darkgreen', linestyle='dashed')
 
     if 'SIIr_peak' in list(sol.keys()):
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]), \
                 color='darkblue', linestyle='dashed')
-        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]/3e5*Hal_wv/2.35), \
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIb_peak'][0], SII_b, sol['Nar_fwhm'][0]), \
                 color='darkblue', linestyle='dashed')
 
     OIII_r = OIIIr = 5008.24*(1+z)/1e4
     OIII_b = OIIIb = 4960.3*(1+z)/1e4
 
-    fwhm = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+    fwhm = sol['Nar_fwhm'][0]
     try:
         ax.plot(wv_rest[fit_loc] ,    gauss(wave[fit_loc], sol['OIII_peak'][0]/3,OIIIb, fwhm)+ gauss(wave[fit_loc], sol['OIII_peak'][0],OIIIr, fwhm) \
             ,color= 'green', linestyle ='dashed')
@@ -397,26 +392,25 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
                 ,color= 'green', linestyle ='dashed')
 
     Hbeta= 4862.6*(1+z)/1e4
-    fwhm = sol['Nar_fwhm'][0]/3e5/2.35*Hbeta
+    fwhm = sol['Nar_fwhm'][0]
     ax.plot(wv_rest[fit_loc] ,   gauss(wave[fit_loc], sol['Hbeta_peak'][0],Hbeta, fwhm),\
             color= 'orange', linestyle ='dashed')
 
     if 'OI_peak' in list(sol.keys()):
         OI = 6302.0*(1+z)/1e4
-        fwhm = sol['Nar_fwhm'][0]/3e5/2.35*OI
+        fwhm = sol['Nar_fwhm'][0]
         ax.plot(wv_rest[fit_loc] , gauss(wave[fit_loc], sol['OI_peak'][0],OI, fwhm), color='green', linestyle='dashed')
 
     if 'outflow_vel' in list(sol.keys()):
         OI = 6302.0*(1+z)/1e4
 
-        Out_vel_hal = sol['outflow_fwhm'][0]/3e5*Hal_wv/2.35482
-        Out_vel_niir = sol['outflow_fwhm'][0]/3e5*NII_r/2.35482
-        Out_vel_niib = sol['outflow_fwhm'][0]/3e5*NII_b/2.35482
-        Out_vel_oiiir = sol['outflow_fwhm'][0]/3e5*OIII_r/2.35482
-        Out_vel_oiiib = sol['outflow_fwhm'][0]/3e5*OIII_b/2.35482
-        Out_vel_oi = sol['outflow_fwhm'][0]/3e5*OI/2.35482
-        Out_vel_hbe = sol['outflow_fwhm'][0]/3e5*Hbeta/2.35482
-
+        Out_vel_hal = sol['outflow_fwhm'][0]
+        Out_vel_niir = sol['outflow_fwhm'][0]
+        Out_vel_niib = sol['outflow_fwhm'][0]
+        Out_vel_oiiir = sol['outflow_fwhm'][0]
+        Out_vel_oiiib = sol['outflow_fwhm'][0]
+        Out_vel_oi = sol['outflow_fwhm'][0]
+        Out_vel_hbe = sol['outflow_fwhm'][0]
 
         Hal_wv = 6564.52*(1+z)/1e4   + sol['outflow_vel'][0]/3e5*Hal_wv
         NII_r = 6585.27*(1+z)/1e4 + sol['outflow_vel'][0]/3e5*NII_r
@@ -444,8 +438,8 @@ def plotting_Halpha_OIII(wave, fluxs, ax, sol,fitted_model,error=np.array([1]), 
         Hal_wv = 6564.52*(1+z)/1e4
         Hbe_wv = 4862.6*(1+z)/1e4
 
-        BLR_sig_hal = sol['BLR_fwhm'][0]/3e5*Hal_wv/2.35482
-        BLR_sig_hbe = sol['BLR_fwhm'][0]/3e5*Hbe_wv/2.35482
+        BLR_sig_hal = sol['BLR_fwhm'][0]
+        BLR_sig_hbe = sol['BLR_fwhm'][0]
 
         BLR_wv_hal = 6564.52*(1+sol['zBLR'][0])/1e4
         BLR_wv_hbe = 4862.6*(1+sol['zBLR'][0])/1e4
@@ -583,7 +577,7 @@ def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([
         NII_b = 6549.86*(1+z)/1e4 + sol['outflow_vel'][0]/3e5*NII_b
         OIII_r = 5008.24*(1+z)/1e4 + sol['outflow_vel'][0]/3e5*OIII_r
         OIII_b = 4960.3*(1+z)/1e4  + sol['outflow_vel'][0]/3e5*OIII_b
-        OI = 4686.0*(1+z)/1e4 + sol['outflow_vel'][0]/3e5*OI
+        OI = 6300*(1+z)/1e4 + sol['outflow_vel'][0]/3e5*OI
         Hbeta = 4862.6*(1+z)/1e4  + sol['outflow_vel'][0]/3e5* Hbeta
         SII_r = 6732.67*(1+z)/1e4  + sol['outflow_vel'][0]/3e5*SII_r
         SII_b = 6718.29*(1+z)/1e4   + sol['outflow_vel'][0]/3e5*SII_b

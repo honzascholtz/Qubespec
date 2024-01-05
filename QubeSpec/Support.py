@@ -172,8 +172,6 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     sol = dictsol['popt']
     wave = wave[np.invert(flux.mask)]
     flux = flux.data[np.invert(flux.mask)]
-    
-    wv_or = wave.copy()
     keys = list(dictsol.keys())
     
     if mode=='general':
@@ -201,16 +199,13 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
             model = flux-contfce 
         else:   
             fwhm = sol[4]/3e5*center
-            
-            model = flux- PowerLaw1D.evaluate(wave,sol[1],center, alpha=sol[2])
-            
+            model = flux- PowerLaw1D.evaluate(wave,sol[1],center, alpha=sol[2])        
             
     elif mode =='Hn':
         center = Hal*(1+sol[0])/1e4
-        
+
         fwhm = dictsol['Nar_fwhm'][0]/3e5*center
         model = gauss(wave, dictsol['Hal_peak'][0], center, fwhm/2.35)
-        
     
     elif mode =='Hblr':
         center = Hal*(1+sol[0])/1e4
