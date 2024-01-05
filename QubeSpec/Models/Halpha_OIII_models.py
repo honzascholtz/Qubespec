@@ -102,12 +102,23 @@ def log_prior_Halpha_OIII(theta, priors):
     for t,p in zip( theta, priors):
         if p[0] ==0:
             results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-        elif p[0] ==1:
-            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+            #results+= norm.pdf(t, p[1], p[2])
+        elif p[0]==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
             results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
         elif p[0]==3:
             results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        elif p[0]==4:
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+        elif p[0]==5:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
 
     return results
 
@@ -182,12 +193,23 @@ def log_prior_Halpha_OIII_outflow(theta, priors):
     for t,p in zip( theta, priors):
         if p[0] ==0:
             results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-        elif p[0] ==1:
-            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+            #results+= norm.pdf(t, p[1], p[2])
+        elif p[0]==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
             results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
         elif p[0]==3:
             results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        elif p[0]==4:
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+        elif p[0]==5:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
 
     return results
 
@@ -242,12 +264,23 @@ def log_prior_Halpha_OIII_BLR(theta, priors):
     for t,p in zip( theta, priors):
         if p[0] ==0:
             results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-        elif p[0] ==1:
-            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+            #results+= norm.pdf(t, p[1], p[2])
+        elif p[0]==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
             results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
         elif p[0]==3:
             results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        elif p[0]==4:
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+        elif p[0]==5:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
 
     return results
 
@@ -288,11 +321,22 @@ def log_prior_Halpha_OIII_BLR_simple(theta, priors):
     for t,p in zip( theta, priors):
         if p[0] ==0:
             results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
-        elif p[0] ==1:
-            results+= np.log((p[1]<t<p[2])/(p[2]-p[1]))
+            #results+= norm.pdf(t, p[1], p[2])
+        elif p[0]==1:
+            results+= np.log((p[1]<t<p[2])/(p[2]-p[1])) 
         elif p[0]==2:
             results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
         elif p[0]==3:
             results+= np.log((p[1]<np.log10(t)<p[2])/(p[2]-p[1]))
+        elif p[0]==4:
+            if p[3]<t<p[4]:
+                results += -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
+            else:
+                results += -np.inf
+        elif p[0]==5:
+            if p[3]<np.log10(t)<p[4]:
+                results+= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
+            else:
+                results += -np.inf
 
     return results
