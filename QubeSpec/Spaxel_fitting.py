@@ -310,7 +310,7 @@ def Spaxel_fitting_general_toptup(Cube, to_fit ,fitted_model, labels, priors, lo
             z = Cube.z
             use = data['use'] 
 
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=data['N'],progress=True, prior_update=data['priors'])
+            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=data['N'],progress=True, priors=data['priors'])
             Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
             Fits_sig.fitted_model = 0
     
@@ -332,7 +332,7 @@ def Spaxel_fitting_general_toptup(Cube, to_fit ,fitted_model, labels, priors, lo
     print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
 
-def Spaxel_fitting_Halpha_OIII_toptup(Cube, to_fit ,add='',Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+def Spaxel_fitting_Halpha_OIII_toptup(Cube, to_fit ,add='',progress=True, Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
@@ -368,24 +368,24 @@ def Spaxel_fitting_Halpha_OIII_toptup(Cube, to_fit ,add='',Ncores=(mp.cpu_count(
             flx_spax_m, error, wave = res.fluxs, res.error, res.wave
 
             if models=='Single':
-                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=True, prior_update=priors)
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, Cube.z,N=10000,progress=progress, priors=priors)
                 Fits_sig.fitting_Halpha_OIII(model='gal' )
                 Fits_sig.fitted_model = 0
                 Cube_res[i]  = [x,y,Fits_sig ]
             
             elif models=='BLR':
-                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=True, prior_update=priors)
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, Cube.z,N=10000,progress=progress, priors=priors)
                 Fits_sig.fitting_Halpha_OIII(model='BLR' )
                 Fits_sig.fitted_model = 0
                 Cube_res[i]  = [x,y,Fits_sig ]
 
             elif models=='outflow_both':
-                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, Cube.z,N=10000,progress=progress, priors=priors)
                 Fits_sig.fitting_Halpha_OIII(model='gal' )
                 Fits_sig.fitted_model = 0
                 
                 
-                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, Cube.z,N=10000,progress=progress, priors=priors)
                 Fits_out.fitting_Halpha_OIII(model='outflow' )
                 Fits_out.fitted_model = 0
 

@@ -177,7 +177,7 @@ class R1000:
             priors['z'] = [self.z, 'normal', self.z, dvstd]
             
             
-            self.Hal_fits = emfit.Fitting(self.Hal_obs_wave, self.Hal_flux, self.Hal_error, self.z, N=N, progress=progress, prior_update=priors)
+            self.Hal_fits = emfit.Fitting(self.Hal_obs_wave, self.Hal_flux, self.Hal_error, self.z, N=N, progress=progress, priors=priors)
             self.Hal_fits.fitting_Halpha(model='gal')
             
             f,ax = plt.subplots(1)
@@ -207,7 +207,7 @@ class R1000:
 
         if self.O3_band != None:  
             priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
-            self.O3_fits = emfit.Fitting(self.O3_obs_wave, self.O3_flux, self.O3_error, self.z, N=N, progress=progress, prior_update=priors)
+            self.O3_fits = emfit.Fitting(self.O3_obs_wave, self.O3_flux, self.O3_error, self.z, N=N, progress=progress, priors=priors)
             
             self.O3_fits.fitting_OIII(model='gal_simple')
             
@@ -322,7 +322,7 @@ class R100:
             priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
             
             
-            self.Hal_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, prior_update=priors)
+            self.Hal_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
             self.Hal_fits.fitting_Halpha(model='gal')
             
             f,ax = plt.subplots(1)
@@ -352,7 +352,7 @@ class R100:
         
         if self.O3_band != None:  
             priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
-            self.O3_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, prior_update=priors)
+            self.O3_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
             
             self.O3_fits.fitting_OIII(model='gal')
             

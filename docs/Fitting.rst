@@ -34,7 +34,7 @@ First lets initalize the Fitting class:
 	:members: fitting_Halpha, fitting_OIII, fitting_Halpha_OIII, fitting_general
 
 
-The prior_update variable should be in a form of a dictionary like: 
+The priors variable should be in a form of a dictionary like: 
 
 .. code:: ipython3
     priors = {}
@@ -134,7 +134,7 @@ Then we can initialize the ``Fitting`` class as variable ``optical`` and then ru
 .. code:: ipython3
 
     if __name__ == '__main__':
-        optical = emfit.Fitting(obs_wave, flux, error, z, prior_update=priors, N=5000, ncpu=3) 
+        optical = emfit.Fitting(obs_wave, flux, error, z, priors=priors, N=5000, ncpu=3) 
         optical.fitting_general( Full_optical, labels)
 
 
@@ -205,7 +205,7 @@ models - Single_only, Outflow_only, BLR_only, BLR, Outflow, QSO_BKPL
 
 .. code:: ipython3
 
-    Cube.fitting_collapse_Halpha(models='Outflow') # prior_update=priors
+    Cube.fitting_collapse_Halpha(models='Outflow') # priors=priors
     plt.show()
 
 
@@ -335,7 +335,7 @@ Very highly experimental, still under development, use at your risk!
     
     
     if __name__ == '__main__':
-        optical_cus = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, prior_update=priors, N=5000, ncpu=1) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
+        optical_cus = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=1) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
         optical_cus.fitting_custom(model_inputs, model_name='test')
     
 

@@ -475,6 +475,7 @@ def plotting_Halpha_OIII_HeII(wave, fluxs, ax, sol,fitted_model,error=np.array([
 
     popt = sol['popt']
     z = popt[0]
+    keys = list(sol.keys())
 
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>100.)&(wv_rest<16000.))[0]

@@ -78,13 +78,13 @@ class Fitting:
     progress : bool - optional
         progress bar for the emcee bit
 
-    prior_update: dict - optional
+    priors: dict - optional
         dictionary with all of the priors to update
         
     """
        
-    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, prior_update= {'z':[0, 'normal', 0,0.003]}):
-        
+    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal', 0,0.003]}):
+        priors_update = priors.copy()
         priors= {'z':[0, 'normal', 0,0.003],\
                 'cont':[0,'loguniform',-4,1],\
                 'cont_grad':[0,'normal',0,0.3], \
@@ -108,8 +108,8 @@ class Fitting:
                 'SIIb_peak':[0,'loguniform', -3,1],\
                 'BLR_Hbeta_peak':[0,'loguniform', -3,1]}
         
-        for name in list(prior_update.keys()):
-            priors[name] = prior_update[name]
+        for name in list(priors_update.keys()):
+            priors[name] = priors_update[name]
 
         self.N = N # Number of points in the chains
         self.priors = priors # storing priors
@@ -294,7 +294,7 @@ class Fitting:
     # Primary function to fit [OIII] with and without outflows. 
     # =============================================================================
     
-    def fitting_OIII(self, model, template=0, plot=0):
+    def fitting_OIII(self, model, Fe_template=0, plot=0):
         """ Method to fit [OIII] + Hbeta
         
         Parameters
@@ -313,7 +313,7 @@ class Fitting:
         """
         
         self.model = model
-        self.template = template
+        self.template = Fe_template
         if self.priors['z'][0]==0:
             self.priors['z'][0]=self.z
             if (self.priors['z'][1]=='normal_hat') & (self.priors['z'][2]==0):
@@ -516,7 +516,7 @@ class Fitting:
         self.wave_fitloc = self.wave[self.fit_loc]
         self.error_fitloc = self.error[self.fit_loc]
         
-        if template==0:
+        if self.template==0:
             sampler = emcee.EnsembleSampler(
                     nwalkers, ndim, self.log_probability_general, args=())
         else:
@@ -1247,7 +1247,7 @@ def Fitting_OIII_unwrap(lst):
     with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
         priors= pickle.load(fp) 
     
-    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
+    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
     Fits_sig.fitting_OIII(model='gal_simple')
     Fits_sig.fitted_model = 0
     
@@ -1261,7 +1261,7 @@ def Fitting_Halpha_OIII_unwrap(lst, progress=False):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         Fits_sig.fitted_model = 0
         
@@ -1278,7 +1278,7 @@ def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='BLR' )
         Fits_sig.fitted_model = 0
         
@@ -1298,11 +1298,11 @@ def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_sig.fitting_Halpha_OIII(model='gal' )
         Fits_sig.fitted_model = 0
         
-        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, prior_update=priors)
+        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
         Fits_out.fitting_Halpha_OIII(model='outflow' )
         Fits_out.fitted_model = 0
         
@@ -1320,11 +1320,11 @@ def Fitting_OIII_2G_unwrap(lst):
     i,j,flx_spax_m, error, wave, z = lst
     
     try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
+        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
         Fits_sig.fitting_OIII(model='gal_simple')
         Fits_sig.fitted_model = 0
         
-        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
+        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
         Fits_out.fitting_OIII(model='outflow_simple')
         Fits_out.fitted_model = 0
         
@@ -1347,7 +1347,7 @@ def Fitting_Halpha_unwrap(lst):
     deltav = 1500
     deltaz = deltav/3e5*(1+z)
     
-    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, prior_update=priors)
+    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
     Fits_sig.fitting_Halpha(model='gal')
     Fits_sig.fitted_model = 0
     
@@ -1367,7 +1367,7 @@ def Fitting_general_unwrap(lst, progress=False):
         use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
     try:
-        Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, prior_update=data['priors'])
+        Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
         Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
         Fits_sig.fitted_model = 0
       
