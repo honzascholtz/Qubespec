@@ -45,14 +45,12 @@ SII_b = 6718.29
 
 from astropy.modeling.powerlaws import PowerLaw1D
 
-def test():
-    x=1
-
-def gauss(x,k,mu,sig):
+def gauss(x, k, mu,FWHM):
+    sig = FWHM/3e5*mu/2.35482
     expo= -((x-mu)**2)/(2*sig*sig)
-    
+
     y= k* e**expo
-    
+
     return y
 
 def find_nearest(array, value):
@@ -176,14 +174,14 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     
     if mode=='general':
         center = wv_cent*(1+dictsol['z'][0])/1e4
-        fwhm = dictsol[fwhm_name][0]/3e5*center
+        fwhm = dictsol[fwhm_name][0]
         contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
-        model = gauss(wave, dictsol[peak_name][0],center, fwhm/2.215)
+        model = gauss(wave, dictsol[peak_name][0],center, fwhm)
     elif mode =='OIII':
         center = OIIIr*(1+sol[0])/1e4
         if 'outflow_fwhm' in keys:
             fwhms = sol[5]/3e5*center
-            fwhm = dictsol['outflow_fwhm'][0]/3e5*center
+            fwhm = dictsol['outflow_fwhm'][0]
             
             center = OIIIr*(1+sol[0])/1e4
             centerw = OIIIr*(1+sol[0])/1e4 + sol[7]/3e5*center
@@ -191,7 +189,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
             contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
             model = flux-contfce 
         elif 'Nar_fwhm' in keys:
-            fwhm = dictsol['Nar_fwhm'][0]/3e5*center
+            fwhm = dictsol['Nar_fwhm'][0]
             
             center = OIIIr*(1+sol[0])/1e4
             
@@ -204,8 +202,8 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     elif mode =='Hn':
         center = Hal*(1+sol[0])/1e4
 
-        fwhm = dictsol['Nar_fwhm'][0]/3e5*center
-        model = gauss(wave, dictsol['Hal_peak'][0], center, fwhm/2.35)
+        fwhm = dictsol['Nar_fwhm'][0]
+        model = gauss(wave, dictsol['Hal_peak'][0], center, fwhm)
     
     elif mode =='Hblr':
         center = Hal*(1+sol[0])/1e4
@@ -215,31 +213,31 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
             
     elif mode =='NII':
         center = NII_r*(1+sol[0])/1e4
-        fwhm = dictsol['Nar_fwhm'][0]/3e5*center
-        model = gauss(wave, dictsol['NII_peak'][0], center, fwhm/2.35)
+        fwhm = dictsol['Nar_fwhm'][0]
+        model = gauss(wave, dictsol['NII_peak'][0], center, fwhm)
     
     elif mode =='Hb':
         center = Hbe*(1+sol[0])/1e4
         if 'Hbetan_fwhm' in keys:
-            fwhm = dictsol['Hbetan_fwhm'][0]/3e5*center
-            model = gauss(wave, dictsol['Hbetan_peak'][0], center, fwhm/2.35)
+            fwhm = dictsol['Hbetan_fwhm'][0]
+            model = gauss(wave, dictsol['Hbetan_peak'][0], center, fwhm)
         elif 'Nar_fwhm' in keys:
-            fwhm = dictsol['Nar_fwhm'][0]/3e5*center
-            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm/2.35)
+            fwhm = dictsol['Nar_fwhm'][0]
+            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm)
         else:
-            fwhm = dictsol['Hbeta_fwhm'][0]/3e5*center
-            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm/2.35)
+            fwhm = dictsol['Hbeta_fwhm'][0]
+            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm)
     
     elif mode =='SII':
         center = SII_r*(1+sol[0])/1e4
         
-        fwhm = dictsol['Nar_fwhm'][0]/3e5*center
+        fwhm = dictsol['Nar_fwhm'][0]
         try:
-            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm/2.35) 
-            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm/2.35) 
+            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm) 
+            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm) 
         except:
-            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm/2.35) 
-            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm/2.35) 
+            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm) 
+            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm) 
         
         model = model_r + model_b
         
@@ -527,8 +525,21 @@ def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fw
     p16 = p50-p16
     p84 = p84-p50
     return p50, p16, p84
+
+
+def vel_percentiles(Fits, fwhm_names, vel_names, vel_percentiles,z=0, error_range=(16,50,84)):
+    """_summary_
+
+    :param Fits: _description_
+    :param percentiles: _description_
+    :param error_range: _description_, defaults to (16,50,84)
+    """
+
+
+    return 0
+
         
-def W80_OIII_calc( function, sol, chains, plot):
+def W80_OIII_calc( sol, chains, plot):
     popt = sol['popt']     
     
     import scipy.integrate as scpi
@@ -550,8 +561,8 @@ def W80_OIII_calc( function, sol, chains, plot):
     if 'outflow_fwhm' in sol:
         OIIIr = 5008.24*(1+popt[0])/1e4
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*OIIIr
-        fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*OIIIr
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)
+        fwhmws = np.random.choice(chains['outflow_fwhm'], N)
         
         OIIIrws = cent + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
         
@@ -587,8 +598,8 @@ def W80_OIII_calc( function, sol, chains, plot):
     elif 'Nar_fwhm' in sol:
         OIIIr = 5008.24*(1+popt[0])/1e4
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*OIIIr
-        fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*OIIIr
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)
+        fwhmws = np.random.choice(chains['outflow_fwhm'], N)
         
         OIIIrws = OIIIr + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
         
@@ -625,7 +636,7 @@ def W80_OIII_calc( function, sol, chains, plot):
     else:
         OIIIr = 5008.24*(1+popt[0])/1e4
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*OIIIr
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)
         peakn = np.random.choice(chains['OIII_peak'], N)
         
         
@@ -659,7 +670,7 @@ def W80_OIII_calc( function, sol, chains, plot):
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
 
 
-def W80_OIII_calc_single( function, sol, plot, z=0, peak=0):
+def W80_OIII_calc_single(sol, plot, z=0, peak=0):
     popt = sol['popt']  
     
     if z==0:
@@ -678,10 +689,10 @@ def W80_OIII_calc_single( function, sol, plot, z=0, peak=0):
     
     OIIIr = 5008.24*(1+sol['z'][0])/1e4
     
-    fwhms = sol['Nar_fwhm'][0]/3e5/2.35*OIIIr
+    fwhms = sol['Nar_fwhm'][0]
     peakn = sol['OIII_peak'][0]
     if 'out_vel_n2' in sol:  
-        fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
+        fwhmws = sol['outflow_fwhm'][0]
         OIIIrws = OIIIr + sol['outflow_vel'][0]/3e5*OIIIr
         peakw = sol['OIII_out_peak'][0]
         
@@ -692,8 +703,8 @@ def W80_OIII_calc_single( function, sol, plot, z=0, peak=0):
         y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws) + gauss(wvs, peakn2, OIIIr +out_vel_wv_n2, fwhmn2)
     
     elif 'outflow_fwhm' in sol:  
-        fwhmws = sol['outflow_fwhm'][0]/3e5/2.35*OIIIr
-        OIIIrws = OIIIr + sol['outflow_vel'][0]/3e5*OIIIr
+        fwhmws = sol['outflow_fwhm'][0]
+        OIIIrws = OIIIr + sol['outflow_vel'][0]
         peakw = sol['OIII_out_peak'][0]
         y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
     
@@ -733,7 +744,7 @@ def W80_OIII_calc_single( function, sol, plot, z=0, peak=0):
 
 
 
-def W80_Halpha_calc( function, sol, chains, plot,z=0):
+def W80_Halpha_calc(sol, chains, plot,z=0):
     popt = sol['popt'] 
     if z==0:
         z=popt[0]
@@ -757,8 +768,8 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
     if 'outflow_fwhm' in sol:
         Halpha = 6564.52*(1+chains['z'])/1e4
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
-        fwhmws = np.random.choice(chains['outflow_fwhm'], N)/3e5/2.35*Halpha
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)
+        fwhmws = np.random.choice(chains['outflow_fwhm'], N)
         
         Halpha_out = Halpha+ np.random.choice(chains['outflow_vel'], N)/3e5*Halpha
         
@@ -794,7 +805,7 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
     else:
         Halpha = 6564.52*(1+z)/1e4
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)/3e5/2.35*Halpha
+        fwhms = np.random.choice(chains['Nar_fwhm'], N)
         peakn = np.random.choice(chains['Hal_peak'], N)
         
         
@@ -827,7 +838,7 @@ def W80_Halpha_calc( function, sol, chains, plot,z=0):
            
     return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
 
-def W80_Halpha_calc_single( function, sol, plot, z=0):
+def W80_Halpha_calc_single( sol, plot, z=0):
     popt = sol['popt']  
     
     if z==0:
@@ -848,8 +859,8 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     if 'outflow_fwhm' in sol:
         Halc = 6564.52*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*Halc
-        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*Halc
+        fwhms = sol['Nar_fwhm'][0]
+        fwhmws =sol['outflow_fwhm'][0]
         
         Halcw = Halc + sol['outflow_vel'][0]/3e5*Halc
         
@@ -861,7 +872,7 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     else:
         Halc = 6564.52*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*Halc
+        fwhms = sol['Nar_fwhm'][0]
         peakn = sol['Hal_peak'][0]
         
         
@@ -888,7 +899,7 @@ def W80_Halpha_calc_single( function, sol, plot, z=0):
     return v10,v90, w80, v50
 
 
-def W80_NII_calc_single( function, sol, plot, z=0):
+def W80_NII_calc_single( sol, plot, z=0):
     popt = sol['popt']  
     
     if z==0:
@@ -909,8 +920,8 @@ def W80_NII_calc_single( function, sol, plot, z=0):
     if 'outflow_fwhm' in sol:
         NIIr = 6585.27*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*NIIr
-        fwhmws =sol['outflow_fwhm'][0]/3e5/2.35*NIIr
+        fwhms = sol['Nar_fwhm'][0]
+        fwhmws =sol['outflow_fwhm'][0]
         
         NIIrws = NIIr + sol['outflow_vel'][0]/3e5*NIIr
         
@@ -922,7 +933,7 @@ def W80_NII_calc_single( function, sol, plot, z=0):
     else:
         NIIr = 6585.27*(1+sol['z'][0])/1e4
         
-        fwhms = sol['Nar_fwhm'][0]/3e5/2.35*NIIr
+        fwhms = sol['Nar_fwhm'][0]
         peakn = sol['NII_peak'][0]
         
         

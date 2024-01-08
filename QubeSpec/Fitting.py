@@ -917,6 +917,15 @@ class Fitting:
         except:
             self.yeval = np.zeros_like(self.wave)
 
+        try:
+            self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
+        except:
+            self.yeval_fitloc = np.zeros_like(self.wave_fitloc)
+        
+        self.chi2 = np.nansum(((self.flux_fitloc-self.yeval_fitloc)/self.error_fitloc)**2)
+        self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
+
+
     def fitting_general_test(self, fitted_model, labels, logprior=None, nwalkers=64, template=None):
         """ Fitting any general function that you pass. You need to put in fitted_model, labels and
         you can pass logprior function or number of walkers.        

@@ -71,7 +71,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
                 map_oiii[3,i,j] = p84_oiii.copy()
 
 
-                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc_single(fitted_model, Fits.props, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
+                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc_single( Fits.props, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
 
                 p = ax.get_ylim()[1]
 
@@ -483,10 +483,10 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_hal[3,i,j] = p84_hal.copy()
 
             if 'Hal_out_peak' in list(res_spx.keys()):
-                map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = sp.W80_Halpha_calc_single(modelfce, res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
+                map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = sp.W80_Halpha_calc_single( res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
 
             else:
-                map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = sp.W80_Halpha_calc_single(modelfce, res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
+                map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = sp.W80_Halpha_calc_single( res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
 
 
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
@@ -523,10 +523,10 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_nii[3,i,j] = p84_NII.copy()
 
             if 'NII_out_peak' in list(res_spx.keys()):
-                map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = sp.W80_NII_calc_single(modelfce, res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
+                map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = sp.W80_NII_calc_single( res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
 
             else:
-                map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = sp.W80_NII_calc_single(modelfce, res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
+                map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = sp.W80_NII_calc_single( res_spx, 0, z=Cube.z)#res_spx['Nar_fwhm'][0]
 
         else:
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
@@ -834,141 +834,6 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     return f
 
-def Map_creation_general_comparison(Cube,info,path1, path2, SNR_cut = 3 ,deltabic=10, add='',\
-                            brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
-    z0 = Cube.z
-    failed_fits=0
-    
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(path1, "rb") as fp:
-        results1= pickle.load(fp)
-    
-    with open(path2, "rb") as fp:
-        results2 = pickle.load(fp)
-
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-    
-    info_keys = list(info.keys())
-    
-    for key in info_keys:
-        map_flx = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-        map_flx[:,:,:] = np.nan
-            
-        info[key]['flux_map'] = map_flx
-        
-        if info[key]['kin'] ==1:
-            map_ki = np.zeros((5,Cube.dim[0], Cube.dim[1]))
-            map_ki[:,:,:] = np.nan
-
-            info[key]['kin_map'] = map_ki
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_general_fit_detection_only_comp'+add+'.pdf')
-
-    Results2_map = np.full((2,len(results2)), fill_value=np.nan)
-    for i,row in enumerate(Result_cube):
-        Results2_map[:,i] = row[0], row[1]
-    '''
-    for row in tqdm.tqdm(range(len(results1))):
-
-        try:
-            i,j, Fits = results1[row]
-        except:
-            print('Loading old fits? I am sorry no longer compatible...')
-
-        if str(type(Fits)) == "<class 'dict'>":
-            failed_fits+=1
-            continue
-
-        Result_cube_data[:,i,j] = Fits.fluxs.data
-        try:
-            Result_cube_error[:,i,j] = Fits.error.data
-        except:
-            lds=0
-        Result_cube[:,i,j] = Fits.yeval
-
-        for key in info_keys:
-            
-            SNR= sp.SNR_calc(Cube.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
-                                wv_cent = info[key]['wv'],\
-                                peak_name = key+'_peak', \
-                                    fwhm_name = info[key]['fwhm'])
-            
-            info[key]['flux_map'][0,i,j] = SNR
-            
-            if SNR>SNR_cut:
-                flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
-                                                    wv_cent = info[key]['wv'],\
-                                                    peak_name = key+'_peak', \
-                                                        fwhm_name = info[key]['fwhm'])
-                
-                info[key]['flux_map'][1,i,j] = flux
-                info[key]['flux_map'][2,i,j] = p16
-                info[key]['flux_map'][3,i,j] = p84
-
-                if info[key]['kin'] ==1:
-                    info[key]['kin_map'][0,i,j] = (np.median(Fits.chains['z'])-Cube.z)/(1+Cube.z)*3e5
-                    info[key]['kin_map'][1,i,j] = np.median(Fits.chains[info[key]['fwhm']])
-                    
-            else:
-                dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-                n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
-                info[key]['flux_map'][3,i,j] = -SNR_cut*Fits.error[-1]*dl*np.sqrt(n)
-
-# =============================================================================
-#             Plotting
-# =============================================================================
-        f = plt.figure( figsize=(20,6))
-
-        ax = brokenaxes(xlims=brokenaxes_xlims,  hspace=.01)
-        
-        ax.plot(Fits.wave, Fits.fluxs.data, drawstyle='steps-mid')
-        y= Fits.yeval
-        ax.plot(Cube.obs_wave,  y, 'r--')
-        
-        ax.set_xlabel('wavelength (um)')
-        ax.set_ylabel('Flux density')
-        
-        ax.set_ylim(-2*Fits.error[0], 1.2*max(y))
-        ax.set_title('xy='+str(j)+' '+ str(i) )
-
-        Spax.savefig()
-        plt.close(f)
-
-    print('Failed fits', failed_fits)
-    Spax.close()
-
-# =============================================================================
-#         Plotting maps
-# =============================================================================
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
-    hdus = [primary_hdu]
-    hdus.append(fits.ImageHDU(Result_cube_data, name='flux'))
-    hdus.append(fits.ImageHDU(Result_cube_error, name='error'))
-    hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
-
-    for key in info_keys:
-        hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
-
-    for key in info_keys:
-        if info[key]['kin'] ==1:
-            hdus.append(fits.ImageHDU(info[key]['kin_map'], name=key+'_kin'))
-
-    hdulist = fits.HDUList(hdus)
-    hdulist.writeto(Cube.savepath+Cube.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
-
-    return f
-'''
 def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                             brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
     z0 = Cube.z
@@ -1000,6 +865,11 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             map_ki[:,:,:] = np.nan
 
             info[key]['kin_map'] = map_ki
+    BIC_map = np.zeros((Cube.dim[0], Cube.dim[1]))
+    BIC_map[:,:] = np.nan
+
+    chi2_map = np.zeros((Cube.dim[0], Cube.dim[1]))
+    chi2_map[:,:] = np.nan
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -1012,8 +882,6 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             i,j, Fits = results[row]
         except:
             ls=0
-            
-
         if str(type(Fits)) == "<class 'dict'>":
             failed_fits+=1
             continue
@@ -1024,6 +892,10 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
         except:
             lds=0
         Result_cube[:,i,j] = Fits.yeval
+        try:
+            chi2_map[i,j], BIC_map[i,j] = Fits.chi2, Fits.BIC
+        except:
+            chi2_map[i,j], BIC_map[i,j] = 0,0
 
         for key in info_keys:
             
@@ -1092,6 +964,8 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
         if info[key]['kin'] ==1:
             hdus.append(fits.ImageHDU(info[key]['kin_map'], name=key+'_kin'))
 
+    hdus.append(fits.ImageHDU(chi2_map, name='chi2'))
+    hdus.append(fits.ImageHDU(BIC_map, name='BIC'))
     hdulist = fits.HDUList(hdus)
     hdulist.writeto(Cube.savepath+Cube.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
 
