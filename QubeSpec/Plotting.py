@@ -299,7 +299,7 @@ def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
 def plotting_Halpha_OIII(res, ax,error=np.array([1]), residual='none', axres=None, template=0):
     sol = res.props
     popt = sol['popt']
-    keys = list(res.keys())
+    keys = list(sol.keys())
     z = popt[0]
 
     wave = res.wave

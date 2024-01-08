@@ -30,8 +30,8 @@ PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
 version = 'Main'    
 
 
-def gauss(x, k, mu,sig):
-
+def gauss(x, k, mu,FWHM):
+    sig = FWHM/3e5/2.35*mu
     expo= -((x-mu)**2)/(2*sig*sig)
     
     y= k* e**expo

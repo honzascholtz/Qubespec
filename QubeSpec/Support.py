@@ -242,7 +242,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
         model = model_r + model_b
         
         center = 6724*(1+sol[0])/1e4
-        
+        fwhm = fwhm/3e5*center
         use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0]   
         flux_l = model[use]
         std = error[use]
@@ -257,7 +257,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     
     else:
         raise Exception('Sorry mode in SNR_calc not understood')
-    
+    fwhm = fwhm/3e5*center
     use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0] 
     flux_l = model[use]
     std = error[use]
@@ -527,444 +527,221 @@ def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fw
     return p50, p16, p84
 
 
-def vel_percentiles(Fits, fwhm_names, vel_names, vel_percentiles,z=0, error_range=(16,50,84)):
+def vel_kin_percentiles(self, peak_names, fwhm_names, vel_names,rest_wave,vel_percentiles=[], z=0, error_range=[50,16,84], N=100):
+    """_summary_
+
+    :param peak_names: _description_
+    :param fwhm_names: _description_
+    :param vel_names: _description_
+    :param rest_wave: _description_
+    :param vel_percentiles: _description_, defaults to []
+    :param z: _description_, defaults to 0
+    :param error_range: _description_, defaults to [50,16,84]
+    :param N: _description_, defaults to 100
+    
+    :return: _description_
+    """
+    if z==0:
+        z = self.props['popt'][0]
+    
+    import scipy.integrate as scpi
+    import scipy.interpolate as intp
+    
+    cent =  rest_wave*(1+z)/1e4
+    bound1 =  cent + 3000/3e5*cent
+    bound2 =  cent - 3000/3e5*cent
+    Ni = 2000
+    wvs = np.linspace(bound2, bound1, Ni)
+    vels = np.linspace(-3000,3000, Ni)
+
+    velnames = ['z']
+    velnames.append(vel_names)
+
+    
+    Nchain = len(self.chains['z'])
+    itere = np.arange(Nchain/2,Nchain,1, dtype=int)
+    itere = np.random.choice(itere, size=N, replace=False)
+
+    vel_percentiles = np.append( np.array([10,90,50]), vel_percentiles)
+
+    vel_res = np.zeros((len(vel_percentiles), N))
+
+    if N==1:
+        y = np.zeros_like(wvs)
+        for i, name in enumerate(vel_names):
+            
+            if name =='z':
+                wv_cent = rest_wave*(1+self.props['z'][0])/1e4
+            else:
+                wv_cent = rest_wave*(1+self.props['z'][0])/1e4
+                wv_cent = wv_cent + self.props[vel_names[i]][0]/3e5*wv_cent
+
+            y += gauss(wvs, self.props[peak_names[i]][0], wv_cent, self.props[fwhm_names[i]][0])
+    
+        flux_cum = np.cumsum(y)
+        flux_cum = flux_cum/np.max(flux_cum)
+        for k, value in enumerate(vel_percentiles):
+            vel_res[k] = vels[find_nearest(flux_cum, value/100)]
+
+        return np.append(vel_res[1]-vel_res[0], vel_res)
+
+    else:
+        for ind, itr in enumerate(itere):
+            y = np.zeros_like(wvs)
+            for i, name in enumerate(vel_names):
+                
+                if name =='z':
+                    wv_cent = rest_wave*(1+self.chains['z'][itr])/1e4
+                else:
+                    wv_cent = rest_wave*(1+self.chains['z'][itr])/1e4
+                    wv_cent = wv_cent + self.chains[vel_names[i]][itr]/3e5*wv_cent
+
+                y += gauss(wvs, self.chains[peak_names[i]][itr], wv_cent, self.chains[fwhm_names[i]][itr])
+        
+            flux_cum = np.cumsum(y)
+            flux_cum = flux_cum/np.max(flux_cum)
+            for k, value in enumerate(vel_percentiles):
+                vel_res[k,ind] = vels[find_nearest(flux_cum, value/100)]
+        
+        W80 = vel_res[1,:] - vel_res[0,:]
+
+        res = []
+        res.append(np.percentile(W80, error_range))
+
+        for i in range(len(vel_percentiles)):
+            res.append(np.percentile(vel_res[i,:], error_range))
+
+        return res
+        
+
+        
+def W80_OIII_calc(Fits, N=100,z=0):
     """_summary_
 
     :param Fits: _description_
-    :param percentiles: _description_
-    :param error_range: _description_, defaults to (16,50,84)
+    :param N: _description_, defaults to 100
+    :return: _description_
     """
-
-
-    return 0
-
-        
-def W80_OIII_calc( sol, chains, plot):
-    popt = sol['popt']     
-    
-    import scipy.integrate as scpi
-    
-    cent =  5008.24*(1+popt[0])/1e4
-    
-    bound1 =  cent + 2000/3e5*cent
-    bound2 =  cent - 2000/3e5*cent
-    Ni = 500
-    
-    wvs = np.linspace(bound2, bound1, Ni)
-    N= 100
-    
-    v10s = np.zeros(N)
-    v50s = np.zeros(N)
-    v90s = np.zeros(N)
-    w80s = np.zeros(N)
+    sol = Fits.props
     
     if 'outflow_fwhm' in sol:
-        OIIIr = 5008.24*(1+popt[0])/1e4
-        
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)
-        fwhmws = np.random.choice(chains['outflow_fwhm'], N)
-        
-        OIIIrws = cent + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
-        
-        peakn = np.random.choice(chains['OIII_peak'], N)
-        peakw = np.random.choice(chains['OIII_out_peak'], N)
-        
-        for i in range(N):
-            y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
-            
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
 
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+        if 'OIII_out_peak' in sol:
 
-            Int = Int/max(Int)   
-
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
-
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
-            
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            v50s[i] = v50
-            w80s[i] = w80
-    
-    elif 'Nar_fwhm' in sol:
-        OIIIr = 5008.24*(1+popt[0])/1e4
+            w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak', 'OIII_out_peak'],\
+                                ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
+                                    rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
         
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)
-        fwhmws = np.random.choice(chains['outflow_fwhm'], N)
-        
-        OIIIrws = OIIIr + np.random.choice(chains['outflow_vel'], N)/3e5*OIIIr
-        
-        peakn = np.random.choice(chains['OIII_peak'], N)
-        peakw = np.random.choice(chains['OIII_out_peak'], N)
-        
-        
-        for i in range(N):
-            y = gauss(wvs, peakn[i],OIIIr, fwhms[i]) + gauss(wvs, peakw[i], OIIIrws[i], fwhmws[i])
-            
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
+        if 'OIIIw_peak' in sol:
 
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
-
-            Int = Int/max(Int)   
-
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
-
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
-            
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            v50s[i] = v50
-            w80s[i] = w80
+            w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak', 'OIIIw_peak'],\
+                                ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
+                                    rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
             
     else:
-        OIIIr = 5008.24*(1+popt[0])/1e4
-        
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)
-        peakn = np.random.choice(chains['OIII_peak'], N)
-        
-        
-        for i in range(N):
-            y = gauss(wvs, peakn[i],OIIIr, fwhms[i])
+        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak'],\
+                                ['Nar_fwhm'], [], \
+                                    rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
             
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
-
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
-
-            Int = Int/max(Int)   
-
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
-
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
-            
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            v50s[i] = v50
-            w80s[i] = w80
-            
-           
-    return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
-
-
-def W80_OIII_calc_single(sol, plot, z=0, peak=0):
-    popt = sol['popt']  
-    
-    if z==0:
-        z = popt[0]
-  
-    
-    import scipy.integrate as scpi
-    
-    cent =  5008.24*(1+z)/1e4
-    
-    bound1 =  cent + 2000/3e5*cent
-    bound2 =  cent - 2000/3e5*cent
-    Ni = 500
-    
-    wvs = np.linspace(bound2, bound1, Ni)
-    
-    OIIIr = 5008.24*(1+sol['z'][0])/1e4
-    
-    fwhms = sol['Nar_fwhm'][0]
-    peakn = sol['OIII_peak'][0]
-    if 'out_vel_n2' in sol:  
-        fwhmws = sol['outflow_fwhm'][0]
-        OIIIrws = OIIIr + sol['outflow_vel'][0]/3e5*OIIIr
-        peakw = sol['OIII_out_peak'][0]
-        
-        peakn2 = sol['OIIIn2_peak'][0]
-        out_vel_wv_n2 = sol['out_vel_n2'][0]/3e5*OIIIr
-        fwhmn2 = sol['OIII_fwhm_n2'][0]/3e5/2.35*OIIIr
-        
-        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws) + gauss(wvs, peakn2, OIIIr +out_vel_wv_n2, fwhmn2)
-    
-    elif 'outflow_fwhm' in sol:  
-        fwhmws = sol['outflow_fwhm'][0]
-        OIIIrws = OIIIr + sol['outflow_vel'][0]
-        peakw = sol['OIII_out_peak'][0]
-        y = gauss(wvs, peakn,OIIIr, fwhms) + gauss(wvs, peakw, OIIIrws, fwhmws)
-    
-    else:
-        y = gauss(wvs, peakn,OIIIr, fwhms) 
-        
-      
-    peak_wv = wvs[np.argmax(y)]
-    peak_vel = (peak_wv-cent)/cent*3e5
-        
-    Int = np.zeros(Ni-1)
-
-    for j in range(Ni-1):
-        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
-
-    Int = Int/max(Int)   
-
-    wv10 = wvs[find_nearest(Int, 0.1)]
-    wv90 = wvs[find_nearest(Int, 0.9)]
-    wv50 = wvs[find_nearest(Int, 0.5)]
-
-    v10 = (wv10-cent)/cent*3e5
-    v90 = (wv90-cent)/cent*3e5
-    v50 = (wv50-cent)/cent*3e5
-    
-    w80 = v90-v10
-    
-    if plot==1:
-        plt.figure()
-        plt.plot(wvs, y)
-    
-    if peak==0:
+    if N==1:        
         return v10,v90, w80, v50
+    
     else:
-        return v10,v90, w80, v50, peak_vel
+        v10[1] = v10[1] - v10[0]
+        v10[2] = v10[2]- v10[0]
+
+        v50[1] = v50[1] - v50[0]
+        v50[2] = v50[2]- v50[0]
+
+        v90[1] = v90[1] - v90[0]
+        v90[2] = v90[2]- v90[0]
+            
+        w80[1] = w80[1] - w80[0]
+        w80[2] = w80[2] - w80[0]
+
+        return v10,v90, w80, v50
 
 
 
+def W80_Halpha_calc(Fits, N=100,z=0):
+    """_summary_
 
-def W80_Halpha_calc(sol, chains, plot,z=0):
-    popt = sol['popt'] 
-    if z==0:
-        z=popt[0]
-    
-    import scipy.integrate as scpi
-    
-    cent =  6564.52**(1+z)/1e4
-    
-    bound1 =  cent + 2000/3e5*cent
-    bound2 =  cent - 2000/3e5*cent
-    Ni = 500
-    
-    wvs = np.linspace(bound2, bound1, Ni)
-    N= 100
-    
-    v10s = np.zeros(N)
-    v50s = np.zeros(N)
-    v90s = np.zeros(N)
-    w80s = np.zeros(N)
+    :param Fits: _description_
+    :param N: _description_, defaults to 100
+    :return: _description_
+    """
+    sol = Fits.props
     
     if 'outflow_fwhm' in sol:
-        Halpha = 6564.52*(1+chains['z'])/1e4
-        
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)
-        fwhmws = np.random.choice(chains['outflow_fwhm'], N)
-        
-        Halpha_out = Halpha+ np.random.choice(chains['outflow_vel'], N)/3e5*Halpha
-        
-        peakn = np.random.choice(chains['Hal_peak'], N)
-        peakw = np.random.choice(chains['Hal_out_peak'], N)
+        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['Hal_peak', 'Hal_out_peak'],\
+                            ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
+                                rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
         
         
-        for i in range(N):
-            y = gauss(wvs, peakn[i],Halpha, fwhms[i]) + gauss(wvs, peakw[i], Halpha_out[i], fwhmws[i])
             
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
-
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
-
-            Int = Int/max(Int)   
-
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
-
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
+    else:
+        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['Hal_peak'],\
+                                ['Nar_fwhm'], [], \
+                                    rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
             
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            w80s[i] = w80
+    if N==1:        
+        return v10,v90, w80, v50
     
     else:
-        Halpha = 6564.52*(1+z)/1e4
-        
-        fwhms = np.random.choice(chains['Nar_fwhm'], N)
-        peakn = np.random.choice(chains['Hal_peak'], N)
-        
-        
-        for i in range(N):
-            y = gauss(wvs, peakn[i], Halpha, fwhms[i])
-            
-            Int = np.zeros(Ni-1)
-    
-            for j in range(Ni-1):
+        v10[1] = v10[1] - v10[0]
+        v10[2] = v10[2]- v10[0]
 
-                Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) * 1e-13
+        v50[1] = v50[1] - v50[0]
+        v50[2] = v50[2]- v50[0]
 
-            Int = Int/max(Int)   
+        v90[1] = v90[1] - v90[0]
+        v90[2] = v90[2]- v90[0]
             
-            wv10 = wvs[find_nearest(Int, 0.1)]
-            wv90 = wvs[find_nearest(Int, 0.9)]
-            wv50 = wvs[find_nearest(Int, 0.5)]
+        w80[1] = w80[1] - w80[0]
+        w80[2] = w80[2] - w80[0]
 
-            v10 = (wv10-cent)/cent*3e5
-            v90 = (wv90-cent)/cent*3e5
-            v50 = (wv50-cent)/cent*3e5
-            
-            w80 = v90-v10
-            
-            v10s[i] = v10
-            v90s[i] = v90
-            v50s[i] = v50
-            w80s[i] = w80
-            
-           
-    return error_calc(v10s),error_calc(v90s),error_calc(w80s), error_calc(v50s)
+        return v10,v90, w80, v50
 
-def W80_Halpha_calc_single( sol, plot, z=0):
-    popt = sol['popt']  
-    
-    if z==0:
-        z = popt[0]
-  
-    
-    import scipy.integrate as scpi
-    
-    cent =  6564.52*(1+z)/1e4
-    
-    bound1 =  cent + 2000/3e5*cent
-    bound2 =  cent - 2000/3e5*cent
-    Ni = 500
-    
-    wvs = np.linspace(bound2, bound1, Ni)
-    
+
+
+
+def W80_NII_calc(Fits, N=100,z=0):
+    """_summary_
+
+    :param Fits: _description_
+    :param N: _description_, defaults to 100
+    :return: _description_
+    """
+    sol = Fits.props
     
     if 'outflow_fwhm' in sol:
-        Halc = 6564.52*(1+sol['z'][0])/1e4
-        
-        fwhms = sol['Nar_fwhm'][0]
-        fwhmws =sol['outflow_fwhm'][0]
-        
-        Halcw = Halc + sol['outflow_vel'][0]/3e5*Halc
-        
-        peakn = sol['Hal_peak'][0]
-        peakw = sol['Hal_out_peak'][0]
-        
-        y = gauss(wvs, peakn,Halc, fwhms) + gauss(wvs, peakw, Halcw, fwhmws)
-         
+
+        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['NII_peak', 'NII_out_peak'],\
+                            ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
+                                rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
+              
     else:
-        Halc = 6564.52*(1+sol['z'][0])/1e4
-        
-        fwhms = sol['Nar_fwhm'][0]
-        peakn = sol['Hal_peak'][0]
-        
-        
-        y = gauss(wvs, peakn,Halc, fwhms)
+        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['NII_peak'],\
+                                ['Nar_fwhm'], [], \
+                                    rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
             
-         
-    Int = np.zeros(Ni-1)
-
-    for j in range(Ni-1):
-        Int[j] = scpi.simps(y[:j+1], wvs[:j+1]) 
-
-    Int = Int/max(Int)   
-
-    wv10 = wvs[find_nearest(Int, 0.1)]
-    wv90 = wvs[find_nearest(Int, 0.9)]
-    wv50 = wvs[find_nearest(Int, 0.5)]
-
-    v10 = (wv10-cent)/cent*3e5
-    v90 = (wv90-cent)/cent*3e5
-    v50 = (wv50-cent)/cent*3e5
+    if N==1:        
+        return v10,v90, w80, v50
     
-    w80 = v90-v10
-    
-    return v10,v90, w80, v50
-
-
-def W80_NII_calc_single( sol, plot, z=0):
-    popt = sol['popt']  
-    
-    if z==0:
-        z = popt[0]
-  
-    
-    import scipy.integrate as scpi
-    
-    cent = 6585.27*(1+z)/1e4
-    
-    bound1 =  cent + 2000/3e5*cent
-    bound2 =  cent - 2000/3e5*cent
-    Ni = 500
-    
-    wvs = np.linspace(bound2, bound1, Ni)
-    
-    
-    if 'outflow_fwhm' in sol:
-        NIIr = 6585.27*(1+sol['z'][0])/1e4
-        
-        fwhms = sol['Nar_fwhm'][0]
-        fwhmws =sol['outflow_fwhm'][0]
-        
-        NIIrws = NIIr + sol['outflow_vel'][0]/3e5*NIIr
-        
-        peakn = sol['NII_peak'][0]
-        peakw = sol['NII_out_peak'][0]
-        
-        y = gauss(wvs, peakn,NIIr, fwhms) + gauss(wvs, peakw, NIIrws, fwhmws)
-         
     else:
-        NIIr = 6585.27*(1+sol['z'][0])/1e4
-        
-        fwhms = sol['Nar_fwhm'][0]
-        peakn = sol['NII_peak'][0]
-        
-        
-        y = gauss(wvs, peakn,NIIr, fwhms)
+        v10[1] = v10[1] - v10[0]
+        v10[2] = v10[2]- v10[0]
+
+        v50[1] = v50[1] - v50[0]
+        v50[2] = v50[2]- v50[0]
+
+        v90[1] = v90[1] - v90[0]
+        v90[2] = v90[2]- v90[0]
             
-         
-    Int = np.zeros(Ni-1)
+        w80[1] = w80[1] - w80[0]
+        w80[2] = w80[2] - w80[0]
 
-    for j in range(Ni-1):
-        Int[j] = scpi.simps(y[:j+1], wvs[:j+1])
-
-    Int = Int/max(Int)   
-
-    wv10 = wvs[find_nearest(Int, 0.1)]
-    wv90 = wvs[find_nearest(Int, 0.9)]
-    wv50 = wvs[find_nearest(Int, 0.5)]
-
-    v10 = (wv10-cent)/cent*3e5
-    v90 = (wv90-cent)/cent*3e5
-    v50 = (wv50-cent)/cent*3e5
-    
-    w80 = v90-v10
-    
-    if plot==1:
-        plt.figure()
-        plt.plot(wvs, y)
-        plt.vlines(wv10, 0,0.1)
-        plt.vlines(wv90, 0,0.1)
-        plt.vlines(wv50, 0,0.1)
-           
-    return v10,v90, w80, v50
+        return v10,v90, w80, v50
 
 
 def flux_to_lum(flux,redshift):
