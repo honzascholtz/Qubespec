@@ -8,7 +8,6 @@ from astropy.table import Table
 import time
 import warnings
 import matplotlib.pyplot as plt 
-from astropy.utils.exceptions import AstropyWarning
 
 from . import Fitting as emfit
 import pickle
@@ -16,8 +15,6 @@ import pickle
 import numba
 from . import Support as sp
 
-
-from . import QubeSpec
 
 import time
 
@@ -29,22 +26,22 @@ class Halpha_OIII:
     def Spaxel_fitting(self, Cube,add='',Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                         'cont':[0,'loguniform',-4,1],\
                                                                                         'cont_grad':[0,'normal',0,0.3], \
-                                                                                        'Hal_peak':[0,'loguniform',-3,1],\
-                                                                                        'BLR_Hal_peak':[0,'loguniform',-3,1],\
-                                                                                        'NII_peak':[0,'loguniform',-3,1],\
+                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_peak':[0,'loguniform',-4,1],\
                                                                                         'Nar_fwhm':[300,'uniform',100,900],\
                                                                                         'BLR_fwhm':[4000,'uniform', 2000,9000],\
                                                                                         'zBLR':[0, 'normal', 0,0.003],\
-                                                                                            'SIIr_peak':[0,'loguniform',-3,1],\
-                                                                                            'SIIb_peak':[0,'loguniform',-3,1],\
-                                                                                            'Hal_out_peak':[0,'loguniform',-3,1],\
-                                                                                            'NII_out_peak':[0,'loguniform',-3,1],\
+                                                                                            'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'NII_out_peak':[0,'loguniform',-4,1],\
                                                                                             'outflow_fwhm':[600,'uniform', 300,1500],\
                                                                                             'outflow_vel':[-50,'normal', 0,300],\
-                                                                                            'OIII_peak':[0,'loguniform',-3,1],\
-                                                                                            'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                                                            'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                                            'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                                                                                            'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                            'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_out_peak':[0,'loguniform',-4,1],\
                                                                                             'SIIr_peak':[0,'loguniform', -3,1],\
                                                                                             'SIIb_peak':[0,'loguniform', -3,1],\
                                                                                             'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
@@ -60,6 +57,7 @@ class Halpha_OIII:
         print('import of the unwrap cube - done')
 
         self.priors = priors
+        self.models = models
 
         if Ncores<1:
             Ncores=1
@@ -67,69 +65,112 @@ class Halpha_OIII:
         progress = kwargs.get('progress', True)
         progress = tqdm.tqdm if progress else lambda x, total=0: x
 
-        if models=='Single':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_OIII_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-        elif models=='BLR':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_OIII_AGN_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-        elif models=='BLR_simple':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_OIII_AGN_simple_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
+        with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    self.fit_spaxel, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
 
-        elif models=='outflow_both':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_OIII_outflowboth_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-        
-        elif models=='BLR_both':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_OIII_BLR_both_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-
-        else:
-            raise Exception('models variable not understood. Options are: Single, BLR, BLR_simple, BLR_both and outflow_both')
+    
 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
     
+    def fit_spaxel(self, lst, progress=False):
+
+        i,j,flx_spax_m, error, wave, z = lst
+
+        if self.models=='Single':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha_OIII(model='BLR' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR_simple':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+
+        elif self.models=='outflow_both':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out.fitting_Halpha_OIII(model='outflow' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+        
+        elif self.models=='BLR_both':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out.fitting_Halpha_OIII(model='BLR' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+                
+        return cube_res
+
+    
     def Spaxel_fitting_Halpha_OIII_toptup(self, Cube, to_fit ,add='',progress=True, Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
-                                                                                       'Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'BLR_Hal_peak':[0,'loguniform',-3,1],\
-                                                                                       'NII_peak':[0,'loguniform',-3,1],\
+                                                                                       'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'NII_peak':[0,'loguniform',-4,1],\
                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
                                                                                        'zBLR':[0, 'normal', 0,0.003],\
-                                                                                        'SIIr_peak':[0,'loguniform',-3,1],\
-                                                                                        'SIIb_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hal_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'NII_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-4,1],\
                                                                                         'outflow_fwhm':[600,'uniform', 300,1500],\
                                                                                         'outflow_vel':[-50,'normal', 0,300],\
-                                                                                        'OIII_peak':[0,'loguniform',-3,1],\
-                                                                                        'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                                        'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                                                                                        'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-4,1],\
                                                                                         'SIIr_peak':[0,'loguniform', -3,1],\
                                                                                         'SIIb_peak':[0,'loguniform', -3,1],\
                                                                                         'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
@@ -162,8 +203,7 @@ class Halpha_OIII:
                     Fits_sig = emfit.Fitting(wave, flx_spax_m, error, Cube.z,N=10000,progress=progress, priors=priors)
                     Fits_sig.fitting_Halpha_OIII(model='gal' )
                     Fits_sig.fitted_model = 0
-                    
-                    
+                      
                     Fits_out = emfit.Fitting(wave, flx_spax_m, error, Cube.z,N=10000,progress=progress, priors=priors)
                     Fits_out.fitting_Halpha_OIII(model='outflow' )
                     Fits_out.fitted_model = 0
@@ -186,93 +226,6 @@ class Halpha_OIII:
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
 
-
-    def Fitting_Halpha_OIII_unwrap(self, lst, progress=False):
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha_OIII(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
-
-    def Fitting_Halpha_OIII_AGN_unwrap(self, lst, progress=False):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha_OIII(model='BLR' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-            
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
-
-    def Fitting_Halpha_OIII_AGN_simple_unwrap(self, lst, progress=False):
-       
-        i,j,flx_spax_m, error, wave, z = lst
-
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-            
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
-
-    def Fitting_Halpha_OIII_outflowboth_unwrap(self, lst, progress=False):
-    
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha_OIII(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_Halpha_OIII(model='outflow' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
-        return cube_res
-
-    def Fitting_Halpha_OIII_BLR_both_unwrap(self, lst, progress=False):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_Halpha_OIII(model='BLR' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
-        return cube_res
-
-
 class OIII:
     def __init__(self):
         self.status = 'ok'
@@ -285,11 +238,11 @@ class OIII:
                                                                                         'zBLR':[0, 'normal', 0,0.003],\
                                                                                             'outflow_fwhm':[600,'uniform', 300,1500],\
                                                                                             'outflow_vel':[-50,'normal', 0,300],\
-                                                                                            'OIII_peak':[0,'loguniform',-3,1],\
-                                                                                            'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                                                            'Hbeta_peak':[0,'loguniform',-3,1],\
-                                                                                            'Hbeta_out_peak':[0,'loguniform',-3,1],\
-                                                                                            'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+                                                                                            'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                            'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'BLR_Hbeta_peak':[0,'loguniform', -4,1]}, **kwargs):
 
         import pickle
         start_time = time.time()
@@ -300,6 +253,7 @@ class OIII:
 
         self.priors = priors
         self.template = template
+        self.models = models
 
         if Ncores<1:
             Ncores=1
@@ -307,186 +261,107 @@ class OIII:
         progress = kwargs.get('progress', True)
         progress = tqdm.tqdm if progress else lambda x, total=0: x
 
-        if models=='Single':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_OIII_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
+        with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    self.fit_spaxel, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
                 
-        elif models=='BLR':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_OIII_AGN_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-        elif models=='BLR_simple':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_OIII_AGN_simple_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-
-        elif models=='outflow_both':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_OIII_outflowboth_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-        
-        elif models=='BLR_both':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_OIII_BLR_both_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-
-        else:
-            raise Exception('models variable not understood. Options are: Single, BLR, BLR_simple, BLR_both and outflow_both')
 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-    def Fitting_OIII_unwrap(self, lst, progress=False):
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_OIII(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
+    def fit_spaxel(self, lst, progress=False):
 
-    def Fitting_OIII_AGN_unwrap(self, lst, progress=False):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, template=self.template)
-            Fits_sig.fitting_OIII(model='BLR' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-            
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
-
-    def Fitting_OIII_AGN_simple_unwrap(self, lst, progress=False):
-       
         i,j,flx_spax_m, error, wave, z = lst
 
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, template= self.template)
-            Fits_sig.fitting_OIII(model='BLR_simple' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-            
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
+        if self.models=='Single':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_OIII(model='BLR' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR_simple':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
 
-    def Fitting_OIII_outflowboth_unwrap(self, lst, progress=False):
-    
-        i,j,flx_spax_m, error, wave, z = lst
+        elif self.models=='outflow_both':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out.fitting_OIII(model='outflow' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
         
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_OIII(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_OIII(model='outflow' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
+        elif self.models=='BLR_both':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out.fitting_OIII(model='BLR' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+                
         return cube_res
-
-    def Fitting_OIII_BLR_both_unwrap(self, lst, progress=False):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_OIII(model='BLR_simple' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_OIII(model='BLR' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
-        return cube_res
-        
-    
-    def Fitting_OIII_unwrap(self,lst):
-    
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        
-        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
-        Fits_sig.fitting_OIII(model='gal_simple')
-        Fits_sig.fitted_model = 0
-        
-        cube_res  = [i,j, Fits_sig]
-                    
-        return cube_res
-    
-    def Fitting_OIII_outflowboth_unwrap(self,lst, progress=False):
-    
-        i,j,flx_spax_m, error, wave, z = lst
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_OIII(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_OIII(model='outflow' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
-        return cube_res
-                    
-        return cube_res
-    
+  
 class Halpha:
     def __init__(self):
         self.status = 'ok'
 
-    def Spaxel_fitting(self, Cube,models='Single', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-3,1],\
+    def Spaxel_fitting(self, Cube,models='Single', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-4,1],\
                                                         'cont_grad':[0,-0.01,0.01], \
-                                                        'Hal_peak':[0,-3,1],\
-                                                        'BLR_peak':[0,-3,1],\
-                                                        'NII_peak':[0,-3,1],\
+                                                        'Hal_peak':[0,-4,1],\
+                                                        'BLR_peak':[0,-4,1],\
+                                                        'NII_peak':[0,-4,1],\
                                                         'Nar_fwhm':[300,100,900],\
                                                         'BLR_fwhm':[4000,2000,9000],\
                                                         'zBLR':[-200,-900,600],\
-                                                        'SIIr_peak':[0,-3,1],\
-                                                        'SIIb_peak':[0,-3,1],\
-                                                        'Hal_out_peak':[0,-3,1],\
-                                                        'NII_out_peak':[0,-3,1],\
+                                                        'SIIr_peak':[0,-4,1],\
+                                                        'SIIb_peak':[0,-4,1],\
+                                                        'Hal_out_peak':[0,-4,1],\
+                                                        'NII_out_peak':[0,-4,1],\
                                                         'outflow_fwhm':[600,300,1500],\
                                                         'outflow_vel':[-50, -300,300]}, **kwargs):
         import pickle
@@ -497,6 +372,7 @@ class Halpha:
         print('import of the unwrap cube - done')
 
         self.priors = priors
+        self.models = models
 
         if Ncores<1:
             Ncores=1
@@ -504,166 +380,91 @@ class Halpha:
         progress = kwargs.get('progress', True)
         progress = tqdm.tqdm if progress else lambda x, total=0: x
 
-        if models=='Single':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-        elif models=='BLR':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_AGN_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-        elif models=='BLR_simple':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_AGN_simple_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-
-        elif models=='outflow_both':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_outflowboth_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-        
-        elif models=='BLR_both':
-            with Pool(Ncores) as pool:
-                cube_res = list(progress(
-                    pool.imap(
-                        self.Fitting_Halpha_BLR_both_unwrap, Unwrapped_cube),
-                    total=len(Unwrapped_cube)))
-                
-
-        else:
-            raise Exception('models variable not understood. Options are: Single, BLR, BLR_simple, BLR_both and outflow_both')
+        with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    self.fit_spaxel, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-    def Fitting_Halpha_unwrap(self, lst, progress=False):
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
+    def fit_spaxel(self, lst, progress=False):
 
-    def Fitting_Halpha_AGN_unwrap(self, lst, progress=False):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha(model='BLR' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-            
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
-
-    def Fitting_Halpha_AGN_simple_unwrap(self, lst, progress=False):
-       
         i,j,flx_spax_m, error, wave, z = lst
 
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha(model='BLR_simple' )
-            Fits_sig.fitted_model = 0
-            
-            cube_res  = [i,j, Fits_sig]
-            
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        return cube_res
+        if self.models=='Single':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha(model='BLR' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR_simple':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
 
-    def Fitting_Halpha_outflowboth_unwrap(self, lst, progress=False):
-    
-        i,j,flx_spax_m, error, wave, z = lst
+        elif self.models=='outflow_both':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out.fitting_Halpha(model='outflow' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
         
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_Halpha(model='outflow' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
+        elif self.models=='BLR_both':
+            try:
+                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig.fitting_Halpha(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out.fitting_Halpha(model='BLR' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+                
         return cube_res
+  
 
-    def Fitting_Halpha_BLR_both_unwrap(self, lst, progress=False):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_sig.fitting_Halpha(model='BLR_simple' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
-            Fits_out.fitting_Halpha(model='BLR' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
-        return cube_res
-        
-    
-    def Fitting_Halpha_unwrap(self,lst):
-    
-        i,j,flx_spax_m, error, wave, z = lst
-        
-        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
-        Fits_sig.fitting_Halpha(model='gal')
-        Fits_sig.fitted_model = 0
-        
-        cube_res  = [i,j, Fits_sig]
-                    
-        return cube_res
-    
-    def Fitting_Halpha_outflowboth_unwrap(self,lst):
-        
-        i,j,flx_spax_m, error, wave, z = lst
-        try:
-            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
-            Fits_sig.fitting_Halpha(model='gal' )
-            Fits_sig.fitted_model = 0
-            
-            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
-            Fits_out.fitting_Halpha(model='outflow' )
-            Fits_out.fitted_model = 0
-            
-            cube_res  = [i,j,Fits_sig, Fits_out ]
-        except Exception as _exc_:
-            print(_exc_)
-            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-            print('Failed fit')
-        return cube_res
          
 
 class general:
