@@ -70,6 +70,45 @@ def Halpha_wBLR(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR
 
     return contm + Hal_nar + Hal_blr + NII_rg + NII_bg + SII_rg + SII_bg
 
+def Halpha_BLR_outflow(x,z,cont, cont_grad, Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, zBLR, SII_rpk, SII_bpk,Hal_out_peak, NII_out_peak, outflow_fwhm, outflow_vel):
+    Hal_wv = 6564.52*(1+z)/1e4
+    NII_r = 6585.27*(1+z)/1e4
+    NII_b = 6549.86*(1+z)/1e4
+
+    SII_r = 6732.67*(1+z)/1e4
+    SII_b = 6718.29*(1+z)/1e4
+
+    Nar_sig= Nar_fwhm/3e5*Hal_wv/2.35482
+    BLR_sig = BLR_fwhm/3e5*Hal_wv/2.35482
+
+    BLR_wv = 6564.52*(1+zBLR)/1e4
+
+    contm = PowerLaw1D.evaluate(x, cont,Hal_wv, alpha=cont_grad)
+    Hal_nar = gauss(x, Hal_peak, Hal_wv, Nar_sig)
+    Hal_blr = gauss(x, BLR_peak, BLR_wv, BLR_sig)
+
+    NII_rg = gauss(x, NII_peak, NII_r, Nar_sig)
+    NII_bg = gauss(x, NII_peak/3, NII_b, Nar_sig)
+
+    SII_rg = gauss(x, SII_rpk, SII_r, Nar_sig)
+    SII_bg = gauss(x, SII_bpk, SII_b, Nar_sig)
+
+    Hal_wv_vel = 6564.52*(1+z)/1e4 + outflow_vel/3e5*Hal_wv
+    NII_r_vel = 6585.27*(1+z)/1e4 + outflow_vel/3e5*NII_r
+    NII_b_vel = 6549.86*(1+z)/1e4 + outflow_vel/3e5*NII_b
+
+    out_vel_hal = outflow_fwhm/3e5*Hal_wv/2.35482
+    out_vel_niir = outflow_fwhm/3e5*NII_r/2.35482
+    out_vel_niib = outflow_fwhm/3e5*NII_b/2.35482
+
+    Hal_out = gauss(x, Hal_out_peak, Hal_wv_vel, out_vel_hal)
+    NII_out_r = gauss(x, NII_out_peak, NII_r_vel, out_vel_niir)
+    NII_out_b = gauss(x, NII_out_peak/3, NII_b_vel, out_vel_niib)
+
+    outflow = Hal_out+ NII_out_r + NII_out_b
+
+    return contm + Hal_nar + Hal_blr + NII_rg + NII_bg + SII_rg + SII_bg + outflow
+
 @numba.njit
 def log_prior_Halpha_BLR(theta, priors):
     z, cont, cont_grad ,Hal_peak, BLR_peak, NII_peak, Nar_fwhm, BLR_fwhm, BLR_offset, SII_rpk, SII_bpk  = theta

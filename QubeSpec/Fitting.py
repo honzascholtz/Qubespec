@@ -136,6 +136,8 @@ class Fitting:
 
             outflow - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel'
             
+            BLR_simple - 'z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak'
+
             BLR - 'z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak'
 
             QSO_BKPL - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm',
@@ -173,7 +175,7 @@ class Fitting:
         peak = np.ma.max(self.flux_zoom)
         nwalkers=32
         
-        if self.model=='BLR':
+        if self.model=='BLR_simple':
             self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak']
             
             self.fitted_model = H_models.Halpha_wBLR
@@ -184,6 +186,27 @@ class Fitting:
             if cont<0:
                 cont=0.01
             pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+                
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'Halpha_wth_BLR'}
+        
+        if self.model=='BLR':
+            self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak',\
+                         'Halpha_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
+            
+            self.fitted_model = H_models.Halpha_BLR_outflow
+            self.log_prior_fce = logprior_general
+            self.pr_code = self.prior_create()
+            
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6,\
+                              peak/6, peak/6, 700, -100])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                 
@@ -1248,150 +1271,5 @@ def logprior_general_test(theta, priors, labels):
                 results = -np.inf
     
         print(lb, t, results)
-
-def Fitting_OIII_unwrap(lst):
-    
-    i,j,flx_spax_m, error, wave, z = lst
-    
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        priors= pickle.load(fp) 
-    
-    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-    Fits_sig.fitting_OIII(model='gal_simple')
-    Fits_sig.fitted_model = 0
-    
-    cube_res  = [i,j, Fits_sig.props, Fits_sig.chains,wave,flx_spax_m,error]
-                 
-    return cube_res
-
-def Fitting_Halpha_OIII_unwrap(lst, progress=False):
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        priors= pickle.load(fp) 
-    i,j,flx_spax_m, error, wave, z = lst
-    
-    try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
-        Fits_sig.fitting_Halpha_OIII(model='gal' )
-        Fits_sig.fitted_model = 0
-        
-        cube_res  = [i,j, Fits_sig]
-    except Exception as _exc_:
-        print(_exc_)
-        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-    return cube_res
-
-def Fitting_Halpha_OIII_AGN_unwrap(lst, progress=False):
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        priors= pickle.load(fp) 
-    i,j,flx_spax_m, error, wave, z = lst
-    deltav = 1500
-    deltaz = deltav/3e5*(1+z)
-    try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
-        Fits_sig.fitting_Halpha_OIII(model='BLR' )
-        Fits_sig.fitted_model = 0
-        
-        cube_res  = [i,j, Fits_sig]
-        
-    except Exception as _exc_:
-        print(_exc_)
-        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-    return cube_res
-
-def Fitting_Halpha_OIII_outflowboth_unwrap(lst, progress=False):
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        priors= pickle.load(fp) 
-     
-    
-    i,j,flx_spax_m, error, wave, z = lst
-    deltav = 1500
-    deltaz = deltav/3e5*(1+z)
-    try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
-        Fits_sig.fitting_Halpha_OIII(model='gal' )
-        Fits_sig.fitted_model = 0
-        
-        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=priors)
-        Fits_out.fitting_Halpha_OIII(model='outflow' )
-        Fits_out.fitted_model = 0
-        
-        cube_res  = [i,j,Fits_sig, Fits_out ]
-    except Exception as _exc_:
-        print(_exc_)
-        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        print('Failed fit')
-    return cube_res
-
-def Fitting_OIII_2G_unwrap(lst):
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        priors= pickle.load(fp) 
-        
-    i,j,flx_spax_m, error, wave, z = lst
-    
-    try:
-        Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-        Fits_sig.fitting_OIII(model='gal_simple')
-        Fits_sig.fitted_model = 0
-        
-        Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-        Fits_out.fitting_OIII(model='outflow_simple')
-        Fits_out.fitted_model = 0
-        
-        cube_res  = [i,j, Fits_sig, Fits_out ]
-    except Exception as _exc_:
-        print(_exc_)
-        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        print('Failed fit')
-    return cube_res
-    
-import time
-
-def Fitting_Halpha_unwrap(lst): 
-    
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        priors= pickle.load(fp) 
-    
-    i,j,flx_spax_m, error, wave, z = lst
-    
-    deltav = 1500
-    deltaz = deltav/3e5*(1+z)
-    
-    Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-    Fits_sig.fitting_Halpha(model='gal')
-    Fits_sig.fitted_model = 0
-    
-    cube_res  = [i,j,Fits_sig]
-    
-    return cube_res
-    
-def Fitting_general_unwrap(lst, progress=False):
-    with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-        data= pickle.load(fp) 
-
-    i,j,flx_spax_m, error, wave, z = lst
-    use = data['use'] 
-    
-
-    if len(use)==0:
-        use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
-
-    try:
-        Fits_sig = Fitting(wave[use], flx_spax_m[use], error[use], z,N=data['N'],progress=progress, priors=data['priors'])
-        Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
-        Fits_sig.fitted_model = 0
-      
-            
-        cube_res  = [i,j,Fits_sig ]
-    except Exception as _exc_:
-        print(_exc_)
-        cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
-        print('Failed fit')
-    '''
-    f,ax = plt.subplots(1)
-    
-    from .Plotting_tools_v2 import plotting_OIII as ploto
-    ploto(wave, flx_spax_m,ax, sp.prop_calc(flat_samples),fitted_model)
-    '''
-    return cube_res
 
 

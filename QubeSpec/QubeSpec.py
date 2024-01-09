@@ -1845,7 +1845,7 @@ class Cube:
         ----------
     
         rad : float
-        radius of the circular aperture to select spaxel to fit (only used if mask_manual is not supplied)
+            radius of the circular aperture to select spaxel to fit (only used if mask_manual is not supplied)
 
         mask_manual: 2d - array
             2D array - with True value for spaxel you want ot fit. Ideal to select with QFitsView and load with QubeSpec.sp.Qfitsview_mask function
@@ -1864,7 +1864,6 @@ class Cube:
 
         boundary: float - optinal
             same as for extracting 1D spectra and for the errors.
-
 
         instrument: str
             not used anymore. Doesnt do anything. Will be remove soon.
