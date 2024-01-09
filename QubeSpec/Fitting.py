@@ -25,10 +25,6 @@ c= 3.*10**8
 h= 6.62*10**-34
 k= 1.38*10**-23
 
-PATH_TO_FeII = '/Users/jansen/My Drive/Astro/General_data/FeII_templates/'
-
-version = 'Main'    
-
 
 def gauss(x, k, mu,FWHM):
     sig = FWHM/3e5/2.35*mu

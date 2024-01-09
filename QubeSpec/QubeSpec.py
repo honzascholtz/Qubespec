@@ -121,7 +121,7 @@ class Cube:
     """Main Class for QubeSpec
     """
     def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13,):
-        """_summary_
+        """The main class for QubeSpex
 
         Args:
             Full_path (str, optional): _description_. Defaults to ''.

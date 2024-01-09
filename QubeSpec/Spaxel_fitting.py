@@ -670,7 +670,7 @@ class general:
     def __init__(self):
         self.status = 'ok'
 
-    def Spaxel_fitting_general_MCMC_mp(self, Cube,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
+    def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -712,7 +712,7 @@ class general:
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
 
-    def Spaxel_fitting_general_toptup(self, Cube, to_fit ,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
+    def Spaxel_topup(self, Cube, to_fit ,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
