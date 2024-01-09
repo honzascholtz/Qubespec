@@ -106,7 +106,7 @@ class Halpha_OIII:
         else:
             raise Exception('models variable not understood. Options are: Single, BLR, BLR_simple, BLR_both and outflow_both')
 
-        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "wb") as fp:
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
@@ -543,7 +543,7 @@ class Halpha:
         else:
             raise Exception('models variable not understood. Options are: Single, BLR, BLR_simple, BLR_both and outflow_both')
 
-        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII'+add+'.txt', "wb") as fp:
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha'+add+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
@@ -638,10 +638,7 @@ class Halpha:
     
         i,j,flx_spax_m, error, wave, z = lst
         
-        with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-            priors= pickle.load(fp) 
-        
-        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
+        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
         Fits_sig.fitting_Halpha(model='gal')
         Fits_sig.fitted_model = 0
         
@@ -650,19 +647,24 @@ class Halpha:
         return cube_res
     
     def Fitting_Halpha_outflowboth_unwrap(self,lst):
-    
+        
         i,j,flx_spax_m, error, wave, z = lst
-        
-        with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-            priors= pickle.load(fp) 
-        
-        Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=priors)
-        Fits_sig.fitting_OIII(model='gal')
-        Fits_sig.fitted_model = 0
-        
-        cube_res  = [i,j, Fits_sig]
-                    
+        try:
+            Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
+            Fits_sig.fitting_Halpha(model='gal' )
+            Fits_sig.fitted_model = 0
+            
+            Fits_out = emfit.Fitting(wave, flx_spax_m, error, z,N=10000,progress=False, priors=self.priors)
+            Fits_out.fitting_Halpha(model='outflow' )
+            Fits_out.fitted_model = 0
+            
+            cube_res  = [i,j,Fits_sig, Fits_out ]
+        except Exception as _exc_:
+            print(_exc_)
+            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+            print('Failed fit')
         return cube_res
+         
 
 class general:
     def __init__(self):

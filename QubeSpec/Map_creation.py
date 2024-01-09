@@ -15,156 +15,153 @@ from .Models import Halpha_OIII_models as HaO_models
 
 
 def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',):
-        z0 = Cube.z
-        failed_fits=0
-        wvo3 = 5008.24*(1+z0)/1e4
-        # =============================================================================
-        #         Importing all the data necessary to post process
-        # =============================================================================
-        try:
-            with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII_2G'+add+'.txt', "rb") as fp:
-                results= pickle.load(fp)
-        except:
-            with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII'+add+'.txt', "rb") as fp:
-                results= pickle.load(fp)
+    z0 = Cube.z
+    failed_fits=0
+    # =============================================================================
+    #         Importing all the data necessary to post process
+    # =============================================================================
+    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII'+add+'.txt', "rb") as fp:
+        results= pickle.load(fp)
 
-        # =============================================================================
-        #         Setting up the maps
-        # =============================================================================
-        map_oiii = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-        map_oiii[:,:,:] = np.nan
+    # =============================================================================
+    #         Setting up the maps
+    # =============================================================================
+    map_oiii = np.zeros((4,Cube.dim[0], Cube.dim[1]))
+    map_oiii[:,:,:] = np.nan
 
-        map_oiii_ki = np.zeros((5,Cube.dim[0], Cube.dim[1]))
-        map_oiii_ki[:,:,:] = np.nan
-        # =============================================================================
-        #        Filling these maps
-        # =============================================================================
-        f,ax= plt.subplots(1)
-        from . import Plotting_tools_v2 as emplot
+    map_oiii_ki = np.zeros((5,Cube.dim[0], Cube.dim[1]))
+    map_oiii_ki[:,:,:] = np.nan
+    # =============================================================================
+    #        Filling these maps
+    # =============================================================================
+    f,ax= plt.subplots(1)
 
-        Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_OIII_fit_detection_only.pdf')
+    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_OIII_fit_detection_only'+add+'.pdf')
 
 
-        for row in tqdm.tqdm(range(len(results))):
-            try:
-                i,j, Fits = results[row]
-            except:
-                print('Loading old fits? I am sorry no longer compatible...')
-
-            if str(type(Fits)) == "<class 'dict'>":
+    for row in tqdm.tqdm(range(len(results))):
+        if len(results[row])==3:
+            i,j, Fits= results[row]
+            if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
                 failed_fits+=1
                 continue
 
-            fitted_model = Fits.fitted_model
-                
-           
-            
-            z = Fits.props['popt'][0]
-            SNR = sp.SNR_calc(Fits.wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
-            flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
+        else:
+            i,j, Fits_sig, Fits_out= results[row]
 
-            map_oiii[0,i,j]= SNR
+            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                failed_fits+=1
+                continue
 
-            if SNR>SNR_cut:
-                map_oiii[1,i,j] = flux_oiii.copy()
-                map_oiii[2,i,j] = p16_oiii.copy()
-                map_oiii[3,i,j] = p84_oiii.copy()
-
-
-                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc( Fits.props, z=Cube.z, N=1)#res_spx['Nar_fwhm'][0]
-
-                p = ax.get_ylim()[1]
-
-                ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(map_oiii_ki[1,i,j],2)) )
+            if (Fits_sig.BIC-Fits_out.BIC) >10:
+                Fits = Fits_out
             else:
-
-
-                dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-                n = width_upper/3e5*(5008.24*(1+Cube.z)/1e4)/dl
-                map_oiii[3,i,j] = SNR_cut*Fits.error[1]*dl*np.sqrt(n)
-                
-
-            
-            if SNR>SNR_cut:
-                try:
-                    emplot.plotting_OIII(Fits, ax)
-                except:
-                    print(Fits.props, Fits.fitted_model)
-                    break
-                ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
-                plt.tight_layout()
-                Spax.savefig()
-                ax.clear()
-
-        Spax.close()
-
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-        x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
-        f = plt.figure( figsize=(10,10))
-
-        IFU_header = Cube.header
-
-        deg_per_pix = IFU_header['CDELT2']
-        arc_per_pix = deg_per_pix*3600
-
-
-        Offsets_low = -Cube.center_data[1:3][::-1]
-        Offsets_hig = Cube.dim[0:2] - Cube.center_data[1:3][::-1]
-
-        lim = np.array([ Offsets_low[0], Offsets_hig[0],
-                         Offsets_low[1], Offsets_hig[1] ])
-
-        lim_sc = lim*arc_per_pix
-
-        ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
-        ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
-        ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
-        ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
-
-        flx = ax1.imshow(map_oiii[1,:,:],vmax=map_oiii[1,y,x], origin='lower', extent= lim_sc)
-        ax1.set_title('Flux map')
-        divider = make_axes_locatable(ax1)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(flx, cax=cax, orientation='vertical')
-
-        #lims =
-        #emplot.overide_axes_labels(f, axes[0,0], lims)
-
-
-        vel = ax2.imshow(map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
-        ax2.set_title('v50')
-        divider = make_axes_locatable(ax2)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(vel, cax=cax, orientation='vertical')
-
-
-        fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-        ax3.set_title('W80 map')
-        divider = make_axes_locatable(ax3)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(fw, cax=cax, orientation='vertical')
-
-        snr = ax4.imshow(map_oiii[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
-        ax4.set_title('SNR map')
-        divider = make_axes_locatable(ax4)
-        cax = divider.append_axes('right', size='5%', pad=0.05)
-        f.colorbar(snr, cax=cax, orientation='vertical')
-
-        hdr = Cube.header.copy()
-        hdr['X_cent'] = x
-        hdr['Y_cent'] = y
-
-
-
-        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
+                Fits = Fits_sig
         
-        oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
-        oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
+        z = Fits.props['popt'][0]
+        SNR = sp.SNR_calc(Fits.wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
+        flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
 
-        hdulist = fits.HDUList([primary_hdu,oiii_hdu,oiii_kin_hdu ])
+        map_oiii[0,i,j]= SNR
 
-        hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps_2G.fits', overwrite=True)
+        if SNR>SNR_cut:
+            map_oiii[1,i,j] = flux_oiii.copy()
+            map_oiii[2,i,j] = p16_oiii.copy()
+            map_oiii[3,i,j] = p84_oiii.copy()
+
+
+            map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc( Fits, z=Cube.z, N=1)#res_spx['Nar_fwhm'][0]
+
+            p = ax.get_ylim()[1]
+
+            ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(map_oiii_ki[1,i,j],2)) )
+        else:
+
+
+            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
+            n = width_upper/3e5*(5008.24*(1+Cube.z)/1e4)/dl
+            map_oiii[3,i,j] = SNR_cut*Fits.error[1]*dl*np.sqrt(n)
+            
+
+        
+        if SNR>SNR_cut:
+            try:
+                emplot.plotting_OIII(Fits, ax)
+            except:
+                print(Fits.props)
+                break
+            ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
+            plt.tight_layout()
+            Spax.savefig()
+            ax.clear()
+
+    Spax.close()
+
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+    x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
+    f = plt.figure( figsize=(10,10))
+
+    IFU_header = Cube.header
+
+    deg_per_pix = IFU_header['CDELT2']
+    arc_per_pix = deg_per_pix*3600
+
+
+    Offsets_low = -Cube.center_data[1:3][::-1]
+    Offsets_hig = Cube.dim[0:2] - Cube.center_data[1:3][::-1]
+
+    lim = np.array([ Offsets_low[0], Offsets_hig[0],
+                        Offsets_low[1], Offsets_hig[1] ])
+
+    lim_sc = lim*arc_per_pix
+
+    ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
+    ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
+    ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
+    ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
+
+    flx = ax1.imshow(map_oiii[1,:,:],vmax=map_oiii[1,y,x], origin='lower', extent= lim_sc)
+    ax1.set_title('Flux map')
+    divider = make_axes_locatable(ax1)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(flx, cax=cax, orientation='vertical')
+
+    #lims =
+    #emplot.overide_axes_labels(f, axes[0,0], lims)
+
+
+    vel = ax2.imshow(map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
+    ax2.set_title('v50')
+    divider = make_axes_locatable(ax2)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(vel, cax=cax, orientation='vertical')
+
+
+    fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    ax3.set_title('W80 map')
+    divider = make_axes_locatable(ax3)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(fw, cax=cax, orientation='vertical')
+
+    snr = ax4.imshow(map_oiii[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
+    ax4.set_title('SNR map')
+    divider = make_axes_locatable(ax4)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(snr, cax=cax, orientation='vertical')
+
+    hdr = Cube.header.copy()
+    hdr['X_cent'] = x
+    hdr['Y_cent'] = y
+
+    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
+    
+    oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
+    oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
+
+    hdulist = fits.HDUList([primary_hdu,oiii_hdu,oiii_kin_hdu ])
+
+    hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps.fits', overwrite=True)
 
 def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, add=''):
     z0 = Cube.z
@@ -173,11 +170,8 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     # =============================================================================
     #         Importing all the data necessary to post process
     # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
+    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha'+add+'.txt', "rb") as fp:
         results= pickle.load(fp)
-
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
-        Unwrapped_cube= pickle.load(fp)
 
     # =============================================================================
     #         Setting up the maps
@@ -201,16 +195,32 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     #        Filling these maps
     # =============================================================================
     gf,ax= plt.subplots(1)
-    from . import Plotting_tools_v2 as emplot
 
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_fit_detection_only.pdf')
+    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_fit_detection_only'+add+'.pdf')
 
-
+    failed_fits = 0
     for row in range(len(results)):
+        if len(results[row])==3:
+            i,j, Fits= results[row]
+            if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                failed_fits+=1
+                continue
 
-        i,j, res_spx = results[row]
-        i,j, flx_spax_m, error,wave,z = Unwrapped_cube[row]
+        else:
+            i,j, Fits_sig, Fits_out= results[row]
 
+            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                failed_fits+=1
+                continue
+
+            if (Fits_sig.BIC-Fits_out.BIC) >10:
+                Fits = Fits_out
+            else:
+                Fits = Fits_sig
+
+        res_spx = Fits.props
+        flx_spax_m = Fits.fluxs
+        error = Fits.error
         z = res_spx['popt'][0]
         SNR = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn')
         map_snr[i,j]= SNR
@@ -222,7 +232,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
             map_nii[i,j] = sp.flux_calc(res_spx, 'NIIt', Cube.flux_norm)
 
 
-        emplot.plotting_Halpha(Cube.obs_wave, flx_spax_m, ax, res_spx, emfit.H_models.Halpha, error=error)
+        emplot.plotting_Halpha(Fits, ax, error=error)
         ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
 
         if res_spx['Hal_peak'][0]<3*error[0]:
@@ -413,34 +423,28 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     Result_cube_data = Cube.flux.data
     Result_cube_error = Cube.error_cube.data
 
-    from . import Plotting as emplot
-
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only.pdf')
+    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only'+add+'.pdf')
 
     from .Models import Halpha_OIII_models as HO_models
     for row in tqdm.tqdm(range(len(results))):
+        
+        if len(results[row])==3:
+            i,j, Fits= results[row]
+            if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                failed_fits+=1
+                continue
 
-        try:
-            i,j, res_spx,chains,wave,flx_spax_m,error = results[row]
+        else:
+            i,j, Fits_sig, Fits_out= results[row]
 
-        except:
-            if len(results[row])==3:
-                i,j, Fits= results[row]
-                if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
-                    failed_fits+=1
-                    continue
+            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+                failed_fits+=1
+                continue
 
+            if (Fits_sig.BIC-Fits_out.BIC) >10:
+                Fits = Fits_out
             else:
-                i,j, Fits_sig, Fits_out= results[row]
-
-                if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
-                    failed_fits+=1
-                    continue
-
-                if (Fits_sig.BIC-Fits_out.BIC) >10:
-                    Fits = Fits_out
-                else:
-                    Fits = Fits_sig
+                Fits = Fits_sig
 
         Result_cube_data[:,i,j] = Fits.fluxs.data
         try:
@@ -456,13 +460,6 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
         error = Fits.error
         lists= Fits.props.keys()
     
-        from .Models import Halpha_OIII_models as HO_models
-        if 'zBLR' in lists:
-            modelfce = HO_models.Halpha_OIII_BLR
-        elif 'outflow_vel' not in lists:
-            modelfce = HO_models.Halpha_OIII
-        elif 'outflow_vel' in lists and 'zBLR' not in lists:
-            modelfce = HO_models.Halpha_OIII_outflow
 
 # =============================================================================
 #             Halpha
@@ -598,9 +595,6 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             n = width_upper/3e5*(6731*(1+Cube.z)/1e4)/dl
             map_siir[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
             map_siib[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
-
-
-
 
         baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = '+ str(np.round([SNR_hal, SNR_oiii, SNR_nii, SNR_SII],1)))
         baxes.set_xlabel('Restframe wavelength (ang)')
