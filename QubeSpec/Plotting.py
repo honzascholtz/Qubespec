@@ -35,7 +35,7 @@ k= 1.38*10**-23
 
 arrow = u'$\u2193$'
 
-from . import Fitting_tools_mcmc as emfit
+from . import Fitting as emfit
 
 def gauss(x, k, mu,FWHM):
     sig = FWHM/3e5*mu/2.35482
