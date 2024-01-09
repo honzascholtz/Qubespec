@@ -1837,34 +1837,41 @@ class Cube:
                     
         
 
-    def unwrap_cube(self, rad=0.4, sp_binning='Nearest', instrument='KMOS', add='', mask_manual=0, binning_pix=1, err_range=[0], boundary=2.4):
-        '''
-        Unwrapping the cube.
+    def unwrap_cube(self, rad=0.4,mask_manual=0, sp_binning='Nearest', add='', binning_pix=1, err_range=[0], boundary=2.4,instrument='NIRSPEC05'):
+        """ Unwrapping the cube to prep it for spaxel-by-spaxel fitting. Saves the output as a pickle .txt object. 
+
 
         Parameters
         ----------
-        rad : TYPE, optional
-            DESCRIPTION. The default is 0.4.
-        sp_binning : TYPE, optional
-            DESCRIPTION. The default is 'Nearest'.
-        instrument : TYPE, optional
-            DESCRIPTION. The default is 'KMOS'.
-        add : TYPE, optional
-            DESCRIPTION. The default is ''.
-        mask_manual : TYPE, optional
-            DESCRIPTION. The default is 0.
-        binning_pix : TYPE, optional
-            DESCRIPTION. The default is 1.
-        err_range : TYPE, optional
-            DESCRIPTION. The default is [0].
-        boundary : TYPE, optional
-            DESCRIPTION. The default is 2.4.
+    
+        rad : float
+        radius of the circular aperture to select spaxel to fit (only used if mask_manual is not supplied)
 
-        Returns
-        -------
-        None.
+        mask_manual: 2d - array
+            2D array - with True value for spaxel you want ot fit. Ideal to select with QFitsView and load with QubeSpec.sp.Qfitsview_mask function
 
-        '''
+        sp_binning : str
+            spatial binning - 'Single' - no binning, 'Nearest' - bins within 0.1 arcsec radius
+
+        binning_pix: int -
+            If sp_biiing = 'Nearest', how many pixels to bin over 1,2,3
+
+        add: str - optional 
+            add additional string to the saved file name for version/variations/names of companions. 
+
+        err_range : list - optional
+            same as for extracting 1D spectra and for the errors.
+
+        boundary: float - optinal
+            same as for extracting 1D spectra and for the errors.
+
+
+        instrument: str
+            not used anymore. Doesnt do anything. Will be remove soon.
+            
+           
+        """
+           
         flux = self.flux.copy()
         Mask= self.sky_clipped_1D
         shapes = self.dim
@@ -1886,22 +1893,9 @@ class Cube:
         except:
             arc = (self.header['CDELT2']*3600)
 
-
-        if arc> 0.17:
-            upper_lim = 2
-            step = 1
-
-        elif arc< 0.17:
-            upper_lim = 3
-            step = 2
-        if instrument=='NIRSPEC':
-            upper_lim = 0
-            step = 1
-            step = binning_pix
-        if instrument=='NIRSPEC05':
-            upper_lim = 0
-            step = 2
-            step = binning_pix
+        upper_lim = 0
+        step = binning_pix
+    
         x = range(shapes[0]-upper_lim)
         y = range(shapes[1]-upper_lim)
 
@@ -1931,7 +1925,7 @@ class Cube:
                     Spax_mask_pick = ThD_mask.copy()
                     Spax_mask_pick[:,:,:] = True
                     if sp_binning=='Nearest':
-                        Spax_mask_pick[:, i-step:i+upper_lim, j-step:j+upper_lim] = False
+                        Spax_mask_pick[:, i-step:i+step, j-step:j+step] = False
                     if sp_binning=='Single':
                         Spax_mask_pick[:, i, j] = False
 
