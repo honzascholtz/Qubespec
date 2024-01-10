@@ -229,7 +229,15 @@ and general functions.
 
 .. automethod:: QubeSpec.Maps.Map_creation_Halpha_OIII
 
+This is the same for ``QubeSpec.Maps.Map_creation_Halpha`` and ``QubeSpec.Maps.Map_creation_OIII``
 
+For the general fit, you need supply it additional information to extract all of the emission lines. 
+
+.. automethod:: QubeSpec.Maps.Map_creation_general
+
+most importantly you need to supply the ``info`` dictionary containing the information needed to extract the emission lines. 
+
+The shape of the ``info`` dictionary should be as below:
 
 .. code:: ipython3
 
@@ -243,21 +251,49 @@ and general functions.
     info['OII'] = {'wv':3727.1, 'fwhm':'Nar_fwhm','kin':0}
     info['OIIIaur'] = {'wv':4363, 'fwhm':'Nar_fwhm','kin':0}
     info['HeI'] = {'wv':3889, 'fwhm':'Nar_fwhm','kin':0}
-    
-    fmaps = IFU.Maps.Map_creation_general(Cube, info,flux_max=1e-18, SNR_cut=4., fwhmrange=[200,600], velrange=[-200,200], \
-                                      modelfce=Full_optical )
+
+Each entry contains another dictionary with:
+
+* ``'wv'`` - rest-frame wavelength of the emission line
+* ``'fwhm'`` - name of the FWHM variable associated with that particular emission line component 
+* ``'kin'`` - do you want to retrieve the kinematic component info. 
+
+We can then run the post processing suc this: 
+
+.. code:: ipython3  
+    fmaps = IFU.Maps.Map_creation_general(Cube, info,flux_max=1e-18, SNR_cut=4., width_upper=300,\
+                brokenaxes_xlims= ((1.75,2.1),(2.2,2.4), (3,3.2)) )
+
     plt.show()
+
+Visually inspecting the fits
+-----------------------------------------
+
+Once we fit all of the spaxels, we can visually inspect the maps and each of the fits. We need to use the
+ ``QubeSpec.Visulizations`` module which initialize a UI to fit. To initialize it we need to supply the path to the 
+ fits file containing the Spaxel maps and list of three fits extentions we want to show. 
+
+.. code:: ipython3
+    import numpy as np
+    import QubeSpec.Visulizations as viz
+
+    PATH='/Users/jansen/JADES/GA_NIFS/'
+
+    Viz = viz.Visualize(PATH+'Results/GS551/GS551_R2700_general_fits_maps.fits',\
+                         ['HAL','OIII','OIII_kin'])
+    
+    Viz.showme()
 
 
 
 Something didnt fit right? lets refit it.
 -----------------------------------------
 
-Things are bound to fail. In the next we will quickly fit only few
-spaxel and replace them in the saved file.
+There is a decent chat that not all (800?) fits are going to be perfect on the first try. Actually, it is quite likely. 
+Therefore, I have written few "topup" functions. These function have the same syntax as the e.g. ``QubeSpec.Spaxel.Halpha_OIII.Spaxel_fitting``
+but they also include variable ``to_fit`` with should contain a list of pair of coordinates to refit: 
 
 .. code:: ipython3
+    spx.toptup(Cube, to_fit = [59,48], fitted_model = Full_optical, labels=labels, priors=priors, logprior= emfit.logprior_general_scipy)
 
-    IFU.Spaxel.Spaxel_fitting_general_toptup(Cube, to_fit = [59,48], fitted_model = Full_optical, labels=labels, priors=priors, logprior= emfit.logprior_general_scipy)
-
-
+this will replace the fits with new ones. However, please remember to regenerate all of the maps. 

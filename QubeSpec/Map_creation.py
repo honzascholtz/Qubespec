@@ -409,34 +409,10 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
 
     return f
 
-def Map_creation_ppxf(Cube, info, add=''):
-    flux_table = Table.read(Cube.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
-    info_keys = list(info.keys())
-    for key in info_keys:
-        map_flx = np.zeros((2,Cube.dim[0], Cube.dim[1]))
-        map_flx[:,:,:] = np.nan
-        
-        for k, row in tqdm.tqdm(enumerate(flux_table)):
-            ID = str(row['ID'])
-            i,j = int(ID[:2]),int(ID[2:])
-            map_flx[0,i,j] = (row[key+'_flux'] if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
-            map_flx[0,i,j] = (row[key+'_flux_upper']/3 if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
-        
-        info[key]['flux_map'] = map_flx
-    
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
-    hdus = [primary_hdu]
-    for key in info_keys:
-        hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
-    
-
-    hdulist = fits.HDUList(hdus)
-    hdulist.writeto(Cube.savepath+Cube.ID+'_ppxf_fits_maps'+add+'.fits', overwrite=True)
-
 
 def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, width_upper=300,add=''):
     """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
+        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps etc.,
         Afterwards it saves all of it as .fits file. 
 
         Parameters
@@ -911,6 +887,30 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
 def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                             brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
+    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
+        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
+        Afterwards it saves all of it as .fits file. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+        
+        info : dict
+            dictionary containing information on what to extract. 
+
+        SNR_cut : float
+            SNR cutoff to detect emission lines 
+        
+        add : str
+            additional string to use to load the results and save maps/pdf
+        
+        brokenaxes_xlims: list
+            list of wavelength ranges to use for broken axes when plotting
+
+            
+        """
     z0 = Cube.z
     failed_fits=0
     
@@ -1045,3 +1045,27 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
     hdulist.writeto(Cube.savepath+Cube.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
 
     return f
+
+def Map_creation_ppxf(Cube, info, add=''):
+    flux_table = Table.read(Cube.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')
+    info_keys = list(info.keys())
+    for key in info_keys:
+        map_flx = np.zeros((2,Cube.dim[0], Cube.dim[1]))
+        map_flx[:,:,:] = np.nan
+        
+        for k, row in tqdm.tqdm(enumerate(flux_table)):
+            ID = str(row['ID'])
+            i,j = int(ID[:2]),int(ID[2:])
+            map_flx[0,i,j] = (row[key+'_flux'] if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
+            map_flx[0,i,j] = (row[key+'_flux_upper']/3 if row[key+'_flux']>row[key+'_flux_upper'] else np.nan)
+        
+        info[key]['flux_map'] = map_flx
+    
+    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
+    hdus = [primary_hdu]
+    for key in info_keys:
+        hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
+    
+
+    hdulist = fits.HDUList(hdus)
+    hdulist.writeto(Cube.savepath+Cube.ID+'_ppxf_fits_maps'+add+'.fits', overwrite=True)
