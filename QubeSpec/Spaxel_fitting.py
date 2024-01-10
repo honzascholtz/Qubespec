@@ -47,8 +47,28 @@ class Halpha_OIII:
                                                                                             'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
                                         
                                         
-                                        
-                                        
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+            
+        """                              
+                                    
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -227,6 +247,27 @@ class OIII:
                                                                                             'Hbeta_out_peak':[0,'loguniform',-4,1],\
                                                                                             'BLR_Hbeta_peak':[0,'loguniform', -4,1]}, **kwargs):
 
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+            
+        """
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -403,6 +444,28 @@ class Halpha:
                                                         'NII_out_peak':[0,-4,1],\
                                                         'outflow_fwhm':[600,300,1500],\
                                                         'outflow_vel':[-50, -300,300]}, **kwargs):
+        
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+            
+        """
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -565,6 +628,36 @@ class general:
         self.status = 'ok'
 
     def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        fitted_model : callable
+            Function to fit
+
+        labels : list
+            list of the name of the paramters in the same order as in the fitted_function
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+        
+        logprior: callable function
+            logprior evaluation function - use emfit.logprior_general or emfit.logprior_general_scipy
+        
+        nwalkers : int - optional
+            default 64 walkers for the MCMC
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+            
+        """
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
@@ -614,37 +707,33 @@ class general:
             
         print('import of the unwrap cube - done')
         
-        data= {'priors':priors}
-        data['fitted_model'] = fitted_model
-        data['labels'] = labels
-        data['logprior'] = logprior
-        data['nwalkers'] = nwalkers
-        data['use'] = use
-        data['N'] = N
+        self.priors= priors
+        self.fitted_model = fitted_model
+        self.labels = labels
+        self.logprior = logprior
+        self.nwalkers = nwalkers
+        self.use = use
+        self.N = N     
 
-        for i, row in enumerate(Cube_res):
-            y,x, res = row
-            if to_fit[0]==x and to_fit[1]==y:
+        for j, to_fit_sig in enumerate(to_fit):
+            print(to_fit_sig)
+            for i, row in enumerate(Cube_res):
+                if len(row)==3:
+                    y,x, res = row
+                
+                if to_fit_sig[0]==x and to_fit_sig[1]==y:
+                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
 
-                flx_spax_m, error, wave = res.fluxs, res.error, res.wave
-                z = Cube.z
-                use = data['use'] 
+                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
 
-                Fits_sig = emfit.Fitting(wave, flx_spax_m, error, z,N=data['N'],progress=True, priors=data['priors'])
-                Fits_sig.fitting_general(data['fitted_model'], data['labels'], data['logprior'], nwalkers=data['nwalkers'])
-                Fits_sig.fitted_model = 0
-        
-            
-                Cube_res[i]  = [x,y,Fits_sig ]
+                    Fits_sig = Cube_res[i][2]
+                    f,ax = plt.subplots(1, figsize=(10,5))
+                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
 
-                f,ax = plt.subplots(1, figsize=(10,5))
-                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
-                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
+                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
 
-                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
-
-                break
-        
+                    break
                 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  

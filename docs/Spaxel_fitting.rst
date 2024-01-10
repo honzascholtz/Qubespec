@@ -58,8 +58,75 @@ Now we are going to perform the spaxel-by-spaxel fitting. The whole process is s
 .. image:: Spaxel_fitting_files/Spaxel_fitting_5_0.png
 
 
+
 2) Fitting spaxel-by-spaxel
 ----------------------
+
+In order to fit all of the spaxels we need to use the ``QubeSpec.Spaxel`` module. Similar to the fitting the 1D collapsed spectra,
+there are pre written functions/classes to allow fit the basic Halpha, [OIII] and Halpha+[OIII] and of course full custom functions. 
+The four classes classes are:
+
+* ``QubeSpec.Spaxel.Halpha`` - class to fit Halpha complex
+* ``QubeSpec.Spaxel.OIII`` - class to fit [OIII] complex
+* ``QubeSpec.Spaxel.Halpha_OIII`` - class to fit Halpha+[OIII] complex
+* ``QubeSpec.Spaxel.general`` - class to fit any custom function. 
+
+Within each class there are couple of standarized models and combination of models to fit (``models='Single'``):
+
+* ``Single`` - single Gaussian per emission line
+* ``BLR`` - BLR + outflow
+* ``BLR_simple`` - BLR (no outflow)
+* ``outflow_both`` - Fits single model and outflow models and then we decide later which fit to use 
+* ``BLR_both`` - BLR and BLR_simple and then we decide later which fit to use 
+
+Below is the full description of the fitting function:
+
+.. automethod:: QubeSpec.Spaxel.Halpha_OIII.Spaxel_fitting
+
+And below is an example of how to trigger it: 
+
+.. code:: ipython3
+    dvmax = 1000/3e5*(1+Cube.z)
+    dvstd = 200/3e5*(1+Cube.z)
+    priors={'z':[Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]}
+    priors['cont']=[0,'loguniform',-7,1]
+    priors['Nar_fwhm']=[300,'uniform',100,400]
+
+    priors['cont_grad']= [0,'normal',0,0.3]
+    priors['Hal_peak']=[0,'loguniform',-5,1]
+    priors['NII_peak']=[0,'loguniform',-5,1]
+    priors['SIIr_peak']=[0,'loguniform',-5,1]
+    priors['SIIb_peak']= [0,'loguniform',-7,1]
+    priors['OIII_peak']=[0,'loguniform',-7,1]
+    priors['Hbeta_peak']=[0,'loguniform',-6,1]
+
+    priors['OIII_out_peak']=[0,'loguniform',-6,1]
+    priors['Hbeta_out_peak']=[0,'loguniform',-6,1]
+    priors['Hal_out_peak']=[0,'loguniform',-6,1]
+    priors['NII_out_peak']=[0,'loguniform',-6,1]
+    priors['outflow_fwhm']=[800,'uniform', 600,2000]
+    priors['outflow_vel']=[-50,'normal', 0,300]
+
+    priors['BLR_Hbeta_peak']=[0,'loguniform', -6,1]
+    priors['BLR_Hal_peak']=[0,'loguniform',-6,1]
+    priors['zBLR']=[0, 'normal', 0,0.003]
+    priors['BLR_fwhm']=[4000,'uniform', 2000,9000]
+
+    Spaxel = True
+    if Spaxel==True: 
+        if __name__ == '__main__':
+            spx = IFU.Spaxel.Halpha_OIII()
+            spx.Spaxel_fitting(Cube, models='outflow_both',add='_test', Ncores=QubeSpec_setup['ncpu'], priors=priors)
+
+
+Please not couple of things. First in the ``priors``, we have set the low boundary of the ``_peak`` and ``cont`` to quite low (-6 or 1e-6).
+This allows for pretty low values when fitting spaxel spectrum with very low fluxes in them. Secondly, please make sure that you run the Spaxel
+fitting in the ``if __name__ == '__main__':`` or the multiprocess code will freak out. 
+
+In order to fit a custom function, we need to define similar things as for the general fitting in 1D spectrum fitting. Actually, I highly recommend
+that we use the exact function, labels, priors, etc. This way will make sure that things work on a single spectrum before we fit all of the spaxel. 
+See example below:
+
 
 .. code:: ipython3
 
@@ -115,8 +182,6 @@ Now we are going to perform the spaxel-by-spaxel fitting. The whole process is s
     
     labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
 
-.. code:: ipython3
-
     dvmax = 1000/3e5*(1+Cube.z)
     dvstd = 200/3e5*(1+Cube.z)
     priors={'z':[Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]}
@@ -135,18 +200,29 @@ Now we are going to perform the spaxel-by-spaxel fitting. The whole process is s
     priors['NeIII_peak'] = [0.01,'loguniform',-4,1]
     priors['OII_peak'] = [0.01,'loguniform',-4,1]
     priors['OII_rat']=[1,'uniform', 0.2,4]
-    priors['OIIIc_peak']=[0.01,'loguniform', -4,1]
-    
+    priors['OIIIaur_peak']=[0.01,'loguniform', -4,1]
+
+Please notice above in the priors that we have intenationally put the initial conditions for the ``_peak`` to be ~5-10 smaller than in the 1D spectra case.
+Secondly, the lowe boundaries for the ``_peak`` are also smaller. 
+
+Below is the full description of the ``Spaxel_fitting`` function.
+
+.. automethod:: QubeSpec.Spaxel.general.Spaxel_fitting
+
+.. code:: ipython3
+
     Spaxel = False
     if Spaxel==True: 
         if __name__ == '__main__':
-            IFU.Spaxel.Spaxel_fitting_general_MCMC_mp(Cube, Full_optical,labels, priors, emfit.logprior_general_scipy, add='', Ncores=QubeSpec_setup['ncpu'])
-
-
+            spx = IFU.Spaxel.general()
+            spx.Spaxel_fitting_general_MCMC_mp(Cube, Full_optical,labels, priors, emfit.logprior_general_scipy, add='', Ncores=QubeSpec_setup['ncpu'])
 
 
 3) Map creation
 ----------------------
+
+During the Spaxel-by-Spaxel fitting above, we only create ``QubeSpec.Fitting.Fitting`` class instance for every spaxel and save it into a text document (pickling it).
+However, we dont actually extract any useful information (such as fluxes, velocities, velocity widths, etc). As such, we need to post process 
 
 
 .. code:: ipython3
@@ -159,7 +235,7 @@ Now we are going to perform the spaxel-by-spaxel fitting. The whole process is s
     info['Hdelta'] = {'wv':4102.859, 'fwhm':'Nar_fwhm','kin':0}
     info['NeIII'] = {'wv':3869.68, 'fwhm':'Nar_fwhm','kin':0}
     info['OII'] = {'wv':3727.1, 'fwhm':'Nar_fwhm','kin':0}
-    info['OIIIc'] = {'wv':4363, 'fwhm':'Nar_fwhm','kin':0}
+    info['OIIIaur'] = {'wv':4363, 'fwhm':'Nar_fwhm','kin':0}
     info['HeI'] = {'wv':3889, 'fwhm':'Nar_fwhm','kin':0}
     
     fmaps = IFU.Maps.Map_creation_general(Cube, info,flux_max=1e-18, SNR_cut=4., fwhmrange=[200,600], velrange=[-200,200], \

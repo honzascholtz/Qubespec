@@ -41,6 +41,8 @@ from .Models import OIII_models as O_models
 from .Models import Halpha_OIII_models as HO_models
 from .Models import QSO_models as QSO_models
 from .Models import Halpha_models as H_models
+from .Models import Full_optical as FO_models
+
 from .Models import Custom_model
 import numba
 from . import Support as sp
@@ -119,6 +121,115 @@ class Fitting:
     # =============================================================================
     #  Primary function to fit Halpha both with or without BLR - data prep and fit 
     # =============================================================================
+    def fitting_optical(self, model='gal'):
+        """ Method to fit Halpha+[NII +[SII]]
+        
+        Parameters
+        ----------
+
+        model - str
+            current valid models names and their variable names/also prior names:
+
+            gal -  'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak'
+
+            outflow - 'z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel'
+           
+        """
+        self.model= model
+        self.template = None
+        
+        if self.priors['z'][0]==0:
+            self.priors['z'][0]=self.z
+            if (self.priors['z'][1]=='normal_hat') & (self.priors['z'][2]==0):
+                self.priors['z'][2] = self.z
+                self.priors['z'][3] = 200/3e5*(1+self.z)
+                self.priors['z'][4] = self.z-1000/3e5*(1+self.z)
+                self.priors['z'][5] = self.z+1000/3e5*(1+self.z)
+        
+        self.fluxs[np.isnan(self.fluxs)] = 0
+        self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.wave = self.wave[np.invert(self.fluxs.mask)]
+         
+        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
+        sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
+        
+        self.flux_zoom = self.flux[sel]
+        self.wave_zoom = self.wave[sel]
+        
+        peak = np.ma.max(self.flux_zoom)
+        nwalkers=64
+
+        if self.model=='gal':
+            self.fitted_model = FO_models.Full_optical
+            self.log_prior_fce = logprior_general
+            self.labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak', 'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm']
+
+            self.pr_code = self.prior_create()
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+
+            self.res = {'name': 'Full_optical'}
+            
+                
+        elif self.model=='outflow':
+            self.fitted_model = FO_models.Full_optical_outflow
+            self.log_prior_fce = logprior_general
+            self.labels= ['z', 'cont','cont_grad',  'Hal_peak', 'NII_peak', 'OIII_peak', 'Hbeta_peak','Hgamma_peak',\
+                          'Hdelta_peak','NeIII_peak','OII_peak','OII_rat','OIIIaur_peak', 'HeI_peak','HeII_peak', 'Nar_fwhm',\
+                          'Hal_out_peak', 'OIII_out_peak', 'NII_out_peak', 'Hbeta_out_peak', \
+                                  'outflow_vel', 'outflow_fwhm']
+            
+            self.pr_code = self.prior_create()
+            
+            cont = np.median(self.flux[self.fit_loc])
+            if cont<0:
+                cont=0.01
+            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4, self.priors['Nar_fwhm'][0],peak/6, peak/6,peak/8, peak/8, self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0] ])
+            for i in enumerate(self.labels):
+                pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
+            
+            pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+            pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+            
+            self.res = {'name': 'Full_optical_outflow'}
+        
+        self.flux_fitloc = self.flux
+        self.wave_fitloc = self.wave
+        self.error_fitloc = self.error
+        
+        if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf) | (self.log_prior_fce(pos_l, self.pr_code)== np.nan):
+            print(logprior_general_scipy_test(pos_l, self.pr_code))
+                
+            raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
+                            boundries are sensible')
+
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(
+             nwalkers, ndim, self.log_probability_general, args=())
+     
+        sampler.run_mcmc(pos, self.N, progress=self.progress)
+        self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+        
+        self.chains = {'name': 'Full_optical'}
+        for i in range(len(self.labels)):
+            self.chains[self.labels[i]] = self.flat_samples[:,i]
+            
+        self.props = self.prop_calc()
+        try:
+            self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
+        except:
+            self.chi2, self.BIC = np.nan, np.nan
+        
+        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+
     def fitting_Halpha(self, model='gal'):
         """ Method to fit Halpha+[NII +[SII]]
         
@@ -870,11 +981,30 @@ class Fitting:
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
 
         
-    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64, template=None):
+    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64):
         """ Fitting any general function that you pass. You need to put in fitted_model, labels and
-        you can pass logprior function or number of walkers.        
+        you can pass logprior function or number of walkers.  
+
+        Parameters
+        ----------
+
+        fitted_model : callable
+            Function to fit
+
+        labels : list
+            list of the name of the paramters in the same order as in the fitted_function
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+        
+        logprior: callable function
+            logprior evaluation function - use emfit.logprior_general or emfit.logprior_general_scipy
+        
+        nwalkers : int - optional
+            default 64 walkers for the MCMC
+                 
         """
-        self.template= template
+        self.template= None
         self.labels= labels
         if logprior !=None:
             self.log_prior_fce = logprior_general

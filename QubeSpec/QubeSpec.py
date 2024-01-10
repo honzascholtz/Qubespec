@@ -1610,6 +1610,112 @@ class Cube:
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_OIII_fit.pdf')
 
         self.fit_plot = [f,ax1,ax2]  
+    
+    def fitting_collapse_optical(self, plot=1, models='Outflow', progress=True, N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0]}):
+        
+        priors= {'z': [0,'normal_hat',0, 0, 0,0],\
+                'cont':[0,'loguniform',-3,1],\
+                'cont_grad':[0,'normal',0,0.2], \
+                'OIII_peak':[0,'loguniform',-3,1],\
+                'OIII_out_peak':[0,'loguniform',-3,1],\
+                'Nar_fwhm':[300,'uniform', 100,900],\
+                'BLR_fwhm':[5000,'uniform', 2000,9000],\
+                'outflow_fwhm':[700,'uniform',600,2500],\
+                'outflow_vel':[-50,'normal',0,200],\
+                'Hbeta_peak':[0,'loguniform',-3,1],\
+                'BLR_Hbeta_peak':[0,'loguniform',-3,1],\
+                'Hbeta_out_peak':[0,'loguniform',-3,1],\
+                'zBLR': [0,'normal_hat',0, 0, 0,0],\
+                'Fe_peak':[0,'loguniform',-3,1],\
+                'Fe_fwhm':[3000,'uniform',2000,6000]}
+        
+        for name in list(priors.keys()):
+            priors[name] = priors[name]
+
+        wave = self.obs_wave.copy()
+        flux = self.D1_spectrum.copy()
+        error = self.D1_spectrum_er.copy()
+    
+        if models=='Outflow':
+            
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_optical(model='gal')
+                
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_out.fitting_optical(model='outflow')
+            
+            if Fits_out.BIC-Fits_sig.BIC <-2:
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                print('BICM', Fits_out.BIC)
+                self.D1_fit_results = Fits_out.props
+                self.D1_fit_chain = Fits_out.chains
+                self.D1_fit_model = Fits_out.fitted_model
+                self.D1_fit_full = Fits_out
+                
+                self.z = self.D1_fit_results['popt'][0]
+                
+                
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
+                
+            else:
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                
+                self.D1_fit_results = Fits_sig.props
+                self.D1_fit_chain = Fits_sig.chains
+                self.D1_fit_model = Fits_sig.fitted_model
+                self.D1_fit_full = Fits_sig
+                
+                self.z = self.D1_fit_results['popt'][0]
+                
+                
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
+            
+            g, (ax1a,ax2a) = plt.subplots(2)
+            emplot.plotting_optical(Fits_sig, ax1a)
+            emplot.plotting_optical(Fits_out, ax2a)
+            
+            
+        elif models=='Single_only':
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_sig.fitting_optical(model='gal' )
+               
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+            
+            self.z = self.D1_fit_results['popt'][0]
+            
+            self.dBIC = 3
+            
+        elif models=='Outflow_only':
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors)
+            Fits_out.fitting_optical(model='outflow' )
+                
+            print('BICM', Fits_out.BIC)
+            self.D1_fit_results = Fits_out.props
+            self.D1_fit_chain = Fits_out.chains
+            self.D1_fit_model = Fits_out.fitted_model
+            self.D1_fit_full = Fits_out
+            
+            self.z = self.D1_fit_results['popt'][0]
+            self.dBIC = 3
+             
+        else:
+            Exception('Sorry, models keyword not understood: Outflow_only, Single_only, Outflow')
+        
+        
+        self.D1_fit_full.corner()
+      
+        f, (ax1, ax2) = plt.subplots(2, 1,  gridspec_kw={'height_ratios': [3, 1]}, sharex='col')
+        plt.subplots_adjust(hspace=0)
+        ax1.yaxis.tick_left()
+        ax2.yaxis.tick_left()
+        
+        emplot.plotting_optical(self.D1_fit_full, ax1, error=error, residual='error', axres=ax2)
+        plt.savefig(self.savepath+'Diagnostics/1D_spectrum_optical_fit.pdf')
+
+        self.fit_plot = [f,ax1,ax2]  
             
     
     def fitting_collapse_general(self,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=6000 ):
