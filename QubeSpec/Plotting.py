@@ -510,17 +510,17 @@ def plotting_optical(res, ax, error=np.array([1]), template=0, residual='none',a
                         color= 'blue', linestyle ='dashed')
 
     if residual !='none':
-        resid_OIII = flux[fit_loc_sc]-y_tot_rs
+        resid_OIII = flux-y_tot_rs
         sigma_OIII = np.std(resid_OIII)
         RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
 
-        axres.plot(wv_rst_sc[fit_loc_sc],resid_OIII, drawstyle='steps-mid')
+        axres.plot(wv_rst_sc,resid_OIII, drawstyle='steps-mid')
         axres.set_ylim(-3*RMS_OIII, 3*RMS_OIII) ## the /3 scales to the ratio
         axres.hlines(0, 4600,5600, color='black', linestyle='dashed')
         if residual=='rms':
-            axres.fill_between(wv_rst_sc[fit_loc_sc], RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
+            axres.fill_between(wv_rst_sc, RMS_OIII, -RMS_OIII, facecolor='grey', alpha=0.2)
         elif residual=='error':
-            axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
+            axres.fill_between(wv_rst_sc,resid_OIII-error,resid_OIII+error, alpha=0.3, color='k')
 
 
 

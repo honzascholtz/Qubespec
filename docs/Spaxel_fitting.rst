@@ -222,7 +222,13 @@ Below is the full description of the ``Spaxel_fitting`` function.
 ----------------------
 
 During the Spaxel-by-Spaxel fitting above, we only create ``QubeSpec.Fitting.Fitting`` class instance for every spaxel and save it into a text document (pickling it).
-However, we dont actually extract any useful information (such as fluxes, velocities, velocity widths, etc). As such, we need to post process 
+However, we dont actually extract any useful information (such as fluxes, velocities, velocity widths, etc). As such, we need to post process all of the fitting results.
+
+To post process the results, we will usethe ``QubeSpec.Maps`` module. As usual there are pre written function to post process the results for the usual emission line combination
+and general functions. 
+
+.. automethod:: QubeSpec.Maps.Map_creation_Halpha_OIII
+
 
 
 .. code:: ipython3

@@ -14,7 +14,36 @@ from . import Fitting as emfit
 from .Models import Halpha_OIII_models as HaO_models
 
 
-def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='',):
+def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=12, flux_max=0, width_upper=300,add='',):
+    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
+        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
+        Afterwards it saves all of it as .fits file. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        SNR_cut : float
+            SNR cutoff to detect emission lines 
+
+        fwhmrange : list
+            list of the two values to use as vmin and vmax in imshow of FWHM range
+
+        velrange : list
+            list of the two values to use as vmin and vmax in imshow of velocity range
+        
+        width_upper : float
+            FWHM value used in the flux upper limit calculation.
+        
+        dbic : float
+            delta bic to decide which model to use. 
+        
+        add : str
+            additional string to use to load the results and save maps/pdf
+            
+        """
     z0 = Cube.z
     failed_fits=0
     # =============================================================================
@@ -53,7 +82,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
                 failed_fits+=1
                 continue
 
-            if (Fits_sig.BIC-Fits_out.BIC) >10:
+            if (Fits_sig.BIC-Fits_out.BIC) >dbic:
                 Fits = Fits_out
             else:
                 Fits = Fits_sig
@@ -163,7 +192,37 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps.fits', overwrite=True)
 
-def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, add=''):
+def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, add=''):
+    """ 
+     Function to post process fits. The function will load the fits results and determine which model is more likely,
+        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
+        Afterwards it saves all of it as .fits file. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        SNR_cut : float
+            SNR cutoff to detect emission lines 
+
+        fwhmrange : list
+            list of the two values to use as vmin and vmax in imshow of FWHM range
+
+        velrange : list
+            list of the two values to use as vmin and vmax in imshow of velocity range
+        
+        width_upper : float
+            FWHM value used in the flux upper limit calculation.
+        
+        dbic : float
+            delta bic to decide which model to use. 
+        
+        add : str
+            additional string to use to load the results and save maps/pdf
+            
+    """
     z0 = Cube.z
 
     wvo3 = 6563*(1+z0)/1e4
@@ -213,7 +272,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
                 failed_fits+=1
                 continue
 
-            if (Fits_sig.BIC-Fits_out.BIC) >10:
+            if (Fits_sig.BIC-Fits_out.BIC) >dbic:
                 Fits = Fits_out
             else:
                 Fits = Fits_sig
@@ -375,7 +434,36 @@ def Map_creation_ppxf(Cube, info, add=''):
     hdulist.writeto(Cube.savepath+Cube.ID+'_ppxf_fits_maps'+add+'.fits', overwrite=True)
 
 
-def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add='', dbic=10):
+def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, width_upper=300,add=''):
+    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
+        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
+        Afterwards it saves all of it as .fits file. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        SNR_cut : float
+            SNR cutoff to detect emission lines 
+
+        fwhmrange : list
+            list of the two values to use as vmin and vmax in imshow of FWHM range
+
+        velrange : list
+            list of the two values to use as vmin and vmax in imshow of velocity range
+        
+        width_upper : float
+            FWHM value used in the flux upper limit calculation.
+        
+        dbic : float
+            delta bic to decide which model to use. 
+        
+        add : str
+            additional string to use to load the results and save maps/pdf
+            
+    """
     z0 = Cube.z
     failed_fits=0
     wv_hal = 6564.52*(1+z0)/1e4
@@ -441,7 +529,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
                 failed_fits+=1
                 continue
 
-            if (Fits_sig.BIC-Fits_out.BIC) >10:
+            if (Fits_sig.BIC-Fits_out.BIC) >dbic:
                 Fits = Fits_out
             else:
                 Fits = Fits_sig
