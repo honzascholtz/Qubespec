@@ -203,11 +203,14 @@ See example below:
     priors['OIIIaur_peak']=[0.01,'loguniform', -4,1]
 
 Please notice above in the priors that we have intenationally put the initial conditions for the ``_peak`` to be ~5-10 smaller than in the 1D spectra case.
-Secondly, the lowe boundaries for the ``_peak`` are also smaller. 
+Secondly, the lower boundaries for the ``_peak`` are also smaller. 
 
 Below is the full description of the ``Spaxel_fitting`` function.
 
 .. automethod:: QubeSpec.Spaxel.general.Spaxel_fitting
+
+And here is the example to run it. Ass you can see we have supplied all of the same info as for fitting a 1D spectrum and the same variabls 
+as for pre written models. 
 
 .. code:: ipython3
 

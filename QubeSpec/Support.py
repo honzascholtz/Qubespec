@@ -550,14 +550,14 @@ def vel_kin_percentiles(self, peak_names, fwhm_names, vel_names,rest_wave,vel_pe
     cent =  rest_wave*(1+z)/1e4
     bound1 =  cent + 3000/3e5*cent
     bound2 =  cent - 3000/3e5*cent
-    Ni = 2000
+    Ni = 6000
     wvs = np.linspace(bound2, bound1, Ni)
     vels = np.linspace(-3000,3000, Ni)
 
     velnames = ['z']
-    velnames.append(vel_names)
+    for j in vel_names:
+        velnames.append(j)
 
-    
     Nchain = len(self.chains['z'])
     itere = np.arange(Nchain/2,Nchain,1, dtype=int)
     itere = np.random.choice(itere, size=N, replace=False)
@@ -565,7 +565,7 @@ def vel_kin_percentiles(self, peak_names, fwhm_names, vel_names,rest_wave,vel_pe
     vel_percentiles = np.append( np.array([10,90,50]), vel_percentiles)
 
     vel_res = np.zeros((len(vel_percentiles), N))
-
+    peak_vel = np.zeros(N)
     if N==1:
         y = np.zeros_like(wvs)
         for i, name in enumerate(vel_names):
@@ -578,26 +578,39 @@ def vel_kin_percentiles(self, peak_names, fwhm_names, vel_names,rest_wave,vel_pe
 
             y += gauss(wvs, self.props[peak_names[i]][0], wv_cent, self.props[fwhm_names[i]][0])
     
+        vel_peak = vels[np.argmax(y)]
         flux_cum = np.cumsum(y)
         flux_cum = flux_cum/np.max(flux_cum)
         for k, value in enumerate(vel_percentiles):
             vel_res[k] = vels[find_nearest(flux_cum, value/100)]
 
-        return np.append(vel_res[1]-vel_res[0], vel_res)
+        res = []
+        res.append(vel_peak)
+        res.append(vel_res[1]-vel_res[0])
 
+        for i in range(len(vel_percentiles)):
+            res.append(vel_res[i])
+
+        return res
+        
     else:
         for ind, itr in enumerate(itere):
             y = np.zeros_like(wvs)
-            for i, name in enumerate(vel_names):
-                
+            for i, name in enumerate(velnames):
                 if name =='z':
                     wv_cent = rest_wave*(1+self.chains['z'][itr])/1e4
                 else:
                     wv_cent = rest_wave*(1+self.chains['z'][itr])/1e4
-                    wv_cent = wv_cent + self.chains[vel_names[i]][itr]/3e5*wv_cent
+                    wv_cent = wv_cent + self.chains[velnames[i]][itr]/3e5*wv_cent
 
                 y += gauss(wvs, self.chains[peak_names[i]][itr], wv_cent, self.chains[fwhm_names[i]][itr])
-        
+            peak_vel[ind] = vels[np.argmax(y)]
+
+            #if ind==0:
+
+            #    plt.figure()
+            #    plt.plot(wvs, y)
+            
             flux_cum = np.cumsum(y)
             flux_cum = flux_cum/np.max(flux_cum)
             for k, value in enumerate(vel_percentiles):
@@ -606,6 +619,7 @@ def vel_kin_percentiles(self, peak_names, fwhm_names, vel_names,rest_wave,vel_pe
         W80 = vel_res[1,:] - vel_res[0,:]
 
         res = []
+        res.append(np.percentile(peak_vel, error_range))
         res.append(np.percentile(W80, error_range))
 
         for i in range(len(vel_percentiles)):
@@ -628,23 +642,23 @@ def W80_OIII_calc(Fits, N=100,z=0):
 
         if 'OIII_out_peak' in sol:
 
-            w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak', 'OIII_out_peak'],\
+            vel_peak, w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak', 'OIII_out_peak'],\
                                 ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
                                     rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
         
         if 'OIIIw_peak' in sol:
 
-            w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak', 'OIIIw_peak'],\
+            vel_peak,w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak', 'OIIIw_peak'],\
                                 ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
                                     rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
             
     else:
-        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak'],\
+        vel_peak,w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['OIII_peak'],\
                                 ['Nar_fwhm'], [], \
                                     rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
             
     if N==1:        
-        return v10,v90, w80, v50
+        return vel_peak,v10,v90, w80, v50
     
     else:
         v10[1] = v10[1] - v10[0]
@@ -659,7 +673,10 @@ def W80_OIII_calc(Fits, N=100,z=0):
         w80[1] = w80[1] - w80[0]
         w80[2] = w80[2] - w80[0]
 
-        return v10,v90, w80, v50
+        vel_peak[1] = vel_peak[1] - vel_peak[2]
+        vel_peak[2] = vel_peak[2] - vel_peak[1]
+
+        return vel_peak,v10,v90, w80, v50
 
 
 
@@ -673,19 +690,19 @@ def W80_Halpha_calc(Fits, N=100,z=0):
     sol = Fits.props
     
     if 'outflow_fwhm' in sol:
-        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['Hal_peak', 'Hal_out_peak'],\
+        vel_peak, w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['Hal_peak', 'Hal_out_peak'],\
                             ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
                                 rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
         
         
             
     else:
-        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['Hal_peak'],\
+        vel_peak, w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['Hal_peak'],\
                                 ['Nar_fwhm'], [], \
                                     rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
             
     if N==1:        
-        return v10,v90, w80, v50
+        return vel_peak,v10,v90, w80, v50
     
     else:
         v10[1] = v10[1] - v10[0]
@@ -700,7 +717,10 @@ def W80_Halpha_calc(Fits, N=100,z=0):
         w80[1] = w80[1] - w80[0]
         w80[2] = w80[2] - w80[0]
 
-        return v10,v90, w80, v50
+        vel_peak[1] = vel_peak[1] - vel_peak[2]
+        vel_peak[2] = vel_peak[2] - vel_peak[1]
+
+        return vel_peak,v10,v90, w80, v50
 
 
 
@@ -716,17 +736,17 @@ def W80_NII_calc(Fits, N=100,z=0):
     
     if 'outflow_fwhm' in sol:
 
-        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['NII_peak', 'NII_out_peak'],\
+        vel_peak,w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['NII_peak', 'NII_out_peak'],\
                             ['Nar_fwhm', 'outflow_fwhm'], ['outflow_vel'], \
                                 rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
               
     else:
-        w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['NII_peak'],\
+        vel_peak,w80, v10,v90, v50 = vel_kin_percentiles(Fits, ['NII_peak'],\
                                 ['Nar_fwhm'], [], \
                                     rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
             
     if N==1:        
-        return v10,v90, w80, v50
+        return vel_peak,v10,v90, w80, v50
     
     else:
         v10[1] = v10[1] - v10[0]
@@ -741,7 +761,10 @@ def W80_NII_calc(Fits, N=100,z=0):
         w80[1] = w80[1] - w80[0]
         w80[2] = w80[2] - w80[0]
 
-        return v10,v90, w80, v50
+        vel_peak[1] = vel_peak[1] - vel_peak[2]
+        vel_peak[2] = vel_peak[2] - vel_peak[1]
+
+        return vel_peak,v10,v90, w80, v50
 
 
 def flux_to_lum(flux,redshift):

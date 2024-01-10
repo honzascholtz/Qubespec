@@ -55,11 +55,17 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     # =============================================================================
     #         Setting up the maps
     # =============================================================================
-    map_oiii = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_oiii[:,:,:] = np.nan
+    map_oiii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_oiii_ki = np.zeros((5,Cube.dim[0], Cube.dim[1]))
-    map_oiii_ki[:,:,:] = np.nan
+    map_oiii_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+
+    Result_cube = np.zeros_like(Cube.flux.data)
+    Result_cube_data = Cube.flux.data
+    Result_cube_error = Cube.error_cube.data
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -86,6 +92,13 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
                 Fits = Fits_out
             else:
                 Fits = Fits_sig
+
+        Result_cube_data[:,i,j] = Fits.fluxs.data
+        try:
+            Result_cube_error[:,i,j] = Fits.error.data
+        except:
+            lds=0
+        Result_cube[:,i,j] = Fits.yeval
         
         z = Fits.props['popt'][0]
         SNR = sp.SNR_calc(Fits.wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
@@ -99,11 +112,17 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             map_oiii[3,i,j] = p84_oiii.copy()
 
 
-            map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc( Fits, z=Cube.z, N=1)#res_spx['Nar_fwhm'][0]
+            vel_peak, v10, v90, w80, v50 = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
+
+            map_oiii_w80[:,i,j] = w80
+            map_oiii_v10[:,i,j] = v10
+            map_oiii_v90[:,i,j] = v90
+            map_oiii_v50[:,i,j] = v50
+            map_oiii_vel[:,i,j] = vel_peak
 
             p = ax.get_ylim()[1]
 
-            ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(map_oiii_ki[1,i,j],2)) )
+            ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(w80[0],2)) )
         else:
 
 
@@ -160,14 +179,14 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     #emplot.overide_axes_labels(f, axes[0,0], lims)
 
 
-    vel = ax2.imshow(map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
+    vel = ax2.imshow(map_oiii_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
     ax2.set_title('v50')
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(vel, cax=cax, orientation='vertical')
 
 
-    fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    fw = ax3.imshow(map_oiii_w80[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
     ax3.set_title('W80 map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -184,11 +203,20 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     hdr['Y_cent'] = y
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
-    
-    oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
-    oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
 
-    hdulist = fits.HDUList([primary_hdu,oiii_hdu,oiii_kin_hdu ])
+    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
+    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
+    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
+
+    oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
+    oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
+    oiii_v10 = fits.ImageHDU(map_oiii_v10, name='OIII_v10')
+    oiii_v90 = fits.ImageHDU(map_oiii_v90, name='OIII_v90')
+    oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
+    oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
+
+    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,\
+                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ])
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps.fits', overwrite=True)
 
@@ -235,21 +263,22 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     # =============================================================================
     #         Setting up the maps
     # =============================================================================
-    map_vel = np.zeros(Cube.dim[:2])
-    map_vel[:,:] = np.nan
+    map_hal = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_fwhm = np.zeros(Cube.dim[:2])
-    map_fwhm[:,:] = np.nan
+    map_hal_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_flux = np.zeros(Cube.dim[:2])
-    map_flux[:,:] = np.nan
 
-    map_snr = np.zeros(Cube.dim[:2])
-    map_snr[:,:] = np.nan
+    map_nii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_siir = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_siib = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_nii = np.zeros(Cube.dim[:2])
-    map_nii[:,:] = np.nan
-
+    Result_cube = np.zeros_like(Cube.flux.data)
+    Result_cube_data = Cube.flux.data
+    Result_cube_error = Cube.error_cube.data
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -277,19 +306,35 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
             else:
                 Fits = Fits_sig
 
+        Result_cube_data[:,i,j] = Fits.fluxs.data
+        try:
+            Result_cube_error[:,i,j] = Fits.error.data
+        except:
+            lds=0
+        Result_cube[:,i,j] = Fits.yeval
+
         res_spx = Fits.props
         flx_spax_m = Fits.fluxs
         error = Fits.error
         z = res_spx['popt'][0]
         SNR = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn')
-        map_snr[i,j]= SNR
+        map_hal[0,i,j] = SNR
         if SNR>SNR_cut:
+            map_hal[0,i,j] = SNR
+            map_hal[1:,i,j] = sp.flux_calc_mcmc(Fits, 'Hat',Cube.flux_norm)
 
-            map_vel[i,j] = ((6563*(1+z)/1e4)-wvo3)/wvo3*3e5
-            map_fwhm[i,j] = res_spx['popt'][5]
-            map_flux[i,j] = sp.flux_calc(res_spx, 'Hat',Cube.flux_norm)
-            map_nii[i,j] = sp.flux_calc(res_spx, 'NIIt', Cube.flux_norm)
+            vel_peak, v10, v90, w80, v50 = sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
 
+            map_hal_w80[:,i,j] = w80
+            map_hal_v10[:,i,j] = v10
+            map_hal_v90[:,i,j] = v90
+            map_hal_v50[:,i,j] = v50
+            map_hal_vel[:,i,j] = vel_peak
+
+        SNR_n2 = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
+        map_nii[0,i,j] = SNR_n2
+        if SNR_n2>SNR_cut:
+            map_nii[1:,i,j] = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
 
         emplot.plotting_Halpha(Fits, ax, error=error)
         ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
@@ -302,11 +347,6 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
         ax.clear()
     plt.close(gf)
     Spax.close()
-
-    Cube.Flux_map = map_flux
-    Cube.Vel_map = map_vel
-    Cube.FWHM_map = map_fwhm
-    Cube.SNR_map = map_snr
 
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -333,12 +373,12 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
 
     if flux_max==0:
-        flx_max = map_flux[y,x]
+        flx_max = map_hal[1,y,x]
     else:
         flx_max = flux_max
 
     print(lim_sc)
-    flx = ax1.imshow(map_flux,vmax=flx_max, origin='lower', extent= lim_sc)
+    flx = ax1.imshow(map_hal[1,:,:],vmax=flx_max, origin='lower', extent= lim_sc)
     ax1.set_title('Halpha Flux map')
     divider = make_axes_locatable(ax1)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -351,7 +391,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     #emplot.overide_axes_labels(f, axes[0,0], lims)
 
 
-    vel = ax2.imshow(map_vel, cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
+    vel = ax2.imshow(map_hal_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
     ax2.set_title('Velocity offset map')
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -362,7 +402,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     ax2.set_ylabel('Dec offset (arcsecond)')
 
 
-    fw = ax3.imshow(map_fwhm,vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    fw = ax3.imshow(map_hal_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
     ax3.set_title('FWHM map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -372,7 +412,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     ax2.set_xlabel('RA offset (arcsecond)')
     ax2.set_ylabel('Dec offset (arcsecond)')
 
-    snr = ax4.imshow(map_snr,vmin=3, vmax=20, origin='lower', extent= lim_sc)
+    snr = ax4.imshow(map_hal[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
     ax4.set_title('SNR map')
     divider = make_axes_locatable(ax4)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -384,7 +424,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
 
     fnii,axnii = plt.subplots(1)
     axnii.set_title('[NII] map')
-    fw= axnii.imshow(map_nii, vmax=flx_max ,origin='lower', extent= lim_sc)
+    fw= axnii.imshow(map_nii[1,:,:], vmax=flx_max ,origin='lower', extent= lim_sc)
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     fnii.colorbar(fw, cax=cax, orientation='vertical')
@@ -393,17 +433,24 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     hdr['X_cent'] = x
     hdr['Y_cent'] = y
 
-    Line_info = np.zeros((5,Cube.dim[0],Cube.dim[1]))
-    Line_info[0,:,:] = map_flux
-    Line_info[1,:,:] = map_vel
-    Line_info[2,:,:] = map_fwhm
-    Line_info[3,:,:] = map_snr
-    Line_info[4,:,:] = map_nii
 
-    prhdr = hdr
-    hdu = fits.PrimaryHDU(Line_info, header=prhdr)
-    hdulist = fits.HDUList([hdu])
+    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
 
+    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
+    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
+    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
+    
+    hal_hdu = fits.ImageHDU(map_hal, name='Hal')
+    hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
+    hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
+    hal_v90 = fits.ImageHDU(map_hal_v90, name='Hal_v90')
+    hal_v50 = fits.ImageHDU(map_hal_v50, name='Hal_v50')
+    hal_vel = fits.ImageHDU(map_hal_vel, name='Hal_vel')
+
+    nii_hdu = fits.ImageHDU(map_nii, name='Hal')
+
+    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,\
+                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu ])
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_fits_maps.fits', overwrite=True)
 
@@ -454,32 +501,27 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     #         Setting up the maps
     # =============================================================================
 
-    map_hal = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_hal[:,:,:] = np.nan
+    map_oiii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_nii = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_nii[:,:,:] = np.nan
+    map_oiii_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_oiii_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_hb = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_hb[:,:,:] = np.nan
+    map_hal = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_oiii = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_oiii[:,:,:] = np.nan
+    map_hal_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_siir = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_siir[:,:,:] = np.nan
+    map_hb = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_nii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_siir = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_siib = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
-    map_siib = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_siib[:,:,:] = np.nan
-
-    map_hal_ki = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_hal_ki[:,:,:] = np.nan
-
-    map_nii_ki = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-    map_nii_ki[:,:,:] = np.nan
-
-    map_oiii_ki = np.zeros((5,Cube.dim[0], Cube.dim[1]))
-    map_oiii_ki[:,:,:] = np.nan
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -542,13 +584,15 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_hal[2,i,j] = p16_hal
             map_hal[3,i,j] = p84_hal
 
-            if 'Hal_out_peak' in list(res_spx.keys()):
-                map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = sp.W80_Halpha_calc( Fits,N=1, z=Cube.z)#res_spx['Nar_fwhm'][0]
+            vel_peak, v10, v90, w80, v50 = sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
 
-            else:
-                map_hal_ki[2,i,j], map_hal_ki[3,i,j],map_hal_ki[1,i,j],map_hal_ki[0,i,j] = sp.W80_Halpha_calc( Fits,N=1, z=Cube.z)#res_spx['Nar_fwhm'][0]
+            map_hal_w80[:,i,j] = w80
+            map_hal_v10[:,i,j] = v10
+            map_hal_v90[:,i,j] = v90
+            map_hal_v50[:,i,j] = v50
+            map_hal_vel[:,i,j] = vel_peak  
 
-
+        else:     
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
             n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
             map_hal[3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
@@ -579,12 +623,6 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_nii[2,i,j] = p16_NII
             map_nii[3,i,j] = p84_NII
 
-            if 'NII_out_peak' in list(res_spx.keys()):
-                map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = sp.W80_NII_calc( Fits,N=1, z=Cube.z)#res_spx['Nar_fwhm'][0]
-
-            else:
-                map_nii_ki[2,i,j], map_nii_ki[3,i,j],map_nii_ki[1,i,j],map_nii_ki[0,i,j], = sp.W80_NII_calc( Fits,N=1, z=Cube.z)#res_spx['Nar_fwhm'][0]
-
         else:
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
             n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
@@ -601,16 +639,16 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_oiii[2,i,j] = p16_oiii
             map_oiii[3,i,j] = p84_oiii
 
-            if 'OIII_out_peak' in list(res_spx.keys()):
-                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc(Fits, N=1, z=Cube.z)#res_spx['Nar_fwhm'][0]
+            vel_peak, v10, v90, w80, v50 = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
 
-            else:
-                map_oiii_ki[0,i,j] = ((5008.24*(1+z)/1e4)-wv_oiii)/wv_oiii*3e5
-                map_oiii_ki[1,i,j] = res_spx['Nar_fwhm'][0]
-                map_oiii_ki[2,i,j], map_oiii_ki[3,i,j],map_oiii_ki[1,i,j],map_oiii_ki[0,i,j], = sp.W80_OIII_calc(Fits, N=1,  z=Cube.z)#res_spx['Nar_fwhm'][0]
-            p = baxes.get_ylim()[1][1]
+            map_oiii_w80[:,i,j] = w80
+            map_oiii_v10[:,i,j] = v10
+            map_oiii_v90[:,i,j] = v90
+            map_oiii_v50[:,i,j] = v50
+            map_oiii_vel[:,i,j] = vel_peak
 
-            baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(map_oiii_ki[1,i,j],2)) )
+            p = baxes.get_ylim()[0][1]
+            baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(w80[0],2)) )
         else:
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
             n = width_upper/3e5*(5008.24*(1+Cube.z)/1e4)/dl
@@ -727,7 +765,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     # =============================================================================
     # Halpha  velocity
     ax2 = axes[0,2]
-    vel = ax2.imshow(map_hal_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
+    vel = ax2.imshow(map_hal_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
     ax2.set_title('Hal Velocity offset map')
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -740,13 +778,13 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     # =============================================================================
     # Halpha fwhm
     ax3 = axes[1,2]
-    fw = ax3.imshow(map_hal_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    fw = ax3.imshow(map_hal_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
     ax3.set_title('Hal FWHM map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
 
-    cax.set_ylabel('FWHM (km/s)')
+    cax.set_ylabel('W80 (km/s)')
     ax2.set_xlabel('RA offset (arcsecond)')
     ax2.set_ylabel('Dec offset (arcsecond)')
 
@@ -813,7 +851,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     # =============================================================================
     # OIII  velocity
     ax2 = axes[2,2]
-    vel = ax2.imshow(map_oiii_ki[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
+    vel = ax2.imshow(map_oiii_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
     ax2.set_title('OIII Velocity offset map')
     divider = make_axes_locatable(ax2)
     cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -826,8 +864,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     # =============================================================================
     # OIII fwhm
     ax3 = axes[3,2]
-    fw = ax3.imshow(map_oiii_ki[1,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('OIII FWHM map')
+    fw = ax3.imshow(map_oiii_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    ax3.set_title('OIII W80 map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
@@ -863,24 +901,36 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     hdr['X_cent'] = x
     hdr['Y_cent'] = y
 
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
+
+    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
+
     hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
     hdu_err = fits.ImageHDU(Result_cube_error, name='error')
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
 
-    hal_hdu = fits.ImageHDU(map_hal, name='Halpha')
-    nii_hdu = fits.ImageHDU(map_nii, name='NII')
-    nii_kin_hdu = fits.ImageHDU(map_nii_ki, name='NII_kin')
-    hbe_hdu = fits.ImageHDU(map_hb, name='Hbeta')
+    hal_hdu = fits.ImageHDU(map_hal, name='Hal')
+    hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
+    hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
+    hal_v90 = fits.ImageHDU(map_hal_v90, name='Hal_v90')
+    hal_v50 = fits.ImageHDU(map_hal_v50, name='Hal_v50')
+    hal_vel = fits.ImageHDU(map_hal_vel, name='Hal_vel')
+
+    nii_hdu = fits.ImageHDU(map_nii, name='Hal')
+
     oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
+    oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
+    oiii_v10 = fits.ImageHDU(map_oiii_v10, name='OIII_v10')
+    oiii_v90 = fits.ImageHDU(map_oiii_v90, name='OIII_v90')
+    oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
+    oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
 
-    siir_hdu = fits.ImageHDU(map_siir, name='SIIr')
-    siib_hdu = fits.ImageHDU(map_siib, name='SIIb')
+    hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
 
-    hal_kin_hdu = fits.ImageHDU(map_hal_ki, name='Hal_kin')
-    oiii_kin_hdu = fits.ImageHDU(map_oiii_ki, name='OIII_kin')
-
-    hdulist = fits.HDUList([primary_hdu, hdu_data, hdu_err, hdu_yeval, hal_hdu, nii_hdu, nii_kin_hdu, hbe_hdu, oiii_hdu,hal_kin_hdu,siir_hdu,oiii_kin_hdu, siib_hdu ])
+    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval,\
+                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50,\
+                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu ])
+    
+   
     hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
 
     return f
