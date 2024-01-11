@@ -244,16 +244,23 @@ The shape of the ``info`` dictionary should be as below:
 
 .. code:: ipython3
 
-    info = {'Hal': {'wv':6563,'fwhm':'Nar_fwhm','kin':1}}
-    info['NII'] = {'wv':6583, 'fwhm':'Nar_fwhm','kin':0}
-    info['OIII'] = {'wv':5008, 'fwhm':'Nar_fwhm','kin':1}
-    info['Hbeta'] = {'wv':4861, 'fwhm':'Nar_fwhm','kin':0}
-    info['Hgamma'] = {'wv':4341.647, 'fwhm':'Nar_fwhm','kin':0}
-    info['Hdelta'] = {'wv':4102.859, 'fwhm':'Nar_fwhm','kin':0}
-    info['NeIII'] = {'wv':3869.68, 'fwhm':'Nar_fwhm','kin':0}
-    info['OII'] = {'wv':3727.1, 'fwhm':'Nar_fwhm','kin':0}
-    info['OIIIaur'] = {'wv':4363, 'fwhm':'Nar_fwhm','kin':0}
-    info['HeI'] = {'wv':3889, 'fwhm':'Nar_fwhm','kin':0}
+    OIII_kins = {'fwhms':['Nar_fwhm','outflow_fwhm'], 'vels':['outflow_vel'], 'peaks':['OIII_peak', 'OIII_out_peak']}
+    Hal_kins = {'fwhms':['Nar_fwhm'], 'vels':[], 'peaks':['Hal_peak']}
+
+    info = {'Hal': {'wv':6563,'fwhm':'Nar_fwhm','kin':Hal_kins}}
+    info['NII'] = {'wv':6583, 'fwhm':'Nar_fwhm',}
+    info['OIII'] = {'wv':5008, 'fwhm':'Nar_fwhm', 'kin': OIII_kins}
+    info['OIII_out'] = {'wv':5008, 'fwhm':'outflow_fwhm',}
+    info['Hbeta'] = {'wv':4861, 'fwhm':'Nar_fwhm',}
+    info['Hgamma'] = {'wv':4341.647, 'fwhm':'Nar_fwhm',}
+    info['Hdelta'] = {'wv':4102.859, 'fwhm':'Nar_fwhm',}
+    info['NeIII'] = {'wv':3869.68, 'fwhm':'Nar_fwhm',}
+    info['OII'] = {'wv':3727.1, 'fwhm':'Nar_fwhm',}
+    info['OIIIaur'] = {'wv':4363, 'fwhm':'Nar_fwhm',}
+    info['HeI'] = {'wv':3889, 'fwhm':'Nar_fwhm',}
+    info['params'] = {'extract':['outflow_vel', 'outflow_fwhm']}
+
+    fmaps = IFU.Maps.Map_creation_general(Cube, info, SNR_cut=4., add='_test' )
 
 Each entry contains another dictionary with:
 

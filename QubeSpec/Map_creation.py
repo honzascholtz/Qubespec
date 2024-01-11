@@ -980,18 +980,23 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
     info_keys = list(info.keys())
     
     for key in info_keys:
-        
-        map_flx = np.zeros((4,Cube.dim[0], Cube.dim[1]))
-        map_flx[:,:,:] = np.nan
-            
-        info[key]['flux_map'] = map_flx
-        
-        if 'kin' in list(info[key]):
-            info[key]['W80'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
-            info[key]['peak_vel'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
 
-            info[key]['v10'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
-            info[key]['v90'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+        if key=='params':
+            for param in info[key]['extract']:
+                info[key][param] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+
+        else:
+            map_flx = np.zeros((4,Cube.dim[0], Cube.dim[1]))
+            map_flx[:,:,:] = np.nan
+                
+            info[key]['flux_map'] = map_flx
+            
+            if 'kin' in list(info[key]):
+                info[key]['W80'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+                info[key]['peak_vel'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+
+                info[key]['v10'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+                info[key]['v90'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
 
 
     BIC_map = np.zeros((Cube.dim[0], Cube.dim[1]))
@@ -1027,41 +1032,46 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             chi2_map[i,j], BIC_map[i,j] = 0,0
 
         for key in info_keys:
-            if 'kin' not in key:
-                SNR= sp.SNR_calc(Cube.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
-                                    wv_cent = info[key]['wv'],\
-                                    peak_name = key+'_peak', \
-                                        fwhm_name = info[key]['fwhm'])
-                
-                info[key]['flux_map'][0,i,j] = SNR
-                
-                if SNR>SNR_cut:
-                    flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
-                                                        wv_cent = info[key]['wv'],\
-                                                        peak_name = key+'_peak', \
-                                                            fwhm_name = info[key]['fwhm'])
+            if key=='params':
+                for param in info[key]['extract']:
+                    info[key][param] = np.percentile(Fits.chains[param], (16,50,84))
+            
+            else:
+                if 'kin' not in key:
+                    SNR= sp.SNR_calc(Cube.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
+                                        wv_cent = info[key]['wv'],\
+                                        peak_name = key+'_peak', \
+                                            fwhm_name = info[key]['fwhm'])
                     
-                    info[key]['flux_map'][1,i,j] = flux
-                    info[key]['flux_map'][2,i,j] = p16
-                    info[key]['flux_map'][3,i,j] = p84
-
-                    if 'kin' in list(info[key]):
-                        vel_peak, w80, v10,v90,v50 = sp.vel_kin_percentiles(Fits, peak_names=info[key]['kin']['peaks'], \
-                                                                            fwhm_names=info[key]['kin']['fwhms'],\
-                                                                            vel_names=info[key]['kin']['vels'],\
-                                                                            rest_wave=info[key]['wv'],\
-                                                                            N=100,z=Cube.z)
-                
-                        info[key]['W80'][:,i,j] = w80
-                        info[key]['peak_vel'][:,i,j] = vel_peak
-
-                        info[key]['v10'][:,i,j] = v10
-                        info[key]['v90'][:,i,j] = v90
+                    info[key]['flux_map'][0,i,j] = SNR
+                    
+                    if SNR>SNR_cut:
+                        flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
+                                                            wv_cent = info[key]['wv'],\
+                                                            peak_name = key+'_peak', \
+                                                                fwhm_name = info[key]['fwhm'])
                         
-                else:
-                    dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-                    n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
-                    info[key]['flux_map'][3,i,j] = -SNR_cut*Fits.error[-1]*dl*np.sqrt(n)
+                        info[key]['flux_map'][1,i,j] = flux
+                        info[key]['flux_map'][2,i,j] = p16
+                        info[key]['flux_map'][3,i,j] = p84
+
+                        if 'kin' in list(info[key]):
+                            vel_peak, w80, v10,v90,v50 = sp.vel_kin_percentiles(Fits, peak_names=info[key]['kin']['peaks'], \
+                                                                                fwhm_names=info[key]['kin']['fwhms'],\
+                                                                                vel_names=info[key]['kin']['vels'],\
+                                                                                rest_wave=info[key]['wv'],\
+                                                                                N=100,z=Cube.z)
+                    
+                            info[key]['W80'][:,i,j] = w80
+                            info[key]['peak_vel'][:,i,j] = vel_peak
+
+                            info[key]['v10'][:,i,j] = v10
+                            info[key]['v90'][:,i,j] = v90
+                            
+                    else:
+                        dl = Cube.obs_wave[1]-Cube.obs_wave[0]
+                        n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
+                        info[key]['flux_map'][3,i,j] = -SNR_cut*Fits.error[-1]*dl*np.sqrt(n)
 
     
 
@@ -1099,13 +1109,18 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
     hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
 
     for key in info_keys:
-        hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
-        
-        if 'kin' in list(info[key]):
-            hdus.append(fits.ImageHDU(info[key]['peak_vel'], name=key+'_peakvel'))
-            hdus.append(fits.ImageHDU(info[key]['W80'], name=key+'_W80'))
-            hdus.append(fits.ImageHDU(info[key]['v10'], name=key+'_v10'))
-            hdus.append(fits.ImageHDU(info[key]['v90'], name=key+'_v90'))
+        if key=='params':
+            for param in info[key]['extract']:
+                hdus.append(fits.ImageHDU(info[key][param], name=param))
+            
+        else: 
+            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
+            
+            if 'kin' in list(info[key]):
+                hdus.append(fits.ImageHDU(info[key]['peak_vel'], name=key+'_peakvel'))
+                hdus.append(fits.ImageHDU(info[key]['W80'], name=key+'_W80'))
+                hdus.append(fits.ImageHDU(info[key]['v10'], name=key+'_v10'))
+                hdus.append(fits.ImageHDU(info[key]['v90'], name=key+'_v90'))
 
 
     hdus.append(fits.ImageHDU(chi2_map, name='chi2'))
