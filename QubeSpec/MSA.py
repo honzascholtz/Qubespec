@@ -22,7 +22,7 @@ c=3e8
 
 PATH='/Users/jansen/My Drive/Astro/'
 
-from . import Support as sp
+from . import Utils as sp
 from . import Plotting as emplot
 from . import Fitting as emfit
 

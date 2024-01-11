@@ -63,13 +63,13 @@ except FileNotFoundError:
 
 
 
-from . import Support as sp
+from . import Utils as sp
 from . import Plotting as emplot
 from . import Fitting as emfit
 
 from .Models import Halpha_OIII_models as HaO_models
 from . import Background as bkg
-from . import Map_creation as Maps
+from . import Maps as Maps
 from . import Spaxel_fitting as Spaxel
 
 
