@@ -218,7 +218,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,\
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ])
 
-    hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps.fits', overwrite=True)
+    hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps'+add+'.fits', overwrite=True)
 
 def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, add=''):
     """ 
@@ -452,7 +452,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,\
                             hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu ])
 
-    hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_fits_maps.fits', overwrite=True)
+    hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_fits_maps'+add+'.fits', overwrite=True)
 
     return f
 
