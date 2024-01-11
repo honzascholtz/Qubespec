@@ -690,7 +690,7 @@ class general:
             with Pool(Ncores) as pool:
                 cube_res = list(progress(
                     pool.imap(
-                        self.Fitting_general_unwrap, Unwrapped_cube),
+                        self.fit_spaxel, Unwrapped_cube),
                     total=len(Unwrapped_cube)))
                 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
@@ -747,8 +747,8 @@ class general:
         i,j,flx_spax_m, error, wave, z = lst
         
 
-        if len(use)==0:
-            use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
+        if len(self.use)==0:
+            self.use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
         try:
             Fits_sig = emfit.Fitting(wave[self.use], flx_spax_m[self.use], error[self.use], z,N=self.N,progress=progress, priors=self.priors)
