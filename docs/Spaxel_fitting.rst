@@ -258,7 +258,7 @@ The shape of the ``info`` dictionary should be as below:
     info['OII'] = {'wv':3727.1, 'fwhm':'Nar_fwhm',}
     info['OIIIaur'] = {'wv':4363, 'fwhm':'Nar_fwhm',}
     info['HeI'] = {'wv':3889, 'fwhm':'Nar_fwhm',}
-    info['params'] = {'extract':['outflow_vel', 'outflow_fwhm']}
+    info['params'] = ['z','outflow_vel', 'outflow_fwhm']
 
     fmaps = IFU.Maps.Map_creation_general(Cube, info, SNR_cut=4., add='_test' )
 
@@ -266,7 +266,10 @@ Each entry contains another dictionary with:
 
 * ``'wv'`` - rest-frame wavelength of the emission line
 * ``'fwhm'`` - name of the FWHM variable associated with that particular emission line component 
-* ``'kin'`` - do you want to retrieve the kinematic component info. 
+* ``'kin'`` -  If you want to recover the kinematics of the line or multiple components of the same line. The ``'kin'`` should contain a dictionary with the name of the peaks, FWHMs and velocities to get the v10,w80,v90 and peak velocity
+* ``'params'`` - please put with a list of variables you would like to directly extract from the chains. 
+
+
 
 We can then run the post processing suc this: 
 

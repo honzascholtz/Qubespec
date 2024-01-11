@@ -980,8 +980,8 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
     info_keys = list(info.keys())
     
     for key in info_keys:
-
         if key=='params':
+            info[key] = {'extract':info[key]}
             for param in info[key]['extract']:
                 info[key][param] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
 
