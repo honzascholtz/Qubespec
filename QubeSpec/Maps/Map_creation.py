@@ -77,14 +77,14 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     for row in tqdm.tqdm(range(len(results))):
         if len(results[row])==3:
             i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
+            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
                 failed_fits+=1
                 continue
 
         else:
             i,j, Fits_sig, Fits_out= results[row]
 
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
                 failed_fits+=1
                 continue
 
@@ -290,14 +290,14 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     for row in range(len(results)):
         if len(results[row])==3:
             i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
+            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
                 failed_fits+=1
                 continue
 
         else:
             i,j, Fits_sig, Fits_out= results[row]
 
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
                 failed_fits+=1
                 continue
 
@@ -531,19 +531,18 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only'+add+'.pdf')
 
-    from .Models import Halpha_OIII_models as HO_models
+    from ..Models import Halpha_OIII_models as HO_models
     for row in tqdm.tqdm(range(len(results))):
         
         if len(results[row])==3:
             i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.Fitting'>":
+            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
                 failed_fits+=1
                 continue
 
         else:
             i,j, Fits_sig, Fits_out= results[row]
-
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.Fitting'>":
+            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
                 failed_fits+=1
                 continue
 

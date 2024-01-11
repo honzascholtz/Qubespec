@@ -3,7 +3,7 @@ from scipy.stats import uniform
 from scipy.stats import truncnorm
 from scipy.stats import lognorm
 from scipy.stats import loguniform
-
+import numpy as np
 #import numba
 #@numba.njit
 def logprior_general_scipy_test(theta, priors):
