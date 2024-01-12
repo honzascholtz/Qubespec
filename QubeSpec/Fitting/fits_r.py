@@ -1239,30 +1239,30 @@ class Fitting:
         pr_code = np.zeros((len(self.labels),5))
         
         for key in enumerate(self.labels):
-            match self.priors[key[1]][1]:
-                case 'normal':
-                    pr_code[key[0]][0] = 0
-                case 'lognormal':
-                    pr_code[key[0]][0] = 2
-                
-                case 'uniform':
-                    pr_code[key[0]][0] = 1
-                
-                case 'loguniform':
-                    pr_code[key[0]][0] = 3
+            if self.priors[key[1]][1]== 'normal':
+                pr_code[key[0]][0] = 0
             
-                case 'normal_hat':
-                    pr_code[key[0]][0] = 4
-                    pr_code[key[0]][3] = self.priors[key[1]][4]
-                    pr_code[key[0]][4] = self.priors[key[1]][5]
+            elif self.priors[key[1]][1]== 'lognormal':
+                pr_code[key[0]][0] = 2
             
-                case 'lognormal_hat':
-                    pr_code[key[0]][0] = 5
-                    pr_code[key[0]][3] = self.priors[key[1]][4]
-                    pr_code[key[0]][4] = self.priors[key[1]][5]
+            elif self.priors[key[1]][1]== 'uniform':
+                pr_code[key[0]][0] = 1
+            
+            elif self.priors[key[1]][1]== 'loguniform':
+                pr_code[key[0]][0] = 3
+            
+            elif self.priors[key[1]][1]== 'normal_hat':
+                pr_code[key[0]][0] = 4
+                pr_code[key[0]][3] = self.priors[key[1]][4]
+                pr_code[key[0]][4] = self.priors[key[1]][5]
+
+            elif self.priors[key[1]][1]== 'lognormal_hat':
+                pr_code[key[0]][0] = 5
+                pr_code[key[0]][3] = self.priors[key[1]][4]
+                pr_code[key[0]][4] = self.priors[key[1]][5]
                 
-                case _:
-                    raise Exception('Sorry mode in prior type not understood: ', key )
+            else:
+                raise Exception('Sorry mode in prior type not understood: ', key )
             
             pr_code[key[0]][1] = self.priors[key[1]][2]
             pr_code[key[0]][2] = self.priors[key[1]][3]
