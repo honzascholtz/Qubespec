@@ -11,8 +11,9 @@ Obtain the *stable* version of the source code by following <a href="https://git
 
 From inside your working directory, run (works on `bash`, untested on `tcsh`)
 ```
-conda create -n qubespec python=3.8 
-conda activate qubespec 
+conda create -n qubespec python=3.9
+conda activate qubespec
+git clone https://github.com/honzascholtz/Qubespec.git
 pip3 install QubeSpec/.
 ```
 
@@ -21,28 +22,7 @@ You should then be able to import QubeSpec in python as:
 import QubeSpec
 ```
 
-
-
-CHANGELOG:
-
-1/12/23 - Well things changed. You can fit custom functions or supply a dictionary that will fit it for you. I also included truncated normal priors, new background subtraction for NIRSpec, scaling of the NIRSpec noise etc. 
-
-6/3/23 - Making the code pip installable, adding the option for custom fitting functions.
-
-10/10/22 -  i) Implementation of Hbeta velocity offset compared to [OIII] emission line.
-            ii) Implementation of changing boundaries and initial conditions using a dictionary called priors.
-            iii) Making a backup of KASHz fitting_tools used to fit KASHz sources.
-            iv) Improvement to the speed of FeII template fitting. However, please pre-convolve the templates with FeII_comp.py
-
-21/9/22 - More advanced support of the NIRSPEC IFU - both in Flambda and Fnu. Incorporating a JWST masking of bad pixels based on the error cube.
-
-8/7/22 - Addition of Halpha outflow model. Addition of FeII template fitting in the [OIII] lines. Addition of Hbeta nar and BLR at the same time.
-
-29/3/22 - Redshift is now fitted +-0.05 - done for safety reasons. Improved plotting of Hbeta and emission line/velocity maps
-
-21/3/22 - Fixed bug in SNR_calc for non outflow [OIII] fit.
-
-20/3/22 - Added fitting of narrow Hbeta, [SII] including SNR calc and Flux calculation. Fixed some type-2 Halpha plotting problems.
+More information can be found at https://qubespec.readthedocs.io/en/latest/
 
 11/3/22 - Added support for mapping the emission - spaxel by spaxel fitting for the [OIII] emission. Currently fitting a single Gaussian profile - outflow detection and mapping will be done differently.
 
