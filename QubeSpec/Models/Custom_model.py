@@ -34,16 +34,19 @@ class Parameter:
             raise NameError("Prior {} not found".format(self.prior_params[0]))
     
     def sample_prior(self, N):
-        match self.prior_params[0]:
-            case "uniform": return stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1], N )
-            case 'loguniform': return 10**stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1],N)
-            case 'normal': return stats.norm.rvs( self.prior_params[1], self.prior_params[2], N)
-            case'lognormal':
-                return stats.lognorm.logpdf( self.prior_params[1], self.prior_params[2], N)
-            case 'normal_hat':
-                return stats.truncnorm.logpdf(self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4],N)
-            case _:
-                raise NameError("Prior {} not found".format(self.prior_params[0]))
+        if self.prior_params[0]== "uniform":
+            return stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1], N )
+        elif self.prior_params[0]== "loguniform":
+            return 10**stats.uniform.rvs( self.prior_params[1], self.prior_params[2]-self.prior_params[1],N)
+        elif self.prior_params[0]== 'normal': 
+            return stats.norm.rvs( self.prior_params[1], self.prior_params[2], N)
+        elif self.prior_params[0]== 'lognormal':
+            return stats.lognorm.logpdf( self.prior_params[1], self.prior_params[2], N)
+        elif self.prior_params[0]=='normal_hat':
+            return stats.truncnorm.logpdf(self.prior_params[1], self.prior_params[2], self.prior_params[3],self.prior_params[4],N)
+        else:
+            raise NameError("Prior {} not found".format(self.prior_params[0]))
+
 
 ###########Line models
 class LineModel:
