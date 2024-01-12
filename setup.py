@@ -46,6 +46,6 @@ setup(name='QubeSpec',
       #      ],
       #},
       include_package_data=True,
-      package_data={'': ['/jadify_temp/*', '/Models/FeII_templates/*']},
+      #package_data={'': ['/jadify_temp/*', '/Models/FeII_templates/*']},
       zip_safe=False
      )
