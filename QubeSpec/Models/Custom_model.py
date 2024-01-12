@@ -19,17 +19,19 @@ class Parameter:
         self.name = name 
         self.prior_params = prior
     def log_prior(self):
-        match self.prior_params[0]:
-            case "uniform": return stats.uniform.logpdf(self.value, loc = self.prior_params[1], scale= self.prior_params[2]-self.prior_params[1])
-            case 'loguniform': return stats.uniform.logpdf(np.log10(self.value), loc=self.prior_params[1], scale=self.prior_params[2]-self.prior_params[1])
-            case 'normal': return stats.norm.logpdf(self.value,loc= self.prior_params[1], scale= self.prior_params[2])
-            case'lognormal':
-                return stats.lognorm.logpdf(self.value, loc=self.prior_params[1], scale=self.prior_params[2])
-            case 'normal_hat':
-                return stats.truncnorm.logpdf(self.value, a=(self.prior_params[3]-self.prior_params[1])/self.prior_params[2], b=(self.prior_params[4]-self.prior_params[1])/self.prior_params[2], loc=self.prior_params[1],\
+        if self.prior_params[0]== "uniform":
+            return stats.uniform.logpdf(self.value, loc = self.prior_params[1], scale= self.prior_params[2]-self.prior_params[1])
+        elif self.prior_params[0]== "loguniform":
+            return stats.uniform.logpdf(np.log10(self.value), loc=self.prior_params[1], scale=self.prior_params[2]-self.prior_params[1])
+        elif self.prior_params[0]== 'normal': 
+            return stats.norm.logpdf(self.value,loc= self.prior_params[1], scale= self.prior_params[2])
+        elif self.prior_params[0]== 'lognormal':
+            return stats.lognorm.logpdf(self.value, loc=self.prior_params[1], scale=self.prior_params[2])
+        elif self.prior_params[0]=='normal_hat':
+            return stats.truncnorm.logpdf(self.value, a=(self.prior_params[3]-self.prior_params[1])/self.prior_params[2], b=(self.prior_params[4]-self.prior_params[1])/self.prior_params[2], loc=self.prior_params[1],\
                                                scale = self.prior_params[2] )
-            case _:
-                raise NameError("Prior {} not found".format(self.prior_params[0]))
+        else:
+            raise NameError("Prior {} not found".format(self.prior_params[0]))
     
     def sample_prior(self, N):
         match self.prior_params[0]:
