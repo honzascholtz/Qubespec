@@ -69,7 +69,7 @@ def logprior_general(theta, priors):
     return results
 
 
-
+@numba.njit
 def logprior_general_test(theta, priors, labels):
     for t,p,lb in zip( theta, priors, labels):
         print(p)
