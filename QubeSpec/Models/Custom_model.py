@@ -113,46 +113,54 @@ class Model:
             purpose = split_key[0]
             name = split_key[1]
             #Load a common model parameter
-            match purpose:
-                case 'm':
-                    if len(split_key)==2: self.theta[name] = Parameter(value, name, input_parameters[key][1])
-                    else:
-                        self.theta[name+"_"+ split_key[2]] = Parameter(value, name +"_"+split_key[2], 
-                        input_parameters[key][1])
+            if purpose == 'm':
+                if len(split_key)==2: self.theta[name] = Parameter(value, name, input_parameters[key][1])
+                else:
+                    self.theta[name+"_"+ split_key[2]] = Parameter(value, name +"_"+split_key[2], 
+                    input_parameters[key][1])
 
             #Load line parameter
-                case 'l':
-                    name = split_key[2]
-                    if name not in line_parameters: line_parameters[name] = [0, 0, 0, 0, 0]
-                    param_name = split_key[3]
-                    if len(input_parameters[key]) > 1: self.theta[name+'_'+param_name] = Parameter(value, name+'_'+param_name, 
-                    input_parameters[key][1])
-                    line_parameters[name][4] = split_key[1]
-                    match param_name:
-                        case 'z': line_parameters[name][0] = value
-                        case 'peak': line_parameters[name][1] = value
-                        case 'fwhm': line_parameters[name][2] = value
-                        case 'wav': line_parameters[name][3] = value
+            elif purpose =='l':
+                name = split_key[2]
+                if name not in line_parameters: line_parameters[name] = [0, 0, 0, 0, 0]
+                param_name = split_key[3]
+                if len(input_parameters[key]) > 1: self.theta[name+'_'+param_name] = Parameter(value, name+'_'+param_name, 
+                input_parameters[key][1])
+                line_parameters[name][4] = split_key[1]
+                if param_name== 'z':
+                    line_parameters[name][0] = value
+                elif param_name == 'peak':
+                    line_parameters[name][1] = value
+                elif param_name=='fwhm':
+                    line_parameters[name][2] = value
+                elif param_name=='wav': 
+                    line_parameters[name][3] = value
             
             #Load doublet parameter
-                case 'd':
-                    name = split_key[2]
-                    if name not in doublet_parameters: doublet_parameters[name] = [0, 0, 0, -1, -1, 0, 0, 0]
-                    param_name = split_key[3]
-                    doublet_parameters[name][7] = split_key[1]
+            elif purpose=='d':
+                name = split_key[2]
+                if name not in doublet_parameters: doublet_parameters[name] = [0, 0, 0, -1, -1, 0, 0, 0]
+                param_name = split_key[3]
+                doublet_parameters[name][7] = split_key[1]
 
-                    if len(input_parameters[key]) > 1: 
-                        self.theta[name+'_'+param_name] = Parameter(value, name+'_'+param_name, 
-                    input_parameters[key][1])
+                if len(input_parameters[key]) > 1: 
+                    self.theta[name+'_'+param_name] = Parameter(value, name+'_'+param_name, 
+                input_parameters[key][1])
 
-                    match param_name:
-                        case 'z': doublet_parameters[name][0] = value
-                        case 'peak1': doublet_parameters[name][1] = value
-                        case 'fwhm': doublet_parameters[name][2] = value
-                        case 'ratio': doublet_parameters[name][3] = value
-                        case 'peak2': doublet_parameters[name][4] = value
-                        case 'wav1': doublet_parameters[name][5] = value
-                        case 'wav2': doublet_parameters[name][6] = value
+                if param_name== 'z': 
+                    doublet_parameters[name][0] = value
+                if param_name== 'peak1':
+                    doublet_parameters[name][1] = value
+                if param_name=='fwhm':
+                    doublet_parameters[name][2] = value
+                if param_name=='ratio': 
+                    doublet_parameters[name][3] = value
+                if param_name=='peak2': 
+                    doublet_parameters[name][4] = value
+                if param_name=='wav1':
+                    doublet_parameters[name][5] = value
+                if param_name=='wav2': 
+                    doublet_parameters[name][6] = value
                 
         #Initialize lines
         for line_name in line_parameters.keys():
@@ -217,16 +225,16 @@ class Model:
                 name = split_key[0]
                 value = self.theta[key].value
                 #Update each line parameter
-                match split_key[1]:
-                    case 'z': 
-                        self.lines[name].parameters[0] = value
-                    case 'peak':
-                        self.lines[name].parameters[1] = value
-                    case 'peak1':
-                        self.lines[name].parameters[1] = value
-                    case 'peak2':    
-                        self.lines[name].parameters[4] = value
-                    case 'fwhm': self.lines[name].parameters[2] = value
+                if split_key[1]== 'z': 
+                    self.lines[name].parameters[0] = value
+                elif split_key[1]== 'peak':
+                    self.lines[name].parameters[1] = value
+                elif split_key[1]== 'peak1':
+                    self.lines[name].parameters[1] = value
+                elif split_key[1]== 'peak2': 
+                    self.lines[name].parameters[4] = value
+                elif split_key[1]== 'fwhm':
+                    self.lines[name].parameters[2] = value
 
                 self.theta[key].value = value
 
