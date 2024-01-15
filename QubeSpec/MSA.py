@@ -174,24 +174,25 @@ class R1000:
                                                    'NII_peak':[0,'loguniform',-3,1]}):
         if self.Hal_band != None:  
             dvstd = 300/3e5*(1+self.z)
-            priors['z'] = [self.z, 'normal', self.z, dvstd]
+            if priors['z'][2] ==0:
+                
+                priors['z'] = [self.z, 'normal', self.z, dvstd]
             
             
             self.Hal_fits = emfit.Fitting(self.Hal_obs_wave, self.Hal_flux, self.Hal_error, self.z, N=N, progress=progress, priors=priors)
             self.Hal_fits.fitting_Halpha(model='gal')
             
-            f,ax = plt.subplots(1)
-            emplot.plotting_Halpha(self.Hal_obs_wave, self.Hal_flux, ax, self.Hal_fits.props, self.Hal_fits.fitted_model)
-            
-            
-            
-            self.Halpha_flux = sp.flux_calc_mcmc(self.Hal_fits.props, self.Hal_fits.chains, 'Han', norm=1e-15)
-            self.N2_flux = sp.flux_calc_mcmc(self.Hal_fits.props, self.Hal_fits.chains, 'NIIt', norm=1e-15)
+            self.Halpha_flux = sp.flux_calc_mcmc(self.Hal_fits, 'Han', norm=1e-15)
+            self.N2_flux = sp.flux_calc_mcmc(self.Hal_fits, 'NIIt', norm=1e-15)
+            self.S2b_flux = sp.flux_calc_mcmc(self.Hal_fits, 'SIIb', norm=1e-15)
+            self.S2r_flux = sp.flux_calc_mcmc(self.Hal_fits, 'SIIr', norm=1e-15)
         
         else:
             self.Hal_fits = None
             self.Halpha_flux = [0,0,0]
             self.N2_flux = [0,0,0]
+            self.S2b_flux = [0,0,0]
+            self.S2r_flux = [0,0,0]
         
     def Fitting_O3(self, N=10000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
                                                           'cont':[0,'loguniform',-3,1],\
@@ -206,18 +207,14 @@ class R1000:
                                                           'Hbeta_vel':[10,'normal', 0,10]}):
 
         if self.O3_band != None:  
-            priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
+            dvstd = 300/3e5*(1+self.z)
+            if priors['z'][2] ==0:
+                priors['z'] = [self.z, 'normal', self.z, dvstd]
             self.O3_fits = emfit.Fitting(self.O3_obs_wave, self.O3_flux, self.O3_error, self.z, N=N, progress=progress, priors=priors)
-            
-            self.O3_fits.fitting_OIII(model='gal_simple')
-            
-            f,ax = plt.subplots(1)
-            #ax.plot(self.O3_obs_wave, self.O3_flux)
-            #ax.plot(self.O3_obs_wave, O3_fits.fitted_model(self.O3_obs_wave, *O3_fits.props['popt']), 'r--')
-            emplot.plotting_OIII(self.O3_obs_wave, self.O3_flux, ax, self.O3_fits.props, self.O3_fits.fitted_model)
-            
-            self.O3_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'OIIIt', norm=1e-15)
-            self.Hbeta_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'Hbeta', norm=1e-15)
+            self.O3_fits.fitting_OIII(model='gal')
+
+            self.O3_flux = sp.flux_calc_mcmc(self.O3_fits, 'OIIIt', norm=1e-15)
+            self.Hbeta_flux = sp.flux_calc_mcmc(self.O3_fits, 'Hbeta', norm=1e-15)
         else:
             self.O3_fits = None
             self.O3_flux = [0,0,0]
@@ -235,6 +232,7 @@ class R1000:
         if len(use) ==1:
             use = np.where( (self.custom_obs_wave>((self.wave_custom+useb[0])*(1+self.z)/1e4)) & (self.custom_obs_wave< ((self.wave_custom+useb[1])*(1+self.z)/1e4))   )[0]
 
+        self.use = use
         self.Fitting = emfit.Fitting(self.custom_obs_wave[use], self.custom_flux[use], self.custom_error[use],z=self.z, priors=self.priors,N=10000, progress=progress)
         self.Fitting.fitting_general(self.model, labels, emfit.logprior_general)
         

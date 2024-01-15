@@ -57,16 +57,19 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
 
     flux = fluxs.data[np.invert(fluxs.mask)]
-    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+    try:
+        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
+        if len(error) !=1:
+            ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+        y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
-    fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
 
-    ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
-    if len(error) !=1:
-        ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+    except Exception as _exc_:
+        print(_exc_)
 
     y_tot = res.yeval[fit_loc]
-    y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 
