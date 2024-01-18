@@ -179,13 +179,13 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
 
     wave = res.wave
     fluxs = res.fluxs
-    error = res.errors
+    error = res.error
     keys = list(sol.keys())
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
 
-    flux = fluxs.data[np.invert(fluxs.mask)]
+    flux = fluxs.data[np.invert(fluxs.mask)].copy()
     wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
 
     fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7500))[0]
