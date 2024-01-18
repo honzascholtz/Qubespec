@@ -1237,7 +1237,7 @@ class Cube:
         ax1.yaxis.tick_left()
         ax2.yaxis.tick_left()
         
-        emplot.plotting_Halpha(self.D1_fit_full, ax1, error=error, residual='error', axres=ax2)
+        emplot.plotting_Halpha(self.D1_fit_full, ax1, errors=True, residual='error', axres=ax2)
         
         self.fit_plot = [f,ax1,ax2]
         
@@ -1401,7 +1401,7 @@ class Cube:
         else:
             baxes = brokenaxes(xlims=((4800,5050),(6400,6800)),  hspace=.01)
                 
-        emplot.plotting_Halpha_OIII(self.D1_fit_full, baxes, error=error, residual='error')                             
+        emplot.plotting_Halpha_OIII(self.D1_fit_full, baxes, errors=True, residual='error')                             
         baxes.set_xlabel('Restframe wavelength (ang)')
 
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Halpha_OIII_fit.pdf')
@@ -1606,7 +1606,7 @@ class Cube:
         ax1.yaxis.tick_left()
         ax2.yaxis.tick_left()
         
-        emplot.plotting_OIII(self.D1_fit_full, ax1, error=error, residual='error', axres=ax2, template=Fe_template)
+        emplot.plotting_OIII(self.D1_fit_full, ax1, errors=True, residual='error', axres=ax2, template=Fe_template)
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_OIII_fit.pdf')
 
         self.fit_plot = [f,ax1,ax2]  
@@ -1712,7 +1712,7 @@ class Cube:
         ax1.yaxis.tick_left()
         ax2.yaxis.tick_left()
         
-        emplot.plotting_optical(self.D1_fit_full, ax1, error=error, residual='error', axres=ax2)
+        emplot.plotting_optical(self.D1_fit_full, ax1, errors=True, residual='error', axres=ax2)
         plt.savefig(self.savepath+'Diagnostics/1D_spectrum_optical_fit.pdf')
 
         self.fit_plot = [f,ax1,ax2]  
