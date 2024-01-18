@@ -43,7 +43,7 @@ def gauss(x, k, mu,FWHM):
     y= k* e**expo
     return y
 
-def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axres=None):
+def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None):
     sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
@@ -61,7 +61,7 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
         wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
         ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
-        if len(error) !=1:
+        if errors==True:
             ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
         y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
