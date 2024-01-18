@@ -43,7 +43,7 @@ def gauss(x, k, mu,FWHM):
     y= k* e**expo
     return y
 
-def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axres=None):
+def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None):
     sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
@@ -61,7 +61,7 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
         wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
         ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
-        if len(error) !=1:
+        if errors==True:
             ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
         y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
@@ -172,14 +172,14 @@ def plotting_OIII(res, ax, error=np.array([1]), template=0, residual='none',axre
 
 
 
-def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
+def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
     sol = res.props
     popt = sol['popt']
     z = popt[0]
 
     wave = res.wave
     fluxs = res.fluxs
-
+    error = res.errors
     keys = list(sol.keys())
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
@@ -191,7 +191,7 @@ def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
     fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7500))[0]
 
     ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
-    if len(error) !=1:
+    if errors==True:
         ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
 
     y_tot = res.yeval[fit_loc]
@@ -249,7 +249,7 @@ def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
         ax.plot(wv_rest[fit_loc], NII_out_b, color='magenta', linestyle='dashed')
 
     if 'BLR_alp1' in keys:
-        from .Models.QSO_models import BKPLG
+        from ..Models.QSO_models import BKPLG
         from astropy.modeling.powerlaws import BrokenPowerLaw1D
         from astropy.convolution import Gaussian1DKernel
         from astropy.convolution import convolve
@@ -273,7 +273,7 @@ def plotting_Halpha( res, ax, error=np.array([1]), residual='none', axres=None):
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k')
 
 
-def plotting_Halpha_OIII(res, ax,error=np.array([1]), residual='none', axres=None, template=0):
+def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, template=0):
     sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
