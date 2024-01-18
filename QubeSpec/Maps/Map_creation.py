@@ -112,17 +112,17 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             map_oiii[3,i,j] = p84_oiii.copy()
 
 
-            vel_peak, v10, v90, w80, v50 = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
+            kins_par = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
 
-            map_oiii_w80[:,i,j] = w80
-            map_oiii_v10[:,i,j] = v10
-            map_oiii_v90[:,i,j] = v90
-            map_oiii_v50[:,i,j] = v50
-            map_oiii_vel[:,i,j] = vel_peak
+            map_oiii_w80[:,i,j] = kins_par['w80']
+            map_oiii_v10[:,i,j] = kins_par['v10']
+            map_oiii_v90[:,i,j] = kins_par['v90']
+            map_oiii_v50[:,i,j] = kins_par['v50']
+            map_oiii_vel[:,i,j] = kins_par['peak_vel']
 
             p = ax.get_ylim()[1]
 
-            ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(w80[0],2)) )
+            ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
         else:
 
 
@@ -323,13 +323,13 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
             map_hal[0,i,j] = SNR
             map_hal[1:,i,j] = sp.flux_calc_mcmc(Fits, 'Hat',Cube.flux_norm)
 
-            vel_peak, v10, v90, w80, v50 = sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
+            kins_par = sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
 
-            map_hal_w80[:,i,j] = w80
-            map_hal_v10[:,i,j] = v10
-            map_hal_v90[:,i,j] = v90
-            map_hal_v50[:,i,j] = v50
-            map_hal_vel[:,i,j] = vel_peak
+            map_hal_w80[:,i,j] = kins_par['w80']
+            map_hal_v10[:,i,j] = kins_par['v10']
+            map_hal_v90[:,i,j] = kins_par['v90']
+            map_hal_v50[:,i,j] = kins_par['v50']
+            map_hal_vel[:,i,j] = kins_par['vel_peak']
 
         SNR_n2 = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
         map_nii[0,i,j] = SNR_n2
@@ -583,13 +583,13 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_hal[2,i,j] = p16_hal
             map_hal[3,i,j] = p84_hal
 
-            vel_peak, v10, v90, w80, v50 = sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
+            kins_par= sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
 
-            map_hal_w80[:,i,j] = w80
-            map_hal_v10[:,i,j] = v10
-            map_hal_v90[:,i,j] = v90
-            map_hal_v50[:,i,j] = v50
-            map_hal_vel[:,i,j] = vel_peak  
+            map_hal_w80[:,i,j] = kins_par['w80']
+            map_hal_v10[:,i,j] = kins_par['v10']
+            map_hal_v90[:,i,j] = kins_par['v90']
+            map_hal_v50[:,i,j] = kins_par['v50']
+            map_hal_vel[:,i,j] = kins_par['vel_peak']
 
         else:     
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
@@ -638,13 +638,13 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_oiii[2,i,j] = p16_oiii
             map_oiii[3,i,j] = p84_oiii
 
-            vel_peak, v10, v90, w80, v50 = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
+            kins_par = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
 
-            map_oiii_w80[:,i,j] = w80
-            map_oiii_v10[:,i,j] = v10
-            map_oiii_v90[:,i,j] = v90
-            map_oiii_v50[:,i,j] = v50
-            map_oiii_vel[:,i,j] = vel_peak
+            map_oiii_w80[:,i,j] = kins_par['w80']
+            map_oiii_v10[:,i,j] = kins_par['v10']
+            map_oiii_v90[:,i,j] = kins_par['v90']
+            map_oiii_v50[:,i,j] = kins_par['v50']
+            map_oiii_vel[:,i,j] = kins_par['peak_vel']
 
             p = baxes.get_ylim()[0][1]
             baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(w80[0],2)) )
@@ -1055,17 +1055,17 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                         info[key]['flux_map'][3,i,j] = p84
 
                         if 'kin' in list(info[key]):
-                            vel_peak, w80, v10,v90,v50 = sp.vel_kin_percentiles(Fits, peak_names=info[key]['kin']['peaks'], \
+                            kins_par = sp.vel_kin_percentiles(Fits, peak_names=info[key]['kin']['peaks'], \
                                                                                 fwhm_names=info[key]['kin']['fwhms'],\
                                                                                 vel_names=info[key]['kin']['vels'],\
                                                                                 rest_wave=info[key]['wv'],\
                                                                                 N=100,z=Cube.z)
                     
-                            info[key]['W80'][:,i,j] = w80
-                            info[key]['peak_vel'][:,i,j] = vel_peak
+                            info[key]['W80'][:,i,j] = kins_par['w80']
+                            info[key]['peak_vel'][:,i,j] = kins_par['vel_peak']
 
-                            info[key]['v10'][:,i,j] = v10
-                            info[key]['v90'][:,i,j] = v90
+                            info[key]['v10'][:,i,j] = kins_par['v10']
+                            info[key]['v90'][:,i,j] = kins_par['v90']
                             
                     else:
                         dl = Cube.obs_wave[1]-Cube.obs_wave[0]
