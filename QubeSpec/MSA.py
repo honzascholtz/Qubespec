@@ -165,13 +165,13 @@ class R1000:
                 '''
                 
     def Fitting_Halpha(self, N=10000, progress=True,priors= {'z':[0, 'normal', 0,0.003],\
-                                                   'cont':[0,'loguniform',-3,1],\
+                                                   'cont':[0,'loguniform',-5,1.7],\
                                                    'cont_grad':[0,'normal',0,0.3], \
-                                                   'Hal_peak':[0,'loguniform',-3,1],\
+                                                   'Hal_peak':[0,'loguniform',-3,2.],\
                                                    'Nar_fwhm':[300,'uniform',100,900],\
-                                                   'SIIr_peak':[0,'loguniform',-3,1],\
-                                                   'SIIb_peak':[0,'loguniform',-3,1],\
-                                                   'NII_peak':[0,'loguniform',-3,1]}):
+                                                   'SIIr_peak':[0,'loguniform',-5,1.7],\
+                                                   'SIIb_peak':[0,'loguniform',-5,1.7],\
+                                                   'NII_peak':[0,'loguniform',-5,1.7]}):
         if self.Hal_band != None:  
             dvstd = 300/3e5*(1+self.z)
             if priors['z'][2] ==0:
@@ -195,14 +195,14 @@ class R1000:
             self.S2r_flux = [0,0,0]
         
     def Fitting_O3(self, N=10000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
-                                                          'cont':[0,'loguniform',-3,1],\
+                                                          'cont':[0,'loguniform',-4,1.7],\
                                                           'cont_grad':[0,'normal',0,0.3], \
-                                                          'Nar_fwhm':[300,'uniform',100,900],\
+                                                          'Nar_fwhm':[300,'uniform',200,900],\
                                                           'outflow_fwhm':[600,'uniform', 300,1500],\
                                                           'outflow_vel':[-50,'normal', 0,300],\
-                                                          'OIII_peak':[0,'loguniform',-3,1],\
-                                                          'OIII_out_peak':[0,'loguniform',-3,1],\
-                                                          'Hbeta_peak':[0,'loguniform',-3,1],\
+                                                          'OIII_peak':[0,'loguniform',-4,2.0],\
+                                                          'OIII_out_peak':[0,'loguniform',-3,1.7],\
+                                                          'Hbeta_peak':[0,'loguniform',-4,1.7],\
                                                           'Hbeta_fwhm':[200,'uniform',120,900],\
                                                           'Hbeta_vel':[10,'normal', 0,10]}):
 
@@ -309,7 +309,7 @@ class R100:
                 
                 
     def Fitting_Halpha(self, N=10000, progress=True,priors= {'z':[0, 'normal', 0,0.003],\
-                                                   'cont':[0,'loguniform',-3,1],\
+                                                   'cont':[0,'loguniform',-5,1],\
                                                    'cont_grad':[0,'normal',0,0.3], \
                                                    'Hal_peak':[0,'loguniform',-3,1],\
                                                    'Nar_fwhm':[1000,'uniform',500,3000],\
@@ -317,7 +317,9 @@ class R100:
                                                    'SIIb_peak':[0,'loguniform',-3,1],\
                                                    'NII_peak':[0,'loguniform',-3,1]}):
         if self.Hal_band != None:  
-            priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
+            z_std = 200/3e5*(1+self.z)
+            zlim = 600/3e5*(1+self.z)
+            priors['z'] = [self.z, 'normal_hat', self.z, z_std, self.z-zlim, self.z+zlim]
             
             
             self.Hal_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
