@@ -94,9 +94,11 @@ def Shortcut(QubeSpec_setup):
     obj.mask_JWST(0, threshold= QubeSpec_setup['mask_threshold'], spe_ma=QubeSpec_setup['mask_channels'])
 
     print('Performing background subtraction')
-    if any(QubeSpec_setup['Source_mask']) !=None:
+    if source_mask:=QubeSpec_setup.get('Source_mask', False): # If key is present, assume it's a file name
+        assert type(source_mask)==str, f'QubeSpec_setup["Source_mask"] must be a string (if present). You gave {source_mask=}'
+        assert os.path.isfile(source_mask), f'File QubeSpec_setup["Source_mask"]={source_mask=} not found'
         print('Loading source mask from file')
-        source_bkg = sp.QFitsview_mask(QubeSpec_setup['Source_mask']) # Loading background mask
+        source_bkg = sp.QFitsview_mask(source_mask) # Loading background mask
     
     obj.background_subtraction( source_mask=source_bkg, wave_range=QubeSpec_setup['line_map_wavelength'], plot=1) # Doing 
 
