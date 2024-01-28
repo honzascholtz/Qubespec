@@ -1021,7 +1021,11 @@ class Fitting:
             pos_l[i] = self.priors[name][0] 
 
             if ('_peak' in name) & (self.priors[name][0] ==0):
-                pos_l[i] = np.mean(self.errors)*5
+                pos_l[i] = np.nanmean(self.error_fitloc)*np.random.uniform(5,10)
+            
+            if ('cont' == name) & (self.priors[name][0] ==0):
+                pos_l[i] = np.nanmedian(self.flux_fitloc)*5
+            
                 
         if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf) | (self.log_prior_fce(pos_l, self.pr_code)== np.nan):
             logprior_general_test(pos_l, self.pr_code, self.labels)
