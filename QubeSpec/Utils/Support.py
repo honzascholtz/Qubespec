@@ -394,7 +394,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
             return flx*norm
             
         elif 'BLR_alp1' in keys:
-            from .Models.QSO_models import BKPLG
+            from ..Models.QSO_models import BKPLG
             wave = np.linspace(6300,6700,700)*(1+res['z'][0])/1e4
             model = BKPLG(wave, res['BLR_peak'][0], Hal*(1+res['z'][0])/1e4, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
             
@@ -430,7 +430,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
         
         elif 'BLR_alp1' in keys:
             wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
-            from .Models.QSO_models import BKPLG
+            from ..Models.QSO_models import BKPLG
             model = BKPLG(wave, res['BLR_peak'][0], Hbe, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
         else:
             return 0 
