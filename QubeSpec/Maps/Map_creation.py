@@ -118,7 +118,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             map_oiii_v10[:,i,j] = kins_par['v10']
             map_oiii_v90[:,i,j] = kins_par['v90']
             map_oiii_v50[:,i,j] = kins_par['v50']
-            map_oiii_vel[:,i,j] = kins_par['peak_vel']
+            map_oiii_vel[:,i,j] = kins_par['vel_peak']
 
             p = ax.get_ylim()[1]
 
@@ -336,7 +336,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
         if SNR_n2>SNR_cut:
             map_nii[1:,i,j] = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
 
-        emplot.plotting_Halpha(Fits, ax, error=error)
+        emplot.plotting_Halpha(Fits, ax, errors=True)
         ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
 
         if res_spx['Hal_peak'][0]<3*error[0]:
@@ -644,10 +644,10 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_oiii_v10[:,i,j] = kins_par['v10']
             map_oiii_v90[:,i,j] = kins_par['v90']
             map_oiii_v50[:,i,j] = kins_par['v50']
-            map_oiii_vel[:,i,j] = kins_par['peak_vel']
+            map_oiii_vel[:,i,j] = kins_par['vel_peak']
 
             p = baxes.get_ylim()[0][1]
-            baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(w80[0],2)) )
+            baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
         else:
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
             n = width_upper/3e5*(5008.24*(1+Cube.z)/1e4)/dl

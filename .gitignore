@@ -21,6 +21,5 @@ docs/.DS_Store
 *.pyc
 QubeSpec/Models/FeII_templates/.DS_Store
 QubeSpec.zip
-dist/QubeSpec-1.0.0.tar.gz
-*.gz
+dist/*.gz
 dist/.DS_Store
