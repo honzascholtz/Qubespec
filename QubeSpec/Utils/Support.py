@@ -655,7 +655,7 @@ def W80_OIII_calc(Fits, N=100,z=0):
                                     rest_wave=5008,  N=N,error_range=[50,16,84],z=z)
 
     vel_peak = kin_res['vel_peak']
-    v10 = kin_res['vel_peak']
+    v10 = kin_res['v10']
     v90 = kin_res['v90']
     w80 = kin_res['w80']
     v50 = kin_res['v50']
@@ -704,7 +704,7 @@ def W80_Halpha_calc(Fits, N=100,z=0):
                                     rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
 
     vel_peak = kin_res['vel_peak']
-    v10 = kin_res['vel_peak']
+    v10 = kin_res['v10']
     v90 = kin_res['v90']
     w80 = kin_res['w80']
     v50 = kin_res['v50']
@@ -753,11 +753,11 @@ def W80_NII_calc(Fits, N=100,z=0):
                                 ['Nar_fwhm'], [], \
                                     rest_wave=6564,  N=N,error_range=[50,16,84],z=z)
     vel_peak = kin_res['vel_peak']
-    v10 = kin_res['vel_peak']
+    v10 = kin_res['v10']
     v90 = kin_res['v90']
     w80 = kin_res['w80']
     v50 = kin_res['v50']
-        
+
     if N==1:        
         return {'vel_peak':vel_peak,'v10':v10,'v90':v90,'w80':w80,'v50':v50}
     
