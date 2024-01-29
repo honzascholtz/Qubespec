@@ -48,12 +48,13 @@ def gauss(x, k, mu, fwhm):
 
 
 class R1000:  
-    def __init__(self, path, z, ID, wave_custom=None, version ='3.0', add='_extr3'):
+    def __init__(self, path, z, ID, wave_custom=None, version ='3.0', add='_extr3', data_hdu='DATA'):
         # Store basic stuff
         self.z = z
         self.ID = ID
         self.path = path
         self.add = add
+        self.data_hdu = data_hdu
         
         if version != '':
             version= '_v'+version
@@ -117,7 +118,7 @@ class R1000:
         if self.Hal_band != None:  
             Full_path = self.path + self.Hal_band +'/'+ self.ID + '_' + self.Hal_band+self.version +self.add+'_1D.fits'
             with pyfits.open(Full_path, memmap=False) as hdulist:
-                flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
+                flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
                 self.Hal_error =  hdulist['ERR'].data*1e-7*1e4*1e15
                 self.Hal_flux = np.ma.masked_invalid(flux_orig.copy())
                 self.Hal_obs_wave = hdulist['wavelength'].data*1e6
@@ -128,7 +129,7 @@ class R1000:
         if self.O3_band != None:  
             Full_path = self.path + self.O3_band +'/'+ self.ID + '_' + self.O3_band +self.version+self.add+'_1D.fits'
             with pyfits.open(Full_path, memmap=False) as hdulist:
-                flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
+                flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
                 self.O3_error =  hdulist['ERR'].data*1e-7*1e4*1e15
                 self.O3_flux = np.ma.masked_invalid(flux_orig.copy())
                 self.O3_obs_wave = hdulist['wavelength'].data*1e6
@@ -139,14 +140,14 @@ class R1000:
             try:
                 Full_path = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
                 with pyfits.open(Full_path, memmap=False) as hdulist:
-                    flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
+                    flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
                     self.custom_error =  hdulist['ERR'].data*1e-7*1e4*1e15
                     self.custom_flux = np.ma.masked_invalid(flux_orig.copy())
                     self.custom_obs_wave = hdulist['wavelength'].data*1e6
             except:
                 Full_path = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
                 with pyfits.open(Full_path, memmap=False) as hdulist:
-                    flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
+                    flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
                     self.custom_error =  hdulist['ERR'].data*1e-7*1e4*1e15
                     self.custom_flux = np.ma.masked_invalid(flux_orig.copy())
                     self.custom_obs_wave = hdulist['wavelength'].data*1e6
