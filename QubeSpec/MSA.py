@@ -114,7 +114,7 @@ class R1000:
         
         
     def load_data(self):
-
+        
         if self.Hal_band != None:  
             Full_path = self.path + self.Hal_band +'/'+ self.ID + '_' + self.Hal_band+self.version +self.add+'_1D.fits'
             with pyfits.open(Full_path, memmap=False) as hdulist:
