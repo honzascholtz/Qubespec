@@ -301,7 +301,7 @@ class Fitting:
             
             self.res = {'name': 'Halpha_wth_BLR'}
         
-        if self.model=='BLR':
+        elif self.model=='BLR':
             self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak',\
                          'Halpha_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
             
@@ -377,7 +377,7 @@ class Fitting:
             self.res = {'name': 'Halpha_QSO_BKPL'}
             
         else:
-            raise Exception('self.model variable not understood. Available self.model keywords: BLR, outflow, gal, QSO_BKPL')
+            raise Exception('self.model variable not understood. Available model keywords: BLR, BLR_simple, outflow, gal, QSO_BKPL')
         
         self.flux_fitloc = self.flux[self.fit_loc]
         self.wave_fitloc = self.wave[self.fit_loc]
