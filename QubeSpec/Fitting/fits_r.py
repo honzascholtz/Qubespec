@@ -401,10 +401,8 @@ class Fitting:
             self.chains[self.labels[i]] = self.flat_samples[:,i]
             
         self.props = self.prop_calc()
-        try:
-            self.chi2, self.BIC = sp.BIC_calc(self.wave, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha')
-        except:
-            self.chi2, self.BIC = np.nan, np.nan
+        self.chi2 = np.nansum(((self.flux_fitloc-self.fitted_model(self.wave_fitloc, *self.props['popt']))**2)/self.error_fitloc**2)
+        self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
         self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
@@ -656,7 +654,7 @@ class Fitting:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'], self.template)
         else:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'])
-        self.chi2 = sum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
+        self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
         
@@ -966,9 +964,11 @@ class Fitting:
             self.chains[self.labels[i]] = self.flat_samples[:,i]
 
         self.props = self.prop_calc()
-        
-        self.chi2, self.BIC = sp.BIC_calc(self.waves, self.fluxs, self.error, self.fitted_model, self.props, 'Halpha_OIII')
+
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        
+        self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
+        self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
 
         
     def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64):
