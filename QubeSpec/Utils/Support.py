@@ -880,6 +880,13 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
     error= np.zeros_like(flux)
     from astropy import stats
 
+    if (np.any(np.array(err_range)<obs_wave[0])==True) | (np.any(np.array(err_range)>obs_wave[-1])==True):
+        raise Exception('err range values are out of range of the wavelength range of the data')
+    
+    if (boundary<obs_wave[0]) | (boundary>obs_wave[-1]):
+        raise Exception('Err boundary value are out of range of the wavelength range of the data')
+
+
     if len(err_range)==2:
         error1 = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
                                                     &(obs_wave<err_range[1])],sigma=3)[2]
