@@ -738,8 +738,6 @@ class general:
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
     
     def fit_spaxel(self, lst, progress=False):
-        with open(os.getenv("HOME")+'/priors.pkl', "rb") as fp:
-            data= pickle.load(fp) 
 
         i,j,flx_spax_m, error, wave, z = lst
         
