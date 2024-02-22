@@ -832,7 +832,7 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
         
     # Open dummy file.
     output_filename = f'{object_name}_{disp_filt}_v3.0_1D.fits'
-    from . import jadify_temp as pth
+    from .. import jadify_temp as pth
 
     PATH_TO_jadify = pth.__path__[0]+ '/'
     filename = PATH_TO_jadify+ 'temp_prism_clear_v3.0_extr3_1D.fits'

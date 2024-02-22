@@ -198,6 +198,8 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(snr, cax=cax, orientation='vertical')
 
+    f.savefig(Cube.savepath+'Diagnostics/OIII_maps.pdf')
+
     hdr = Cube.header.copy()
     hdr['X_cent'] = x
     hdr['Y_cent'] = y
@@ -287,7 +289,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_fit_detection_only'+add+'.pdf')
 
     failed_fits = 0
-    for row in range(len(results)):
+    for row in tqdm.tqdm(range(len(results))):
         if len(results[row])==3:
             i,j, Fits= results[row]
             if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
@@ -428,6 +430,9 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     fnii.colorbar(fw, cax=cax, orientation='vertical')
+
+    f.savefig(Cube.savepath+'Diagnostics/Halpha_maps.pdf')
+
 
     hdr = Cube.header.copy()
     hdr['X_cent'] = x
@@ -891,6 +896,9 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
 
+    f.savefig(Cube.savepath+'Diagnostics/Halpha_OIII_maps.pdf')
+
+
 
     plt.tight_layout()
 
@@ -1033,7 +1041,7 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
         for key in info_keys:
             if key=='params':
                 for param in info[key]['extract']:
-                    info[key][param] = np.percentile(Fits.chains[param], (16,50,84))
+                    info[key][param][:,i,j] = np.percentile(Fits.chains[param], (16,50,84))
             
             else:
                 if 'kin' not in key:
