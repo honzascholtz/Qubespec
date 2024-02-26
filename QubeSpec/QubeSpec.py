@@ -66,6 +66,7 @@ except FileNotFoundError:
 from . import Utils as sp
 from . import Plotting as emplot
 from . import Fitting as emfit
+from . import Dust as dst
 
 from .Models import Halpha_OIII_models as HaO_models
 from . import Background as bkg
