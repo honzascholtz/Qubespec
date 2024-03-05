@@ -80,7 +80,7 @@ class Fitting:
         
     """
        
-    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal', 0,0.003]}):
+    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
         priors_update = priors.copy()
         priors= {'z':[0, 'normal', 0,0.003],\
                 'cont':[0,'loguniform',-4,1],\
@@ -303,7 +303,7 @@ class Fitting:
         
         elif self.model=='BLR':
             self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak',\
-                         'Halpha_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
+                         'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
             
             self.fitted_model = H_models.Halpha_BLR_outflow
             self.log_prior_fce = logprior_general

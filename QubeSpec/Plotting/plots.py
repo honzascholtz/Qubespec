@@ -47,7 +47,7 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None)
     sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
-    z = popt[0]
+    z = sol['z'][0]
     wave = res.wave
     fluxs = res.fluxs
     error = res.error
@@ -229,7 +229,7 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
         BLR_wv = 6564.52*(1+sol['zBLR'][0])/1e4
 
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['BLR_Hal_peak'][0], BLR_wv, sol['BLR_fwhm'][0]), \
-                color='magenta', linestyle='dashed')
+                color='darkorange', linestyle='dashed')
 
     if 'Hal_out_peak' in keys:
         out_vel_hal = sol['outflow_fwhm'][0]
