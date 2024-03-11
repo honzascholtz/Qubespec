@@ -25,12 +25,13 @@ import matplotlib.cm
 from brokenaxes import brokenaxes
 
 class Visualize:
-    def __init__(self, path_res, map_hdu ):
+    def __init__(self, path_res, map_hdu, indc = [1,1,0] ):
         """
         Load the fit and the data
         Returns
         -------
         """
+        self.indc = indc
         with pyfits.open(path_res, memmap=False) as hdulist:
             self.map = []
             for its in map_hdu:
@@ -56,8 +57,11 @@ class Visualize:
 
         axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
 
-    def showme(self, xlims= ((3,5.3)), vmax=1e-15):
-                                  
+        if self.xlims is not None:
+            axes.set_xlim(self.xlims[0], self.xlims[1])
+
+    def showme(self, xlims= None, vmax=1e-15):
+        self.xlims = xlims
         fig = plt.figure(figsize=(15.6, 8))
         fig.canvas.manager.set_window_title('vicube')
         gs = fig.add_gridspec(
@@ -70,14 +74,16 @@ class Visualize:
         axspec = fig.add_subplot(gs[1, :]) #brokenaxes(xlims=xlims,  hspace=.01, subplot_spec=gs[1, :])
 
         axes= axes[:len(self.map)]
+        k=0
         for ax, map,its in zip(axes,self.map, range(len(axes))):
             if its==2:
                 cmap='coolwarm'
-                map_ind=0
+                map_ind= self.indc[k]
             else:
                 cmap='viridis'
-                map_ind=1
+                map_ind=self.indc[k]
             _img_ = ax.imshow(map[map_ind,:,:], origin='lower', cmap=cmap)
+            k+=1
         
         selector0  = matplotlib.patches.Rectangle(
             (14.5, 14.5), 1, 1, edgecolor='r', facecolor='none', lw=1.0)

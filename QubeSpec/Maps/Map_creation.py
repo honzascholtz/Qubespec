@@ -63,6 +63,15 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     map_oiii_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
     map_oiii_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
 
+    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+
+    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+
+
     Result_cube = np.zeros_like(Cube.flux.data)
     Result_cube_data = Cube.flux.data
     Result_cube_error = Cube.error_cube.data
@@ -92,7 +101,12 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
                 Fits = Fits_out
             else:
                 Fits = Fits_sig
-
+                
+        if 'outflow_fwhm' in list(Fits.props.keys()):
+            flag= 'outflow'
+        else:
+            flag='single'
+            
         Result_cube_data[:,i,j] = Fits.fluxs.data
         try:
             Result_cube_error[:,i,j] = Fits.error.data
@@ -119,6 +133,20 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             map_oiii_v90[:,i,j] = kins_par['v90']
             map_oiii_v50[:,i,j] = kins_par['v50']
             map_oiii_vel[:,i,j] = kins_par['vel_peak']
+
+            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
+            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
+            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
+            if flag=='outflow':
+                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
+                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
+                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
 
             p = ax.get_ylim()[1]
 
@@ -198,6 +226,8 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(snr, cax=cax, orientation='vertical')
 
+    f.savefig(Cube.savepath+'Diagnostics/OIII_maps.pdf')
+
     hdr = Cube.header.copy()
     hdr['X_cent'] = x
     hdr['Y_cent'] = y
@@ -276,6 +306,16 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     map_siir = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
     map_siib = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
 
+    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+
+    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_nii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+
     Result_cube = np.zeros_like(Cube.flux.data)
     Result_cube_data = Cube.flux.data
     Result_cube_error = Cube.error_cube.data
@@ -287,7 +327,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_fit_detection_only'+add+'.pdf')
 
     failed_fits = 0
-    for row in range(len(results)):
+    for row in tqdm.tqdm(range(len(results))):
         if len(results[row])==3:
             i,j, Fits= results[row]
             if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
@@ -305,6 +345,11 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
                 Fits = Fits_out
             else:
                 Fits = Fits_sig
+        
+        if 'outflow_fwhm' in list(Fits.props.keys()):
+            flag= 'outflow'
+        else:
+            flag='single'
 
         Result_cube_data[:,i,j] = Fits.fluxs.data
         try:
@@ -330,6 +375,20 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
             map_hal_v90[:,i,j] = kins_par['v90']
             map_hal_v50[:,i,j] = kins_par['v50']
             map_hal_vel[:,i,j] = kins_par['vel_peak']
+
+            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
+            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
+            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
+            if flag=='outflow':
+                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
+                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
+                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
 
         SNR_n2 = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
         map_nii[0,i,j] = SNR_n2
@@ -429,6 +488,9 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     cax = divider.append_axes('right', size='5%', pad=0.05)
     fnii.colorbar(fw, cax=cax, orientation='vertical')
 
+    f.savefig(Cube.savepath+'Diagnostics/Halpha_maps.pdf')
+
+
     hdr = Cube.header.copy()
     hdr['X_cent'] = x
     hdr['Y_cent'] = y
@@ -522,6 +584,16 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     map_siir = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
     map_siib = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
+    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+
+    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hal_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+    map_nii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -548,8 +620,16 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
             if (Fits_sig.BIC-Fits_out.BIC) >dbic:
                 Fits = Fits_out
+                
             else:
                 Fits = Fits_sig
+                
+        
+        if 'outflow_fwhm' in list(Fits.props.keys()):
+            flag= 'outflow'
+        else:
+            flag='single'
+
 
         Result_cube_data[:,i,j] = Fits.fluxs.data
         try:
@@ -590,6 +670,20 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_hal_v90[:,i,j] = kins_par['v90']
             map_hal_v50[:,i,j] = kins_par['v50']
             map_hal_vel[:,i,j] = kins_par['vel_peak']
+
+            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
+            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
+            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
+            if flag=='outflow':
+                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
+                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
+                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
 
         else:     
             dl = Cube.obs_wave[1]-Cube.obs_wave[0]
@@ -645,6 +739,20 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_oiii_v90[:,i,j] = kins_par['v90']
             map_oiii_v50[:,i,j] = kins_par['v50']
             map_oiii_vel[:,i,j] = kins_par['vel_peak']
+
+            if (map_narrow_fwhm[0,i,j]==np.nan):
+                map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
+                map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+                map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
+                map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
+            if (flag=='outflow') & (map_outflow_fwhm[0,i,j]==np.nan):
+                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
+                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
+
+                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
+                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
 
             p = baxes.get_ylim()[0][1]
             baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
@@ -891,6 +999,9 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     cax = divider.append_axes('right', size='5%', pad=0.05)
     f.colorbar(fw, cax=cax, orientation='vertical')
 
+    f.savefig(Cube.savepath+'Diagnostics/Halpha_OIII_maps.pdf')
+
+
 
     plt.tight_layout()
 
@@ -914,7 +1025,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     hal_v50 = fits.ImageHDU(map_hal_v50, name='Hal_v50')
     hal_vel = fits.ImageHDU(map_hal_vel, name='Hal_vel')
 
-    nii_hdu = fits.ImageHDU(map_nii, name='Hal')
+    nii_hdu = fits.ImageHDU(map_nii, name='NII')
 
     oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
     oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
@@ -923,11 +1034,17 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
     oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
 
+    outflow_fwhm = fits.ImageHDU(map_outflow_fwhm, name='outflow_fwhm')
+    outflow_vel = fits.ImageHDU(map_outflow_vel, name='outflow_vel')
+
+    Nar_vel = fits.ImageHDU(map_narrow_vel, name='narrow_vel')
+    Nar_fwhm = fits.ImageHDU(map_narrow_fwhm, name='narrow_fwhm')
+
     hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
 
     hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval,\
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50,\
-                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu ])
+                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel ])
     
    
     hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
@@ -1033,7 +1150,7 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
         for key in info_keys:
             if key=='params':
                 for param in info[key]['extract']:
-                    info[key][param] = np.percentile(Fits.chains[param], (16,50,84))
+                    info[key][param][:,i,j] = np.percentile(Fits.chains[param], (16,50,84))
             
             else:
                 if 'kin' not in key:
