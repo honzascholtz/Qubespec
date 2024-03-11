@@ -20,9 +20,9 @@ fsz = gst.graph_format()
 
 import matplotlib.pyplot as plt
 import matplotlib.patches
-import matplotlib.widgets
 import matplotlib.cm
 from brokenaxes import brokenaxes
+from matplotlib.widgets import Slider, Button, RadioButtons, RangeSlider
 
 class Visualize:
     def __init__(self, path_res, map_hdu, indc = [1,1,0] ):
@@ -59,6 +59,10 @@ class Visualize:
 
         if self.xlims is not None:
             axes.set_xlim(self.xlims[0], self.xlims[1])
+            
+            use = np.where( (self.obs_wave<self.xlims[1]) & (self.obs_wave>self.xlims[0]) )[0]
+            axes.set_ylim(-0.01*max(yevalm[use]), 1.1*max(yevalm[use])) 
+
 
     def showme(self, xlims= None, vmax=1e-15):
         self.xlims = xlims
@@ -85,6 +89,10 @@ class Visualize:
             _img_ = ax.imshow(map[map_ind,:,:], origin='lower', cmap=cmap)
             k+=1
         
+        self.xlimax = plt.axes([0.12, 0.03, 0.8, 0.03])
+        self.xlim_slider = RangeSlider(self.xlimax, 'xlim', self.obs_wave[0], self.obs_wave[-1], valinit=(self.xlims[0], self.xlims[1]))
+        self.xlim_slider.on_changed(self.slide_update)
+
         selector0  = matplotlib.patches.Rectangle(
             (14.5, 14.5), 1, 1, edgecolor='r', facecolor='none', lw=1.0)
         selector1  = matplotlib.patches.Rectangle(
@@ -119,6 +127,9 @@ class Visualize:
                 return
             update_plot(event)
             fig.canvas.draw_idle()
-        fig.canvas.mpl_connect("motion_notify_event", hover)
+        #fig.canvas.mpl_connect("motion_notify_event", hover)
+        fig.canvas.mpl_connect("button_press_event", hover)    
+        plt.show()   
 
-        plt.show()    
+    def slide_update(self, val):
+        self.xlims = self.xlim_slider.val
