@@ -152,11 +152,8 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
 
             ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
         else:
-
-
-            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-            n = width_upper/3e5*(5008.24*(1+Cube.z)/1e4)/dl
-            map_oiii[3,i,j] = SNR_cut*Fits.error[1]*dl*np.sqrt(n)
+            map_oiii[2,i,j] = p16_oiii.copy()
+            map_oiii[3,i,j] = p84_oiii.copy()
             
 
         
@@ -389,11 +386,20 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
                 map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
                 map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
 
+        else:
+            flux_hal, p16_hal, p84_hal = sp.flux_calc_mcmc(Fits, 'Hat',Cube.flux_norm)
+            map_hal[2,i,j] = p16_hal.copy()
+            map_hal[3,i,j] = p84_hal.copy()
+
 
         SNR_n2 = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
         map_nii[0,i,j] = SNR_n2
         if SNR_n2>SNR_cut:
             map_nii[1:,i,j] = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
+        else:
+            flux_nii, p16_nii, p84_nii = sp.flux_calc_mcmc(Fits, 'NIIt',Cube.flux_norm)
+            map_nii[2,i,j] = p16_nii.copy()
+            map_nii[3,i,j] = p84_nii.copy()
 
         emplot.plotting_Halpha(Fits, ax, errors=True)
         ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
@@ -686,9 +692,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
 
         else:     
-            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-            n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
-            map_hal[3,i,j] = -SNR_cut*error[-1]*dl*np.sqrt(n)
+            map_hal[2,i,j] = p16_hal.copy()
+            map_hal[3,i,j] = p84_hal.copy()
 
 # =============================================================================
 #             Plotting
@@ -717,9 +722,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_nii[3,i,j] = p84_NII
 
         else:
-            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-            n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
-            map_nii[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
+            map_nii[2,i,j] = p16_NII.copy()
+            map_nii[3,i,j] = p84_NII.copy()
 # =============================================================================
 #             OIII
 # =============================================================================
@@ -757,9 +761,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             p = baxes.get_ylim()[0][1]
             baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
         else:
-            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-            n = width_upper/3e5*(5008.24*(1+Cube.z)/1e4)/dl
-            map_oiii[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
+            map_oiii[2,i,j] = p16_oiii.copy()
+            map_oiii[3,i,j] = p84_oiii.copy()
 
 # =============================================================================
 #             Hbeta
@@ -773,11 +776,8 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_hb[3,i,j] = p84_hb
 
         else:
-
-            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-            n = width_upper/3e5*(4860*(1+Cube.z)/1e4)/dl
-            map_hb[3,i,j] = SNR_cut*error[1]*dl*np.sqrt(n)
-
+            map_hb[2,i,j] = p16_hb.copy()
+            map_hb[3,i,j] = p84_hb.copy()
 # =============================================================================
 #           SII
 # =============================================================================
@@ -799,11 +799,10 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
             map_siib[3,i,j] = p84b
 
         else:
-
-            dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-            n = width_upper/3e5*(6731*(1+Cube.z)/1e4)/dl
-            map_siir[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
-            map_siib[3,i,j] = SNR_cut*error[-1]*dl*np.sqrt(n)
+            map_siir[2,i,j] = p16r
+            map_siib[2,i,j] = p16b
+            map_siir[3,i,j] = p84r
+            map_siib[3,i,j] = p84b
 
         baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = '+ str(np.round([SNR_hal, SNR_oiii, SNR_nii, SNR_SII],1)))
         baxes.set_xlabel('Restframe wavelength (ang)')
@@ -1185,11 +1184,11 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                             info[key]['v90'][:,i,j] = kins_par['v90']
                             
                     else:
-                        dl = Cube.obs_wave[1]-Cube.obs_wave[0]
-                        n = width_upper/3e5*(6564.52**(1+Cube.z)/1e4)/dl
-                        info[key]['flux_map'][3,i,j] = -SNR_cut*Fits.error[-1]*dl*np.sqrt(n)
-
-    
+                        flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
+                                                            wv_cent = info[key]['wv'],\
+                                                            peak_name = key+'_peak', \
+                                                                fwhm_name = info[key]['fwhm'])
+                        info[key]['flux_map'][2,i,j] = p16
 
 
 # =============================================================================
