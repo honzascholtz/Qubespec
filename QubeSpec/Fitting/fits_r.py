@@ -626,7 +626,7 @@ class Fitting:
             self.res = {'name': 'OIII_QSO_BKP'}
             
         else:
-            raise Exception('self.model variable not understood. Available self.model keywords: outflow, gal, QSO_BKPL')
+            raise Exception('self.model variable not understood. Available self.model keywords: outflow_simple, BLR_simple, BLR_outflow,  gal_simple, QSO_BKPL')
          
         nwalkers, ndim = pos.shape
 

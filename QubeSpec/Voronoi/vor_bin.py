@@ -146,39 +146,57 @@ def unwrap_voronoi(Cube, Map_seg, add='', err_range=[0], boundary=2.4 ):
 
 
 def fill_cube(array, fill, mask):
+    """
+    Fill the specified elements of a 3D array with a given value based on a mask.
+
+    Parameters:
+        array (ndarray): The 3D array to be filled.
+        fill (scalar): The value to fill the specified elements with.
+        mask (ndarray): The mask indicating which elements to fill.
+
+    Returns:
+        ndarray: The filled 3D array.
+
+    """
+    array_copy = np.copy(array)
     shapes = mask.shape
     for j in range(shapes[1]):
         for i in range(shapes[0]):
            if mask[i,j]==True:
-               array[:,i,j] = fill
-    return array
+               array_copy[:,i,j] = fill
+    return array_copy
 
 def Map_creation_general(Cube,info, Map_seg, SNR_cut = 3 ,  width_upper=300,add='',\
                             brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
-    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
-        Afterwards it saves all of it as .fits file. 
+    """
+    Function to post process voronoi spaxel fits. The function will load the fits results and determine which model is more likely,
+    based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
+    Afterwards it saves all of it as .fits file. 
 
-        Parameters
-        ----------
-    
-        Cube : QubeSpec.Cube class instance
-            Cube class from the main part of the QubeSpec. 
+    Parameters
+    ----------
         
-        info : dict
-            dictionary containing information on what to extract. 
-
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
-        
-        brokenaxes_xlims: list
-            list of wavelength ranges to use for broken axes when plotting
-
+    Cube : QubeSpec.Cube class instance
+        Cube class from the main part of the QubeSpec. 
             
-        """
+    info : dict
+        dictionary containing information on what to extract. 
+
+    SNR_cut : float
+        SNR cutoff to detect emission lines 
+            
+    add : str
+        additional string to use to load the results and save maps/pdf
+            
+    brokenaxes_xlims: list
+        list of wavelength ranges to use for broken axes when plotting
+
+    Returns
+    -------
+    f : matplotlib.figure.Figure
+        The figure object containing the plot.
+
+    """
     z0 = Cube.z
     failed_fits=0
     

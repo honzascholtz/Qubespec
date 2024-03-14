@@ -185,17 +185,19 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
     fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
 
-    flux = fluxs.data[np.invert(fluxs.mask)].copy()
-    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+    try:
+        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
+        if errors==True:
+            ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+        y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
-    fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7500))[0]
 
-    ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
-    if errors==True:
-        ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+    except Exception as _exc_:
+        print(_exc_)
 
     y_tot = res.yeval[fit_loc]
-    y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 
@@ -278,6 +280,7 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
     popt = sol['popt']
     keys = list(sol.keys())
     z = popt[0]
+    error =res.errors
 
     wave = res.wave
     fluxs = res.fluxs
@@ -286,13 +289,18 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
     fit_loc = np.where((wv_rest>100.)&(wv_rest<16000.))[0]
 
     ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
-
     flux = fluxs.data[np.invert(fluxs.mask)]
-    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+    try:
+        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
+        if errors==True:
+            ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
+        y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
-    fit_loc_sc = np.where((wv_rst_sc>100)&(wv_rst_sc<16000))[0]
 
-    ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid')
+    except Exception as _exc_:
+        print(_exc_)
 
     #if len(error) !=1:
     #    ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
