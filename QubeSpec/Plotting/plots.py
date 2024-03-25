@@ -280,7 +280,7 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
     popt = sol['popt']
     keys = list(sol.keys())
     z = popt[0]
-    error =res.errors
+    error =res.error
 
     wave = res.wave
     fluxs = res.fluxs

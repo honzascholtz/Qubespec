@@ -1762,7 +1762,18 @@ class Cube:
         except:
             print('Folder structure already exists')
 
-        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', self.obs_wave, self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm, err=self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm, mask=np.zeros_like(self.obs_wave),
+        flux = self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm
+        obs_wave = self.obs_wave
+        errors = self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm
+        import spectres as spres
+        from . import jadify_temp as pth
+        PATH_TO_jadify = pth.__path__[0]+ '/'
+        with fits.open(PATH_TO_jadify+ 'temp_prism_clear_v3.0_extr3_1D.fits', memmap=False) as hdulist:
+            wave_new = hdulist['wavelength'].data*1e6
+
+        flux_new, error_new = spres.spectres( wave_new , obs_wave,flux,errors,fill=np.nan, verbose=False)
+    
+        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', wave_new, flux_new, err=error_new, mask=np.zeros_like(wave_new),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
         import yaml
         from yaml.loader import SafeLoader
@@ -1786,7 +1797,7 @@ class Cube:
         redshift_cat['z_visinsp'][0] = self.z
         redshift_cat['z_phot'][0] = self.z
         redshift_cat['z_bagp'][0] = self.z
-        redshift_cat.write(self.savepath+'PRISM_1D/redshift_1D.csv',overwrite=True)
+        redshift_cat.write(self.savepath+'/PRISM_1D/redshift_1D.csv',overwrite=True)
 
         import nirspecxf
         id = 100000
