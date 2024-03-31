@@ -48,7 +48,7 @@ def gauss(x, k, mu, fwhm):
 
 
 class R1000:  
-    def __init__(self, path, z, ID, wave_custom=None, version ='3.0', add='_extr3', data_hdu='DATA'):
+    def __init__(self, path, z, ID, wave_custom=None, version ='3.0', add='_extr3', data_hdu='DATA', rev=False):
         # Store basic stuff
         self.z = z
         self.ID = ID
@@ -94,7 +94,7 @@ class R1000:
             self.O3_band = None
             
         if wave_custom:
-            # Set OIII gratings
+            # Set custom gratings
             if (self.wave_custom_obs<B3M[1]) and (self.wave_custom_obs>B3M[0]):
                 self.band_custom = 'g395m_f290lp'
             elif (self.wave_custom_obs<B2M[1]) and (self.wave_custom_obs>B2M[0]):
@@ -103,6 +103,16 @@ class R1000:
                 self.band_custom = 'g140m_f070lp'
             else:
                 self.band_custom = None
+            if rev==True:
+                if (self.wave_custom_obs<B1M[1]) and (self.wave_custom_obs>B1M[0]):
+                    self.band_custom = 'g140m_f070lp'
+                elif (self.wave_custom_obs<B2M[1]) and (self.wave_custom_obs>B2M[0]):
+                    self.band_custom = 'g235m_f170lp'
+                elif (self.wave_custom_obs<B3M[1]) and (self.wave_custom_obs>B3M[0]):
+                    self.band_custom = 'g395m_f290lp'
+                else:
+                    self.band_custom = None
+
             
             self.Full_path_custom = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
 
