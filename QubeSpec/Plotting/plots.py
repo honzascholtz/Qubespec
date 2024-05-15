@@ -187,7 +187,6 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
 
     try:
         wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
-        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
         fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7500))[0]
         ax.plot(wv_rst_sc[fit_loc_sc],fluxs[fit_loc_sc], drawstyle='steps-mid', label='data')
         if errors==True:
