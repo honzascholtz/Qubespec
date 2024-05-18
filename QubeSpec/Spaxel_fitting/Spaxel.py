@@ -169,7 +169,7 @@ class Halpha_OIII:
         return cube_res
 
     
-    def Spaxel_toptup(self, Cube, to_fit ,add='', Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+    def Spaxel_toptup(self, Cube, to_fit ,add='',models='Single', Ncores=(mp.cpu_count() - 2),priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
@@ -192,8 +192,10 @@ class Halpha_OIII:
                                                                                         'SIIb_peak':[0,'loguniform', -3,1],\
                                                                                         'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
         import pickle
+        self.models = models
+        self.priors = priors
         start_time = time.time()
-        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "rb") as fp:
             Cube_res= pickle.load(fp)
             
         print('import of the unwrap cube - done')
@@ -206,6 +208,9 @@ class Halpha_OIII:
                 if len(row)==4:
                     y,x, res,res2 = row
                 if to_fit_sig[0]==x and to_fit_sig[1]==y:
+                    
+                    print(sp.flux_calc_mcmc(res, 'OIIIt', Cube.flux_norm))
+
                     lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
 
                     Cube_res[i] = self.fit_spaxel(lst, progress=True)
@@ -220,7 +225,7 @@ class Halpha_OIII:
                     break
         
                 
-        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
@@ -793,7 +798,7 @@ class general:
                     lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
 
                     Cube_res[i] = self.fit_spaxel(lst, progress=True)
-
+                
                     Fits_sig = Cube_res[i][2]
                     f,ax = plt.subplots(1, figsize=(10,5))
                     ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')

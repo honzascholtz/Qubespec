@@ -50,9 +50,22 @@ def gauss(x, k, mu,FWHM):
     return y
 
 def find_nearest(array, value):
-    """ Find the location of an array closest to a value 
-	
-	"""
+    """
+    Find the index of the element in an array that is closest to a given value.
+
+    Parameters:
+        array (array-like): The input array.
+        value (float or int): The value to find the closest element to.
+
+    Returns:
+        int: The index of the element in the array that is closest to the given value.
+
+    Example:
+        >>> array = [1, 2, 3, 4, 5]
+        >>> value = 3.7
+        >>> find_nearest(array, value)
+        3
+    """
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
@@ -329,6 +342,22 @@ def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
     return chi2, BIC
 
 def unwrap_chain(res):
+    """
+    Unwraps a dictionary of chains into a 2D numpy array.
+
+    Parameters:
+    - res (dict): A dictionary containing chains as values, where each chain is a 1D numpy array.
+
+    Returns:
+    - chains (ndarray): A 2D numpy array where each column represents a chain from the input dictionary.
+
+    Example:
+    >>> res = {'chain1': np.array([1, 2, 3]), 'chain2': np.array([4, 5, 6])}
+    >>> unwrap_chain(res)
+    array([[1., 4.],
+        [2., 5.],
+        [3., 6.]])
+    """
     keys = list(res.keys())[1:]  
     chains = np.zeros(( len(res[keys[0]]), len(keys) ))  
     for i in range(len(keys)):  
@@ -343,6 +372,19 @@ def QFitsview_mask(filepath):
     return mask
 
 def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
+    """
+    Calculate the flux using the general formula.
+
+    Parameters:
+        wv_cent (float): The central wavelength.
+        res (dict): A dictionary containing the necessary parameters.
+        fwhm_name (str): The name of the key in the 'res' dictionary that corresponds to the full width at half maximum (FWHM).
+        peak_name (str): The name of the key in the 'res' dictionary that corresponds to the peak value.
+
+    Returns:
+        float: The calculated flux.
+
+    """
     mu = wv_cent*(1+res['z'][0])/1e4
     FWHM = res[fwhm_name][0]
     a = 1./(2*(FWHM/3e5*mu/2.35482)**2)
@@ -350,6 +392,41 @@ def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
 
 
 def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
+    """
+    Calculate the flux for different emission lines based on the given parameters.
+
+    Parameters:
+        res (dict): A dictionary containing the necessary parameters.
+        mode (str): The mode of calculation. Possible values are:
+            - 'general': Calculate the flux using the general formula.
+            - 'OIIIt': Calculate the flux for OIII emission line with outflow component.
+            - 'OIIIn': Calculate the flux for OIII emission line without outflow component.
+            - 'OIIIw': Calculate the flux for the outflow component of OIII emission line.
+            - 'Hat': Calculate the flux for Halpha emission line with outflow component.
+            - 'Han': Calculate the flux for Halpha emission line without outflow component.
+            - 'Hal_BLR': Calculate the flux for the broad line region (BLR) component of Halpha emission line.
+            - 'NIIt': Calculate the flux for NII emission line with outflow component.
+            - 'NII': Calculate the flux for NII emission line without outflow component.
+            - 'NIIo': Calculate the flux for the outflow component of NII emission line.
+            - 'Hbeta': Calculate the flux for Hbeta emission line.
+            - 'Hbe_BLR': Calculate the flux for the broad line region (BLR) component of Hbeta emission line.
+            - 'Hbetaw': Calculate the flux for the wing component of Hbeta emission line.
+            - 'Hbetan': Calculate the flux for the narrow component of Hbeta emission line.
+            - 'SIIr': Calculate the flux for SII red emission line.
+            - 'SIIb': Calculate the flux for SII blue emission line.
+        norm (float, optional): The normalization factor for the calculated flux. Default is 1e-13.
+        wv_cent (float, optional): The central wavelength for the calculation. Default is 5008.
+        peak_name (str, optional): The name of the key in the 'res' dictionary that corresponds to the peak value. Required for 'general', 'OIIIt', 'OIIIn', 'OIIIw', 'Hat', 'Han', 'Hal_BLR', 'NIIt', 'NII', 'NIIo', 'Hbeta', 'Hbe_BLR', 'Hbetaw', 'Hbetan' modes.
+        fwhm_name (str, optional): The name of the key in the 'res' dictionary that corresponds to the full width at half maximum (FWHM). Required for 'general', 'OIIIt', 'OIIIn', 'OIIIw', 'Hat', 'Han', 'Hal_BLR', 'NIIt', 'NII', 'NIIo', 'Hbeta', 'Hbe_BLR', 'Hbetaw', 'Hbetan' modes.
+        ratio_name (str, optional): The name of the key in the 'res' dictionary that corresponds to the ratio value. Required for 'general' mode.
+
+    Returns:
+        float: The calculated flux.
+
+    Raises:
+        Exception: If the mode is not understood.
+
+    """
     keys = list(res.keys())
     
     if mode=='general':
@@ -861,6 +938,22 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
 
 
 def NIRSpec_IFU_PSF(wave):
+    """
+    Calculate the Point Spread Function (PSF) for the NIRSpec IFU.
+
+    Parameters:
+        wave (float): The wavelength of the light.
+
+    Returns:
+        numpy.ndarray: An array containing the two components of the PSF, sigma1 and sigma2.
+
+    Notes:
+    This function calculates the PSF based on the formula from D'Eugenio et al 2023 - stellar kinematics.
+    The PSF is calculated using two components, sigma1 and sigma2, which depend on the wavelength of the light.
+    The formula for sigma1 is 0.12 + 1.9 * wave * e^(-24.4/wave).
+    The formula for sigma2 is 0.09 + 0.2 * wave * e^(-12.5/wave).
+    The function returns an array containing the values of sigma1 and sigma2.
+    """
     # From D'Eugenio et al 2023 - stellar kinematics
     sigma1= 0.12 + 1.9*wave * e**(-24.4/wave)
     sigma2= 0.09 + 0.2*wave * e**(-12.5/wave)                     

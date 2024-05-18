@@ -25,13 +25,14 @@ from brokenaxes import brokenaxes
 from matplotlib.widgets import Slider, Button, RadioButtons, RangeSlider
 
 class Visualize:
-    def __init__(self, path_res, map_hdu, indc = [1,1,0] ):
+    def __init__(self, path_res, map_hdu, indc = [1,1,0], z=None ):
         """
         Load the fit and the data
         Returns
         -------
         """
         self.indc = indc
+        self.z = z
         with pyfits.open(path_res, memmap=False) as hdulist:
             self.map = []
             for its in map_hdu:
@@ -53,19 +54,30 @@ class Visualize:
         axes.plot(self.obs_wave, fluxm, drawstyle='steps-mid')
         axes.plot(self.obs_wave, yevalm, 'r--')
         axes.plot(self.obs_wave, errorm, 'k:')
-        axes.text(self.obs_wave[10], 0.9*max(yevalm), 'x='+str(i)+', y='+str(j) )
 
         axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
+        if self.z is not None:
+            axes.vlines(0.5008*(1+self.z),-0.01*max(yevalm), 1.1*max(yevalm), color='k', linestyle='dashed')
 
         if self.xlims is not None:
             axes.set_xlim(self.xlims[0], self.xlims[1])
             
             use = np.where( (self.obs_wave<self.xlims[1]) & (self.obs_wave>self.xlims[0]) )[0]
-            axes.set_ylim(-0.01*max(yevalm[use]), 1.1*max(yevalm[use])) 
+            axes.text(self.obs_wave[use][10], 0.9*max(yevalm[use]), 'x='+str(i)+', y='+str(j) )
+
+            if self.ylims:
+                axes.set_ylim(self.ylims[0], self.ylims[1]) 
+            else:
+                axes.set_ylim(-0.01*max(yevalm[use]), 1.1*max(yevalm[use])) 
+        
+        if self.z is not None:
+            limst = axes.get_ylim()
+            axes.vlines(0.5008*(1+self.z),limst[0], limst[1], color='k', linestyle='dashed')
 
 
-    def showme(self, xlims= None, vmax=1e-15):
+    def showme(self, xlims= None, vmax=1e-15, ylims=None):
         self.xlims = xlims
+        self.ylims = ylims
         fig = plt.figure(figsize=(15.6, 8))
         fig.canvas.manager.set_window_title('vicube')
         gs = fig.add_gridspec(

@@ -626,7 +626,7 @@ class Fitting:
             self.res = {'name': 'OIII_QSO_BKP'}
             
         else:
-            raise Exception('self.model variable not understood. Available self.model keywords: outflow, gal, QSO_BKPL')
+            raise Exception('self.model variable not understood. Available self.model keywords: outflow_simple, BLR_simple, BLR_outflow,  gal_simple, QSO_BKPL')
          
         nwalkers, ndim = pos.shape
 
@@ -971,7 +971,7 @@ class Fitting:
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
 
         
-    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64):
+    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64, skip_check=False):
         """ Fitting any general function that you pass. You need to put in fitted_model, labels and
         you can pass logprior function or number of walkers.  
 
@@ -1041,7 +1041,7 @@ class Fitting:
         if self.ncpu==1:
             sampler = emcee.EnsembleSampler(
                 nwalkers, ndim, self.log_probability_general, args=()) 
-            sampler.run_mcmc(pos, self.N, progress=self.progress)
+            sampler.run_mcmc(pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
         
         elif self.ncpu>1:
             from multiprocess import Pool
