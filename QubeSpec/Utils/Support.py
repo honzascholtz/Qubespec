@@ -1020,3 +1020,25 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
 def where(array, lmin, lmax):
     use = np.where( (array>lmin) & (array<lmax))
     return use
+
+def header_to_2D(header):
+    from astropy.io import fits
+    hdu = fits.PrimaryHDU()
+    new_header = hdu.header  # show the all of the header cards
+
+    new_header['NAXIS'] = 2
+    new_header['WCSAXES'] = 2
+    list_cp = ['BITPIX', 'NAXIS1', 'NAXIS2', 'CRPIX1', 'CRVAL1', 'CTYPE1', 'CUNIT1', 'CDELT1', 'CRPIX2', 'CRVAL2', 'CTYPE2', 'CUNIT2', 'CDELT2',\
+               'PC1_1', 'PC1_2', 'PC2_1', 'PC2_2',  ]
+    
+    for item in list_cp:
+        new_header[item] = header[item]
+    return new_header
+
+def DS9_region_mask(filepath, header):
+    from regions import Regions
+    region_sky  = Regions.read(filepath, format='ds9')
+    new_header = header_to_2D(header)
+    region_pix = region_sky[0].to_pixel(wcs.WCS(new_header))
+    mask = region_pix.to_mask(mode='center',).to_image([new_header['NAXIS1'],new_header['NAXIS2']])
+    return mask
