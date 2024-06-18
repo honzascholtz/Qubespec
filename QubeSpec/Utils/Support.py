@@ -1042,7 +1042,20 @@ def header_to_2D(header):
 def DS9_region_mask(filepath, header):
     from regions import Regions
     region_sky  = Regions.read(filepath, format='ds9')
-    new_header = header_to_2D(header)
+    try:
+        new_header = header_to_2D(header)
+    except:
+        new_header= header
     region_pix = region_sky[0].to_pixel(wcs.WCS(new_header))
     mask = region_pix.to_mask(mode='center',).to_image([new_header['NAXIS2'],new_header['NAXIS1']])
     return ~np.array(mask, dtype=bool)
+
+def MSA_load(Full_path):
+    with pyfits.open(Full_path, memmap=False) as hdulist:
+        flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
+        obs_wave = hdulist['wavelength'].data*1e6
+        error =  hdulist['ERR'].data*1e-7*1e4*1e15
+
+        flux = np.ma.masked_invalid(flux_orig.copy())
+    
+    return obs_wave, flux, error
