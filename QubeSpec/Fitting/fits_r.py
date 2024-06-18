@@ -80,7 +80,7 @@ class Fitting:
         
     """
        
-    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True, priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
+    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
         priors_update = priors.copy()
         priors= {'z':[0, 'normal', 0,0.003],\
                 'cont':[0,'loguniform',-4,1],\
@@ -116,6 +116,7 @@ class Fitting:
         self.fluxs = flux # flux density
         self.error = error # errors
         self.ncpu= ncpu # number of cpus to use in the fit 
+        self.sampler = sampler
     
     # =============================================================================
     #  Primary function to fit Halpha both with or without BLR - data prep and fit 
@@ -389,18 +390,35 @@ class Fitting:
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible')
 
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-             nwalkers, ndim, self.log_probability_general, args=())
-     
-        sampler.run_mcmc(pos, self.N, progress=self.progress)
-        self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+        if self.sampler =='emcee':
+            nwalkers, ndim = pos.shape
+            sampler = emcee.EnsembleSampler(
+                nwalkers, ndim, self.log_probability_general, args=())
         
-        self.chains = {'name': 'Halpha'}
-        for i in range(len(self.labels)):
-            self.chains[self.labels[i]] = self.flat_samples[:,i]
+            sampler.run_mcmc(pos, self.N, progress=self.progress)
+            self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
             
-        self.props = self.prop_calc()
+            self.chains = {'name': 'Halpha'}
+            for i in range(len(self.labels)):
+                self.chains[self.labels[i]] = self.flat_samples[:,i]
+                
+            self.props = self.prop_calc()
+        elif self.sampler=='leastsq':
+            from scipy.optimize import curve_fit
+            popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
+            errs = np.sqrt(np.diag(pcov))
+
+            self.props = {'name': 'Halpha'}
+            self.chains = {'name': 'Halpha'}
+            self.props['popt'] = popt
+            for i, name in enumerate(self.labels):
+                self.props[name] = [popt[i], errs[i], errs[i]]
+                self.chains[name] = np.random.normal(popt[i], errs[i], size=1000)
+        
+        else:
+            raise ValueError('Sampler value not understood. Should be emcee or leastsq')
+        
+        
         self.chi2 = np.nansum(((self.flux_fitloc-self.fitted_model(self.wave_fitloc, *self.props['popt']))**2)/self.error_fitloc**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
@@ -634,29 +652,40 @@ class Fitting:
         self.wave_fitloc = self.wave[self.fit_loc]
         self.error_fitloc = self.error[self.fit_loc]
         
-        if self.template==0:
+        if self.sampler =='emcee':
             sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, self.log_probability_general, args=())
+                        nwalkers, ndim, self.log_probability_general, args=())
+            
+            sampler.run_mcmc(pos, self.N, progress=self.progress)
+            self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+            
+            self.chains = {'name': 'OIII'}
+            for i in range(len(self.labels)):
+                self.chains[self.labels[i]] = self.flat_samples[:,i]
+            
+            self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+            self.props = self.prop_calc()
+        elif self.sampler=='leastsq':
+            from scipy.optimize import curve_fit
+            popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
+            errs = np.sqrt(np.diag(pcov))
+
+            self.props = {'name': 'OIII'}
+            self.chains = {'name': 'OIII'}
+            self.props['popt'] = popt
+            for i, name in enumerate(self.labels):
+                self.props[name] = [popt[i], errs[i], errs[i]]
+                self.chains[name] = np.random.normal(popt[i], errs[i], size=1000)
+        
         else:
-            sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, self.log_probability_general, args=())
+            raise ValueError('Sampler value not understood. Should be emcee or leastsq')
         
-        sampler.run_mcmc(pos, self.N, progress=self.progress)
-        self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
-        
-        self.chains = {'name': 'OIII'}
-        for i in range(len(self.labels)):
-            self.chains[self.labels[i]] = self.flat_samples[:,i]
-        
-        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-        self.props = self.prop_calc()
         if self.template:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'], self.template)
         else:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'])
         self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
-        
         
     def fitting_Halpha_OIII(self, model, template=0):
         """ Method to fit Halpha + [OIII] + Hbeta+ [NII] + [SII]
@@ -951,19 +980,34 @@ class Fitting:
         self.wave_fitloc = self.wave[self.fit_loc]
         self.error_fitloc = self.error[self.fit_loc]
 
-        nwalkers, ndim = pos.shape
-        sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, self.log_probability_general, args=()) 
-        sampler.run_mcmc(pos, self.N, progress=self.progress)
+        if self.sampler =='emcee':
+            nwalkers, ndim = pos.shape
+            sampler = emcee.EnsembleSampler(
+                nwalkers, ndim, self.log_probability_general, args=())
         
-        self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
-        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-        
-        self.chains = {'name': 'Halpha_OIII'}
-        for i in range(len(self.labels)):
-            self.chains[self.labels[i]] = self.flat_samples[:,i]
+            sampler.run_mcmc(pos, self.N, progress=self.progress)
+            self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+            
+            self.chains = {'name': 'Halpha_OIII'}
+            for i in range(len(self.labels)):
+                self.chains[self.labels[i]] = self.flat_samples[:,i]
+                
+            self.props = self.prop_calc()
+        elif self.sampler=='leastsq':
+            from scipy.optimize import curve_fit
+            popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
+            errs = np.sqrt(np.diag(pcov))
 
-        self.props = self.prop_calc()
+            self.props = {'name': 'Halpha_OIII'}
+            self.chains = {'name': 'Halpha_OIII'}
+            self.props['popt'] = popt
+            for i, name in enumerate(self.labels):
+                self.props[name] = [popt[i], errs[i], errs[i]]
+                self.chains[name] = np.random.normal(popt[i], errs[i], size=1000)
+        
+        else:
+            raise ValueError('Sampler value not understood. Should be emcee or leastsq')
+
 
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
         
@@ -1036,28 +1080,50 @@ class Fitting:
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
         
-        nwalkers, ndim = pos.shape
         
-        if self.ncpu==1:
-            sampler = emcee.EnsembleSampler(
-                nwalkers, ndim, self.log_probability_general, args=()) 
-            sampler.run_mcmc(pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
-        
-        elif self.ncpu>1:
-            from multiprocess import Pool
-            with Pool(self.ncpu) as pool:
-                sampler = emcee.EnsembleSampler(
-                    nwalkers, ndim, self.log_probability_general, args=(), pool=pool) 
-            
-                sampler.run_mcmc(pos, self.N, progress=self.progress)
 
-        self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
-        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-        self.chains = {'name': 'Custom model'}
-        for i in range(len(self.labels)):
-            self.chains[self.labels[i]] = self.flat_samples[:,i]
+        if self.sampler =='emcee':
+            nwalkers, ndim = pos.shape
         
-        self.props = self.prop_calc()
+            if self.ncpu==1:
+                sampler = emcee.EnsembleSampler(
+                    nwalkers, ndim, self.log_probability_general, args=()) 
+                sampler.run_mcmc(pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
+            
+            elif self.ncpu>1:
+                from multiprocess import Pool
+                with Pool(self.ncpu) as pool:
+                    sampler = emcee.EnsembleSampler(
+                        nwalkers, ndim, self.log_probability_general, args=(), pool=pool) 
+                
+                    sampler.run_mcmc(pos, self.N, progress=self.progress)
+
+            self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
+            self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+            self.chains = {'name': 'Custom model'}
+            for i in range(len(self.labels)):
+                self.chains[self.labels[i]] = self.flat_samples[:,i]
+            
+            self.props = self.prop_calc()
+        elif self.sampler=='leastsq':
+            from scipy.optimize import curve_fit
+            use = ~(np.isnan(self.flux_fitloc) | np.isinf(self.flux_fitloc))
+            self.error_fitloc[np.isnan(self.error_fitloc)] = 1e6
+            print(np.sum(((self.flux_fitloc[use]-self.fitted_model(self.wave_fitloc[use], *pos_l))/self.error_fitloc[use])**2))
+            print(self.bounds_est())
+            popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc[use], self.flux_fitloc[use], p0= pos_l, sigma=self.error_fitloc[use], bounds = self.bounds_est())
+            errs = np.sqrt(np.diag(pcov))
+
+            self.props = {'name': 'Custom model'}
+            self.chains = {'name': 'Custom model'}
+            self.props['popt'] = popt
+            for i, name in enumerate(self.labels):
+                self.props[name] = [popt[i], errs[i], errs[i]]
+                self.chains[name] = np.random.normal(popt[i], errs[i], size=1000)
+        
+        else:
+            raise ValueError('Sampler value not understood. Should be emcee or leastsq')
+
         try:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'])
         except:
@@ -1297,6 +1363,40 @@ class Fitting:
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
+    def bounds_est(self):
+        up = np.array([])
+        do = np.array([])
+  
+        for key in enumerate(self.labels):
+            if self.priors[key[1]][1]== 'normal':
+                up = np.append(up, self.priors[key[1]][2]+4*self.priors[key[1]][3])
+                do = np.append(do, self.priors[key[1]][2]-4*self.priors[key[1]][3])
+            
+            elif self.priors[key[1]][1]== 'lognormal':
+                up = np.append(up, 10**(self.priors[key[1]][2]+4*self.priors[key[1]][3]))
+                do = np.append(do, 10**(self.priors[key[1]][2]-4*self.priors[key[1]][3]))
+            
+            elif self.priors[key[1]][1]== 'uniform':
+                up = np.append(up, self.priors[key[1]][3])
+                do = np.append(do, self.priors[key[1]][2])
+            
+            elif self.priors[key[1]][1]== 'loguniform':
+                up = np.append(up, 10**self.priors[key[1]][3])
+                do = np.append(do, 10**self.priors[key[1]][2])
+            
+            elif self.priors[key[1]][1]== 'normal_hat':
+                up = np.append(up, self.priors[key[1]][5])
+                do = np.append(do, self.priors[key[1]][4])
+
+            elif self.priors[key[1]][1]== 'lognormal_hat':
+                up = np.append(up, 10**self.priors[key[1]][5])
+                do = np.append(do, 10**self.priors[key[1]][4])
+            
+    
+            else:
+                raise Exception('Sorry mode in prior type not understood: ', key )
+        self.bounds = (do, up)
+        return self.bounds
     
         
 

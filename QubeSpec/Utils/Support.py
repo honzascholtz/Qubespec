@@ -464,6 +464,10 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     elif mode=='Han':
         flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak')
         return flx*norm
+
+    elif mode=='Haw':
+        flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_out_peak')
+        return flx*norm
         
     elif mode=='Hal_BLR':
         if 'BLR_fwhm' in keys:

@@ -55,9 +55,9 @@ class Visualize:
         axes.plot(self.obs_wave, yevalm, 'r--')
         axes.plot(self.obs_wave, errorm, 'k:')
 
-        axes.set_ylim(-0.01*max(yevalm), 1.1*max(yevalm))
+        axes.set_ylim(-0.1*max(yevalm), 1.1*max(yevalm))
         if self.z is not None:
-            axes.vlines(0.5008*(1+self.z),-0.01*max(yevalm), 1.1*max(yevalm), color='k', linestyle='dashed')
+            axes.vlines(0.5008*(1+self.z),-0.1*max(yevalm), 1.1*max(yevalm), color='k', linestyle='dashed')
 
         if self.xlims is not None:
             axes.set_xlim(self.xlims[0], self.xlims[1])
@@ -68,7 +68,7 @@ class Visualize:
             if self.ylims:
                 axes.set_ylim(self.ylims[0], self.ylims[1]) 
             else:
-                axes.set_ylim(-0.01*max(yevalm[use]), 1.1*max(yevalm[use])) 
+                axes.set_ylim(-0.1*max(yevalm[use]), 1.1*max(yevalm[use])) 
         
         if self.z is not None:
             limst = axes.get_ylim()
