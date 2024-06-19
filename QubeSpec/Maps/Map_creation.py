@@ -211,7 +211,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     f.colorbar(vel, cax=cax, orientation='vertical')
 
 
-    fw = ax3.imshow(map_oiii_w80[1,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
+    fw = ax3.imshow(map_oiii_w80[0,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
     ax3.set_title('W80 map')
     divider = make_axes_locatable(ax3)
     cax = divider.append_axes('right', size='5%', pad=0.05)
