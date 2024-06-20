@@ -1014,7 +1014,7 @@ class Cube:
             plt.tight_layout()
 
     def fitting_collapse_Halpha(self, plot=1, models = 'BLR', progress=True, sampler ='emcee',er_scale=1, N=6000, priors= {'z': [0,'normal_hat',0, 0, 0,0]}):
-        
+        priors_update = priors.copy()
         priors= {'z':[0, 'normal_hat', 0,0,0,0],\
                 'cont':[0,'loguniform',-3,1],\
                 'cont_grad':[0,'normal',0,0.3], \
@@ -1033,8 +1033,8 @@ class Cube:
                 'outflow_vel':[-50,'normal', 0,300]}
 
         
-        for name in list(priors.keys()):
-            priors[name] = priors[name]
+        for name in list(priors_update.keys()):
+            priors[name] = priors_update[name]
 
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
@@ -1254,7 +1254,7 @@ class Cube:
             
             
     def fitting_collapse_Halpha_OIII(self, plot=1, progress=True,N=6000,sampler='emcee', models='Single_only', priors= {'z': [0,'normal_hat',0, 0, 0,0]}):
-        
+        priors_update = priors.copy()
         priors={'z':[0,'normal_hat', 0, 0.,0,0],\
             'cont':[0,'loguniform', -3,1],\
             'cont_grad':[0,'normal', 0,0.2],\
@@ -1276,8 +1276,8 @@ class Cube:
             'BLR_Hal_peak':[0,'loguniform', -3,1],\
             'BLR_Hbeta_peak':[0,'loguniform', -3,1] }
 
-        for name in list(priors.keys()):
-            priors[name] = priors[name]
+        for name in list(priors_update.keys()):
+            priors[name] = priors_update[name]
             
         
         wave = self.obs_wave.copy()
@@ -1422,7 +1422,7 @@ class Cube:
         self.fit_plot = [f,baxes]
         
     def fitting_collapse_OIII(self, plot=1, models='Outflow',simple=1, Fe_template=0,progress=True,sampler='emcee', N=6000,priors= {'z': [0,'normal_hat',0, 0, 0,0]}):
-        
+        priors_update = priors.copy()
         priors= {'z': [0,'normal_hat',0, 0, 0,0],\
                 'cont':[0,'loguniform',-3,1],\
                 'cont_grad':[0,'normal',0,0.2], \
@@ -1439,8 +1439,8 @@ class Cube:
                 'Fe_peak':[0,'loguniform',-3,1],\
                 'Fe_fwhm':[3000,'uniform',2000,6000]}
         
-        for name in list(priors.keys()):
-            priors[name] = priors[name]
+        for name in list(priors_update.keys()):
+            priors[name] = priors_update[name]
 
         wave = self.obs_wave.copy()
         flux = self.D1_spectrum.copy()
