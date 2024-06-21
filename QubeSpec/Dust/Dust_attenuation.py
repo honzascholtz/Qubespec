@@ -13,6 +13,7 @@ __author__='Jan Scholtz, William M. Baker, Ignas'
 import numpy as np
 from numba import jit, float32
 from scipy.optimize import curve_fit
+import pyneb as pn 
 
 Balmer_lines = {'Halpha': [6562.819e-10, 2.863]}
 Balmer_lines['Hbeta'] = [4861.333e-10, 1]
@@ -40,6 +41,23 @@ class Dust_cor:
 
     def __init__(self): 
         self.Balmer_lines = Balmer_lines
+    
+    def flux_cor_pn(self, F, wav, fb1, fb2, fb_names, law=None):
+
+        fb1_name, fb2_name = fb_names.split('_')        
+        fb1_wave = self.Balmer_lines[fb1_name][0]
+        fb2_wave = self.Balmer_lines[fb2_name][0]
+
+        Balmer_rat = self.Balmer_lines[fb1_name][1]/self.Balmer_lines[fb2_name][1]
+        if law:
+            la=law
+        else:
+            law = 'G03 LMC'
+        rc = pn.RedCorr(law=law, R_V=2.505)
+        rc.setCorr((fb1/fb2)/Balmer_rat, wave1=fb1_wave*1e10, wave2=fb2_wave*1e10)
+        F *=  rc.getCorr(wav)
+
+        return F, rc.AV
 
     
     def flux_cor(self, F, wav, fb1, fb2, fb_names, R_v=None, curve='smc', curve_fce=None):
