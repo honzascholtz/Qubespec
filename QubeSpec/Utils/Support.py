@@ -1046,7 +1046,10 @@ def DS9_region_mask(filepath, header):
         new_header = header_to_2D(header)
     except:
         new_header= header
-    region_pix = region_sky[0].to_pixel(wcs.WCS(new_header))
+    try:
+        region_pix = region_sky[0].to_pixel(wcs.WCS(new_header))
+    except:
+        region_pix = region_sky.to_pixel(wcs.WCS(new_header))
     mask = region_pix.to_mask(mode='center',).to_image([new_header['NAXIS2'],new_header['NAXIS1']])
     return ~np.array(mask, dtype=bool)
 

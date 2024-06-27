@@ -226,8 +226,6 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     f.savefig(Cube.savepath+'Diagnostics/OIII_maps.pdf')
 
     hdr = Cube.header.copy()
-    hdr['X_cent'] = x
-    hdr['Y_cent'] = y
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
 
@@ -498,9 +496,6 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
 
 
     hdr = Cube.header.copy()
-    hdr['X_cent'] = x
-    hdr['Y_cent'] = y
-
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
 
@@ -1007,9 +1002,6 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     Cube.map_hal = map_hal
 
     hdr = Cube.header.copy()
-    hdr['X_cent'] = x
-    hdr['Y_cent'] = y
-
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
 
@@ -1529,9 +1521,6 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
     Cube.map_hal = map_hal
 
     hdr = Cube.header.copy()
-    hdr['X_cent'] = x
-    hdr['Y_cent'] = y
-
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
 
