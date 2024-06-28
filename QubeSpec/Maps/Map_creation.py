@@ -232,6 +232,8 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
     hdu_err = fits.ImageHDU(Result_cube_error, name='error')
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
+    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
+
 
     oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
     oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
@@ -240,7 +242,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
     oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
 
-    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,\
+    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,hdu_resid,\
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ])
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps'+add+'.fits', overwrite=True)
@@ -502,7 +504,8 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
     hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
     hdu_err = fits.ImageHDU(Result_cube_error, name='error')
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
-    
+    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
+
     hal_hdu = fits.ImageHDU(map_hal, name='Hal')
     hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
     hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
@@ -512,7 +515,7 @@ def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-10
 
     nii_hdu = fits.ImageHDU(map_nii, name='Hal')
 
-    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,\
+    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,hdu_resid,\
                             hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu ])
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_fits_maps'+add+'.fits', overwrite=True)
@@ -995,8 +998,6 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     f.savefig(Cube.savepath+'Diagnostics/Halpha_OIII_maps.pdf')
 
-
-
     plt.tight_layout()
 
     Cube.map_hal = map_hal
@@ -1008,6 +1009,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
     hdu_err = fits.ImageHDU(Result_cube_error, name='error')
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
+    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
 
     hal_hdu = fits.ImageHDU(map_hal, name='Hal')
     hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
@@ -1033,7 +1035,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
 
-    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval,\
+    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval, hdu_resid,\
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50,\
                             hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel ])
     
@@ -1527,6 +1529,7 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
     hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
     hdu_err = fits.ImageHDU(Result_cube_error, name='error')
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
+    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
 
     hal_hdu = fits.ImageHDU(map_hal, name='Hal')
     hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
@@ -1552,7 +1555,7 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
 
     hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
 
-    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval,\
+    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval, hdu_resid,\
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50,\
                             hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel ])
     
@@ -1733,6 +1736,8 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
     hdus.append(fits.ImageHDU(Result_cube_data, name='flux'))
     hdus.append(fits.ImageHDU(Result_cube_error, name='error'))
     hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
+    hdus.append(fits.ImageHDU(Result_cube_data-Result_cube, name='residuals'))
+
 
     for key in info_keys:
         if key=='params':
