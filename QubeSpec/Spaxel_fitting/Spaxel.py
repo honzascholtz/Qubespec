@@ -201,32 +201,28 @@ class Halpha_OIII:
             Cube_res= pickle.load(fp)
             
         print('import of the unwrap cube - done')
-        
+        yss = [res[0] for res in Cube_res]
+        xss = [res[1] for res in Cube_res]   
         for j, to_fit_sig in enumerate(to_fit):
             print(to_fit_sig)
-            for i, row in enumerate(Cube_res):
-                if len(row)==3:
-                    y,x, res = row
-                if len(row)==4:
-                    y,x, res,res2 = row
-                if to_fit_sig[0]==x and to_fit_sig[1]==y:
-                    
-                    print(sp.flux_calc_mcmc(res, 'OIIIt', Cube.flux_norm))
-
-                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
-
-                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
-
-                    Fits_sig = Cube_res[i][2]
-                    f,ax = plt.subplots(1, figsize=(10,5))
-                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
-                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
-
-                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
-
-                    break
-        
+            use = np.where((np.array(xss)==to_fit_sig[0])& (np.array(yss)==to_fit_sig[1]))[0]
+            if len(use)>0:
+                use=use[0]
+                if len(Cube_res[use])==3:
+                    y,x, res = Cube_res[use]
+                if len(Cube_res[use])==4:
+                    y,x, res,res2 = Cube_res[use]
                 
+                lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
+                
+                Cube_res[use] = self.fit_spaxel(lst, progress=True)
+                Fits_sig = Cube_res[use][2]
+                f,ax = plt.subplots(1, figsize=(10,5))
+                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
+
+                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
+       
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  
         
@@ -681,7 +677,7 @@ class Halpha:
                 if len(row)==4:
                     y,x, res,res2 = row
                 if to_fit_sig[0]==x and to_fit_sig[1]==y:
-                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
+                    lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
 
                     Cube_res[i] = self.fit_spaxel(lst, progress=True)
 
@@ -793,25 +789,27 @@ class general:
         self.use = use
         self.N = N     
 
+        print('import of the unwrap cube - done')
+        yss = [res[0] for res in Cube_res]
+        xss = [res[1] for res in Cube_res]   
         for j, to_fit_sig in enumerate(to_fit):
             print(to_fit_sig)
-            for i, row in enumerate(Cube_res):
-                if len(row)==3:
-                    y,x, res = row
+            use = np.where((np.array(xss)==to_fit_sig[0])& (np.array(yss)==to_fit_sig[1]))[0]
+            if len(use)>0:
+                use=use[0]
+                if len(Cube_res[use])==3:
+                    y,x, res = Cube_res[use]
+                lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
                 
-                if to_fit_sig[0]==x and to_fit_sig[1]==y:
-                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
-
-                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
+                Cube_res[use] = self.fit_spaxel(lst, progress=True)
+                Fits_sig = Cube_res[use][2]
                 
-                    Fits_sig = Cube_res[i][2]
-                    f,ax = plt.subplots(1, figsize=(10,5))
-                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
-                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
+                Fits_sig = Cube_res[i][2]
+                f,ax = plt.subplots(1, figsize=(10,5))
+                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
 
-                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
-
-                    break
+                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
                 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  

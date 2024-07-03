@@ -75,6 +75,9 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     Result_cube = np.zeros_like(Cube.flux.data)
     Result_cube_data = Cube.flux.data
     Result_cube_error = Cube.error_cube.data
+
+    Result_cube_narrow = np.zeros_like(Cube.flux.data)
+    Result_cube_broad = np.zeros_like(Cube.flux.data)
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -139,6 +142,8 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
 
             map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
             map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
+            Result_cube_narrow[:,i,j] = 0
 
             if flag=='outflow':
                 map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
@@ -598,6 +603,10 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
     map_nii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
 
+    Result_cube_narrow = np.zeros_like(Cube.flux.data)
+    Result_cube_broad = np.zeros_like(Cube.flux.data)
+
+    from ..Models import Halpha_OIII_models as HO
     # =============================================================================
     #        Filling these maps
     # =============================================================================
@@ -680,6 +689,12 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
             map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
             map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+            ptp = [Fits.props['z'][0], Fits.props['cont'][0], Fits.props['cont_grad'][0],\
+                   Fits.props['Hal_peak'][0], Fits.props['NII_peak'][0], Fits.props['Nar_fwhm'][0],\
+                     Fits.props['SIIr_peak'][0],Fits.props['SIIb_peak'][0], Fits.props['OIII_peak'][0],\
+                         Fits.props['Hbeta_peak'][0] ]
+
+            Result_cube_narrow[:,i,j] = HO.Halpha_OIII(Cube.obs_wave, *ptp)
 
             if flag=='outflow':
                 map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
@@ -687,6 +702,14 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
                 map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
                 map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+                zout =  Fits.props['z'][0]+ Fits.props['outflow_vel'][0]/3e5*(1+Fits.props['z'][0])
+                ptp = [zout, 0, 0,\
+                   Fits.props['Hal_out_peak'][0], Fits.props['NII_out_peak'][0], Fits.props['outflow_fwhm'][0],\
+                     0,0, Fits.props['OIII_out_peak'][0],\
+                         Fits.props['Hbeta_out_peak'][0] ]
+
+                Result_cube_broad[:,i,j] = HO.Halpha_OIII(Cube.obs_wave, *ptp)
+
 
 
         else:     
@@ -1011,6 +1034,9 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
     hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
 
+    hdu_nar = fits.ImageHDU(Result_cube_narrow, name='yeval_nar')
+    hdu_bro = fits.ImageHDU(Result_cube_broad, name='yeval_bro')
+
     hal_hdu = fits.ImageHDU(map_hal, name='Hal')
     hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
     hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
@@ -1035,7 +1061,7 @@ def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange
 
     hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
 
-    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval, hdu_resid,\
+    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval, hdu_nar, hdu_bro, hdu_resid,\
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50,\
                             hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel ])
     
@@ -1078,6 +1104,8 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
     failed_fits=0
     wv_hal = 6564.52*(1+z0)/1e4
     wv_oiii = 5008.24*(1+z0)/1e4
+
+    from ..Models import Halpha_OIII_models as HO
     # =============================================================================
     #         Importing all the data necessary to post process
     # =============================================================================
@@ -1125,6 +1153,9 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
     Result_cube = np.zeros_like(Cube.flux.data)
     Result_cube_data = Cube.flux.data
     Result_cube_error = Cube.error_cube.data
+
+    Result_cube_narrow = np.zeros_like(Cube.flux.data)
+    Result_cube_broad = np.zeros_like(Cube.flux.data)
 
     Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only'+add+'.pdf')
 
@@ -1196,6 +1227,13 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
 
             map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
             map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
+
+            ptp = [Fits.props['z'][0], Fits.props['cont'][0], Fits.props['cont_grad'][0],\
+                   Fits.props['Hal_peak'][0], Fits.props['NII_peak'][0], Fits.props['Nar_fwhm'][0],\
+                     Fits.props['SIIr_peak'][0],Fits.props['SIIb_peak'][0], Fits.props['OIII_peak'][0],\
+                         Fits.props['Hbeta_peak'][0] ]
+
+            Result_cube_narrow[:,i,j] = HO.Halpha_OIII(Cube.obs_wave, *ptp)
 
             flux_brd = sp.flux_calc_mcmc(Fits, 'Haw', Cube.flux_norm)
             if flux_brd[0]/flux_brd[1]>3:
@@ -1530,7 +1568,8 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
     hdu_err = fits.ImageHDU(Result_cube_error, name='error')
     hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
     hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
-
+    hdu_nar = fits.ImageHDU(Result_cube_narrow, name='yeval_nar')
+    hdu_bro = fits.ImageHDU(Result_cube_broad, name='yeval_bro')
     hal_hdu = fits.ImageHDU(map_hal, name='Hal')
     hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
     hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')

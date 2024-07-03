@@ -42,6 +42,13 @@ class Visualize:
             self.flux = hdulist['flux'].data
             self.error = hdulist['error'].data
 
+            names = [entry.name for entry in hdulist]
+            if 'YEVAL_NAR' in names:
+                print('yes')
+                self.yeval_nar = hdulist['yeval_nar'].data
+            if 'YEVAL_BRO' in names:
+                self.yeval_bro = hdulist['yeval_bro'].data
+      
             self.header = hdulist['PRIMARY'].header
             nwave = np.shape(self.yeval)[0]
             self.obs_wave = self.header['CRVAL3'] + (np.arange(nwave) - (self.header['CRPIX3'] - 1.0))*self.header['CDELT3']
@@ -54,6 +61,12 @@ class Visualize:
         axes.plot(self.obs_wave, fluxm, drawstyle='steps-mid')
         axes.plot(self.obs_wave, yevalm, 'r--')
         axes.plot(self.obs_wave, errorm, 'k:')
+
+        if hasattr(self, 'yeval_nar'):
+            axes.plot(self.obs_wave, self.yeval_nar[:,j,i], 'g--')
+        if hasattr(self, 'yeval_bro'):
+            axes.plot(self.obs_wave, self.yeval_bro[:,j,i], 'b--')
+
 
         axes.set_ylim(-0.1*max(yevalm), 1.1*max(yevalm))
         if self.z is not None:
