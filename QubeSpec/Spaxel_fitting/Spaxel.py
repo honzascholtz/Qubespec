@@ -789,7 +789,6 @@ class general:
         self.use = use
         self.N = N     
 
-        print('import of the unwrap cube - done')
         yss = [res[0] for res in Cube_res]
         xss = [res[1] for res in Cube_res]   
         for j, to_fit_sig in enumerate(to_fit):
