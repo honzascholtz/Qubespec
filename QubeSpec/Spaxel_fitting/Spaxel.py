@@ -803,8 +803,6 @@ class general:
                 
                 Cube_res[use] = self.fit_spaxel(lst, progress=True)
                 Fits_sig = Cube_res[use][2]
-                
-                Fits_sig = Cube_res[i][2]
                 f,ax = plt.subplots(1, figsize=(10,5))
                 ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
                 ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
