@@ -43,6 +43,7 @@ class Visualize:
             self.error = hdulist['error'].data
 
             names = [entry.name for entry in hdulist]
+            print('HDUs:', names)
             if 'YEVAL_NAR' in names:
                 print('yes')
                 self.yeval_nar = hdulist['yeval_nar'].data
