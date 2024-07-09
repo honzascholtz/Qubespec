@@ -1036,7 +1036,10 @@ def header_to_2D(header):
                'PC1_1', 'PC1_2', 'PC2_1', 'PC2_2',  ]
     
     for item in list_cp:
-        new_header[item] = header[item]
+        try:
+            new_header[item] = header[item]
+        except:
+            ils=0
     return new_header
 
 def DS9_region_mask(filepath, header):
