@@ -1363,6 +1363,7 @@ class Fitting:
             quantiles=[0.16, 0.5, 0.84],
             show_titles=True,
             title_kwargs={"fontsize": 12})
+        return fig
     def bounds_est(self):
         up = np.array([])
         do = np.array([])
