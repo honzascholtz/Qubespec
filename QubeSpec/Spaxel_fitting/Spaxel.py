@@ -476,6 +476,7 @@ class Halpha:
 
         self.priors = priors
         self.models = models
+        self.sampler = sampler
 
         if Ncores<1:
             Ncores=1

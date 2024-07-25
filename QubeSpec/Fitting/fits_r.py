@@ -1268,7 +1268,10 @@ class Fitting:
 
 
         sigma2 = self.error_fitloc**2
+        if np.ma.sum(sigma2).data==0:
+            sigma2=1
         log_likelihood = -0.5 * np.nansum((self.flux_fitloc - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
+
         
         return lp + log_likelihood
     
