@@ -20,7 +20,7 @@ import time
 
 
 class Halpha_OIII:
-    def Spaxel_fitting(self, Cube,add='',Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+    def Spaxel_fitting(self, Cube,add='',Ncores=(mp.cpu_count() - 2),sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                         'cont':[0,'loguniform',-4,1],\
                                                                                         'cont_grad':[0,'normal',0,0.3], \
                                                                                         'Hal_peak':[0,'loguniform',-4,1],\
@@ -75,6 +75,7 @@ class Halpha_OIII:
 
         self.priors = priors
         self.models = models
+        self.sampler = sampler
 
         if Ncores<1:
             Ncores=1
@@ -101,7 +102,7 @@ class Halpha_OIII:
 
         if self.models=='Single':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha_OIII(model='gal' )
                 Fits_sig.fitted_model = 0
                 
@@ -112,7 +113,7 @@ class Halpha_OIII:
                 
         elif self.models=='BLR':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha_OIII(model='BLR' )
                 Fits_sig.fitted_model = 0
                 
@@ -124,7 +125,7 @@ class Halpha_OIII:
                 
         elif self.models=='BLR_simple':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
                 Fits_sig.fitted_model = 0
                 
@@ -136,11 +137,11 @@ class Halpha_OIII:
 
         elif self.models=='outflow_both':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha_OIII(model='gal' )
                 Fits_sig.fitted_model = 0
                 
-                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_out.fitting_Halpha_OIII(model='outflow' )
                 Fits_out.fitted_model = 0
                 
@@ -152,11 +153,11 @@ class Halpha_OIII:
         
         elif self.models=='BLR_both':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
                 Fits_sig.fitted_model = 0
                 
-                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_out.fitting_Halpha_OIII(model='BLR' )
                 Fits_out.fitted_model = 0
                 
@@ -169,7 +170,7 @@ class Halpha_OIII:
         return cube_res
 
     
-    def Spaxel_toptup(self, Cube, to_fit ,add='',models='Single', Ncores=(mp.cpu_count() - 2),priors= {'z':[0, 'normal', 0,0.003],\
+    def Spaxel_toptup(self, Cube, to_fit ,add='',models='Single',sampler='emcee', Ncores=(mp.cpu_count() - 2),priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
@@ -195,36 +196,33 @@ class Halpha_OIII:
         self.models = models
         self.priors = priors
         start_time = time.time()
+        self.sampler=sampler
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "rb") as fp:
             Cube_res= pickle.load(fp)
             
         print('import of the unwrap cube - done')
-        
+        yss = [res[0] for res in Cube_res]
+        xss = [res[1] for res in Cube_res]   
         for j, to_fit_sig in enumerate(to_fit):
             print(to_fit_sig)
-            for i, row in enumerate(Cube_res):
-                if len(row)==3:
-                    y,x, res = row
-                if len(row)==4:
-                    y,x, res,res2 = row
-                if to_fit_sig[0]==x and to_fit_sig[1]==y:
-                    
-                    print(sp.flux_calc_mcmc(res, 'OIIIt', Cube.flux_norm))
-
-                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
-
-                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
-
-                    Fits_sig = Cube_res[i][2]
-                    f,ax = plt.subplots(1, figsize=(10,5))
-                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
-                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
-
-                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
-
-                    break
-        
+            use = np.where((np.array(xss)==to_fit_sig[0])& (np.array(yss)==to_fit_sig[1]))[0]
+            if len(use)>0:
+                use=use[0]
+                if len(Cube_res[use])==3:
+                    y,x, res = Cube_res[use]
+                if len(Cube_res[use])==4:
+                    y,x, res,res2 = Cube_res[use]
                 
+                lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
+                
+                Cube_res[use] = self.fit_spaxel(lst, progress=True)
+                Fits_sig = Cube_res[use][2]
+                f,ax = plt.subplots(1, figsize=(10,5))
+                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
+
+                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
+       
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  
         
@@ -235,7 +233,7 @@ class OIII:
     def __init__(self):
         self.status = 'ok'
 
-    def Spaxel_fitting(self, Cube,models='Single',add='',template=0, Ncores=(mp.cpu_count() - 1), priors= {'z':[0, 'normal', 0,0.003],\
+    def Spaxel_fitting(self, Cube,models='Single',add='',template=0,sampler='emcee', Ncores=(mp.cpu_count() - 1), priors= {'z':[0, 'normal', 0,0.003],\
                                                                                         'cont':[0,'loguniform',-4,1],\
                                                                                         'cont_grad':[0,'normal',0,0.3], \
                                                                                         'Nar_fwhm':[300,'uniform',100,900],\
@@ -280,6 +278,7 @@ class OIII:
         self.priors = priors
         self.template = template
         self.models = models
+        self.sampler = sampler
 
         if Ncores<1:
             Ncores=1
@@ -305,7 +304,7 @@ class OIII:
 
         if self.models=='Single':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_OIII(model='gal' )
                 Fits_sig.fitted_model = 0
                 
@@ -316,7 +315,7 @@ class OIII:
                 
         elif self.models=='BLR':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_OIII(model='BLR' )
                 Fits_sig.fitted_model = 0
                 
@@ -328,7 +327,7 @@ class OIII:
                 
         elif self.models=='BLR_simple':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_OIII(model='BLR_simple' )
                 Fits_sig.fitted_model = 0
                 
@@ -340,11 +339,11 @@ class OIII:
 
         elif self.models=='outflow_both':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_OIII(model='gal' )
                 Fits_sig.fitted_model = 0
                 
-                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_out.fitting_OIII(model='outflow' )
                 Fits_out.fitted_model = 0
                 
@@ -356,11 +355,11 @@ class OIII:
         
         elif self.models=='BLR_both':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_OIII(model='BLR_simple' )
                 Fits_sig.fitted_model = 0
                 
-                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_out.fitting_OIII(model='BLR' )
                 Fits_out.fitted_model = 0
                 
@@ -372,7 +371,7 @@ class OIII:
                 
         return cube_res
 
-    def Spaxel_toptup(self, Cube, to_fit ,add='', Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+    def Spaxel_toptup(self, Cube, to_fit ,add='', sampler='emcee', Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
@@ -432,7 +431,7 @@ class Halpha:
     def __init__(self):
         self.status = 'ok'
 
-    def Spaxel_fitting(self, Cube,models='Single', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-4,1],\
+    def Spaxel_fitting(self, Cube,models='Single',sampler='emcee', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-4,1],\
                                                         'cont_grad':[0,-0.01,0.01], \
                                                         'Hal_peak':[0,-4,1],\
                                                         'BLR_peak':[0,-4,1],\
@@ -477,6 +476,7 @@ class Halpha:
 
         self.priors = priors
         self.models = models
+        self.sampler = sampler
 
         if Ncores<1:
             Ncores=1
@@ -495,7 +495,7 @@ class Halpha:
 
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
-    def Spaxel_fitting_big(self, Cube,models='Single', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-4,1],\
+    def Spaxel_fitting_big(self, Cube,models='Single', sampler='emcee', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-4,1],\
                                                         'cont_grad':[0,-0.01,0.01], \
                                                         'Hal_peak':[0,-4,1],\
                                                         'BLR_peak':[0,-4,1],\
@@ -540,6 +540,7 @@ class Halpha:
 
         self.priors = priors
         self.models = models
+        self.sampler = sampler
 
         if Ncores<1:
             Ncores=1
@@ -572,7 +573,7 @@ class Halpha:
 
         if self.models=='Single':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha(model='gal' )
                 Fits_sig.fitted_model = 0
                 
@@ -583,7 +584,7 @@ class Halpha:
                 
         elif self.models=='BLR':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha(model='BLR' )
                 Fits_sig.fitted_model = 0
                 
@@ -595,7 +596,7 @@ class Halpha:
                 
         elif self.models=='BLR_simple':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha(model='BLR_simple' )
                 Fits_sig.fitted_model = 0
                 
@@ -607,11 +608,11 @@ class Halpha:
 
         elif self.models=='outflow_both':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha(model='gal' )
                 Fits_sig.fitted_model = 0
                 
-                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_out.fitting_Halpha(model='outflow' )
                 Fits_out.fitted_model = 0
                 
@@ -623,11 +624,11 @@ class Halpha:
         
         elif self.models=='BLR_both':
             try:
-                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_sig.fitting_Halpha(model='BLR_simple' )
                 Fits_sig.fitted_model = 0
                 
-                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors)
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
                 Fits_out.fitting_Halpha(model='BLR' )
                 Fits_out.fitted_model = 0
                 
@@ -639,7 +640,7 @@ class Halpha:
                 
         return cube_res
     
-    def Spaxel_toptup(self, Cube, to_fit ,add='', Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+    def Spaxel_toptup(self, Cube, to_fit ,add='', Ncores=(mp.cpu_count() - 2),sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                        'cont':[0,'loguniform',-4,1],\
                                                                                        'cont_grad':[0,'normal',0,0.3], \
                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
@@ -665,6 +666,7 @@ class Halpha:
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
             Cube_res= pickle.load(fp)
+        self.sampler= sampler
             
         print('import of the unwrap cube - done')
         
@@ -676,7 +678,7 @@ class Halpha:
                 if len(row)==4:
                     y,x, res,res2 = row
                 if to_fit_sig[0]==x and to_fit_sig[1]==y:
-                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
+                    lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
 
                     Cube_res[i] = self.fit_spaxel(lst, progress=True)
 
@@ -788,25 +790,24 @@ class general:
         self.use = use
         self.N = N     
 
+        yss = [res[0] for res in Cube_res]
+        xss = [res[1] for res in Cube_res]   
         for j, to_fit_sig in enumerate(to_fit):
             print(to_fit_sig)
-            for i, row in enumerate(Cube_res):
-                if len(row)==3:
-                    y,x, res = row
+            use = np.where((np.array(xss)==to_fit_sig[0])& (np.array(yss)==to_fit_sig[1]))[0]
+            if len(use)>0:
+                use=use[0]
+                if len(Cube_res[use])==3:
+                    y,x, res = Cube_res[use]
+                lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
                 
-                if to_fit_sig[0]==x and to_fit_sig[1]==y:
-                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
+                Cube_res[use] = self.fit_spaxel(lst, progress=True)
+                Fits_sig = Cube_res[use][2]
+                f,ax = plt.subplots(1, figsize=(10,5))
+                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
 
-                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
-                
-                    Fits_sig = Cube_res[i][2]
-                    f,ax = plt.subplots(1, figsize=(10,5))
-                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
-                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
-
-                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
-
-                    break
+                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
                 
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  
