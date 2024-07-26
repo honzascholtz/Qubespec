@@ -2052,11 +2052,14 @@ class Cube:
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
                         flx_spax_m = np.ma.array(data = flx_spax.data, mask=self.sky_clipped_1D)
                         nspaxel= np.sum(np.logical_not(total_mask[22,:,:]))
-                        Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))/nspaxel)
-
+                        if nspaxel==0:
+                            nspaxel=1 
+                       
+                        Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube, mask= total_mask)**2, axis=(1,2))/nspaxel)
                         error = sp.error_scaling(self.obs_wave, flx_spax_m, Var_er, err_range, boundary,\
                                                    exp=0)
-
+                        
+                        error[error.mask==True] = np.ma.median(error)
                     else:
                         flx_spax_t = np.ma.array(data=flux.data,mask=Spax_mask_pick)
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
