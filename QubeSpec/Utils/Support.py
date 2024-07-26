@@ -986,22 +986,29 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
 
     if len(err_range)==2:
         error1 = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])],sigma=3)[2]
+                                                    &(obs_wave<err_range[1])],sigma=3, mask = flux[(err_range[0]<obs_wave) \
+                                                    &(obs_wave<err_range[1])].mask)[2]
         
         average_var1 = stats.sigma_clipped_stats(error_var[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])],sigma=3)[1]
+                                                    &(obs_wave<err_range[1])],sigma=3, mask = error[(err_range[0]<obs_wave) \
+                                                    &(obs_wave<err_range[1])].mask, mask_value=np.ma.median(error[(err_range[0]<obs_wave) \
+                                                    &(obs_wave<err_range[1])]))[1]
         error = error_var*(error1/average_var1)
 
     elif len(err_range)==4:
         error1 = stats.sigma_clipped_stats(flux[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])],sigma=3)[2]
+                                                    &(obs_wave<err_range[1])],sigma=3, mask = flux[(err_range[0]<obs_wave) \
+                                                    &(obs_wave<err_range[1])].mask)[2]
         error2 = stats.sigma_clipped_stats(flux[(err_range[2]<obs_wave) \
-                                                    &(obs_wave<err_range[3])],sigma=3)[2]
+                                                    &(obs_wave<err_range[3])],sigma=3, mask = flux[(err_range[2]<obs_wave) \
+                                                    &(obs_wave<err_range[3])].mask)[2]
         
         average_var1 = stats.sigma_clipped_stats(error_var[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])],sigma=3)[1]
+                                                    &(obs_wave<err_range[1])],sigma=3, mask = error[(err_range[0]<obs_wave) \
+                                                    &(obs_wave<err_range[1])].mask)[1]
         average_var2 = stats.sigma_clipped_stats(error_var[(err_range[2]<obs_wave) \
-                                                    &(obs_wave<err_range[3])],sigma=3)[1]
+                                                    &(obs_wave<err_range[3])],sigma=3, mask = error[(err_range[2]<obs_wave) \
+                                                    &(obs_wave<err_range[3])].mask)[1]
         
         error[obs_wave<boundary] = error_var[obs_wave<boundary]*(error1/average_var1)
         error[obs_wave>boundary] = error_var[obs_wave>boundary]*(error2/average_var2)

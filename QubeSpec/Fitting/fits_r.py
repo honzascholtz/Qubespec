@@ -1109,8 +1109,12 @@ class Fitting:
             from scipy.optimize import curve_fit
             use = ~(np.isnan(self.flux_fitloc) | np.isinf(self.flux_fitloc))
             self.error_fitloc[np.isnan(self.error_fitloc)] = 1e6
-            print(np.sum(((self.flux_fitloc[use]-self.fitted_model(self.wave_fitloc[use], *pos_l))/self.error_fitloc[use])**2))
-            print(self.bounds_est())
+            
+            #print(self.bounds_est())
+            #print ( np.sum( (self.wave_fitloc[use]-self.fitted_model(self.wave_fitloc[use],*pos_l ))/self.error_fitloc[use]))
+            #print ( np.sum( (self.wave_fitloc[use]-self.fitted_model(self.wave_fitloc[use],*self.bounds_est()[0] ))/self.error_fitloc[use]))
+            #print ( np.sum( (self.wave_fitloc[use]-self.fitted_model(self.wave_fitloc[use],*self.bounds_est()[1] ))/self.error_fitloc[use]))
+
             popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc[use], self.flux_fitloc[use], p0= pos_l, sigma=self.error_fitloc[use], bounds = self.bounds_est())
             errs = np.sqrt(np.diag(pcov))
 
@@ -1268,8 +1272,7 @@ class Fitting:
 
 
         sigma2 = self.error_fitloc**2
-        if np.ma.sum(sigma2).data==0:
-            sigma2=1
+        
         log_likelihood = -0.5 * np.nansum((self.flux_fitloc - evalm) ** 2 / sigma2) #+ np.log(2*np.pi*sigma2))
 
         
@@ -1400,6 +1403,8 @@ class Fitting:
             else:
                 raise Exception('Sorry mode in prior type not understood: ', key )
         self.bounds = (do, up)
+        #print(do)
+        #print(up)
         return self.bounds
     
         
