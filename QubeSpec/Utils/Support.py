@@ -386,7 +386,10 @@ def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
 
     """
     mu = wv_cent*(1+res['z'][0])/1e4
-    FWHM = res[fwhm_name][0]
+    if type(fwhm_name)==str:
+        FWHM = res[fwhm_name][0]
+    else: 
+        FWHM = fwhm_name
     a = 1./(2*(FWHM/3e5*mu/2.35482)**2)
     return res[peak_name][0]*np.sqrt(np.pi/a)
 
