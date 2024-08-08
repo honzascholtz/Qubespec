@@ -923,7 +923,6 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
 
     with fits.open(filename) as hdu:
         hdu['DATA'].data = flux
-
         hdu['ERR'].data  = (err if err is not None else np.zeros_like(flux))
         hdu['DIRTY_Data'].data = flux
         hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
@@ -994,8 +993,8 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         
         average_var1 = stats.sigma_clipped_stats(error_var[(err_range[0]<obs_wave) \
                                                     &(obs_wave<err_range[1])],sigma=3, mask = error[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])].mask, mask_value=np.ma.median(error[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])]))[1]
+                                                    &(obs_wave<err_range[1])].mask)[1]
+    
         error = error_var*(error1/average_var1)
 
     elif len(err_range)==4:
@@ -1022,13 +1021,17 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         error = error_var/(error1/average_var1)
             
     error[error==0] = np.mean(error)*10
+    try:
+        error[error.mask==True] = np.ma.mean(error)*10
+        error = error.data
+    except:
+        lsk=0
 
     if exp==1:
         try:
             print('Error rescales are: ', error1/average_var1, error2/average_var2 )
         except:
             print('Error rescale is: ', error1/average_var1 )
-
     return error
 
 def where(array, lmin, lmax):
