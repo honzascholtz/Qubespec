@@ -1058,9 +1058,9 @@ def header_to_2D(header):
 def DS9_region_mask(filepath, header):
     from regions import Regions
     region_sky  = Regions.read(filepath, format='ds9')
-    try:
+    if header['NAXIS']>2:
         new_header = header_to_2D(header)
-    except:
+    else:
         new_header= header
     try:
         region_pix = region_sky[0].to_pixel(wcs.WCS(new_header))
