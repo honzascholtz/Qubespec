@@ -33,6 +33,7 @@ class Visualize:
         """
         self.indc = indc
         self.z = z
+        self.map_hdu_name = map_hdu
         with pyfits.open(path_res, memmap=False) as hdulist:
             self.map = []
             for its in map_hdu:
@@ -101,6 +102,10 @@ class Visualize:
         ax1 = fig.add_subplot(gs[0, 1], sharex=ax0, sharey=ax0)
         ax2 = fig.add_subplot(gs[0, 2], sharex=ax0, sharey=ax0)
         axes = [ax0,ax1,ax2]
+
+        ax0.set_title(self.map_hdu_name[0])
+        ax1.set_title(self.map_hdu_name[1])
+        ax2.set_title(self.map_hdu_name[2])
         axspec = fig.add_subplot(gs[1, :]) #brokenaxes(xlims=xlims,  hspace=.01, subplot_spec=gs[1, :])
 
         axes= axes[:len(self.map)]

@@ -643,8 +643,10 @@ class Cube:
 
         if self.instrument =='NIRSPEC_IFU':
             print('NIRSPEC mode of error calc')
-            D1_spectrum_var_er = np.sqrt(self.D1_spectrum_var)
+            nspaxel= np.sum(np.logical_not(total_mask[150,:,:]))
 
+            D1_spectrum_var_er = np.sqrt(self.D1_spectrum_var)#/nspaxel)
+            
             self.D1_spectrum_er = sp.error_scaling(self.obs_wave, D1_spectra, D1_spectrum_var_er, err_range, boundary,\
                                                    exp=plot_err)
 
@@ -1881,7 +1883,6 @@ class Cube:
 
         '''
         flux = self.flux.copy()
-        Mask= self.sky_clipped_1D
         shapes = self.dim
 
         ThD_mask = self.sky_clipped.copy()
@@ -1906,7 +1907,6 @@ class Cube:
             step = binning_pix
         x = range(shapes[0]-upper_lim)
         y = range(shapes[1]-upper_lim)
-
 
         print(rad/arc)
         h, w = self.dim[:2]
@@ -1947,6 +1947,8 @@ class Cube:
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
                         flx_spax_m = np.ma.array(data = flx_spax.data, mask=self.sky_clipped_1D)
                         nspaxel= np.sum(np.logical_not(total_mask[22,:,:]))
+                        if nspaxel==0:
+                            nspaxel=1 
                         Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))/nspaxel)
 
                         error = sp.error_scaling(self.obs_wave, flx_spax_m, Var_er, err_range, boundary,\
@@ -2040,7 +2042,7 @@ class Cube:
         for i in tqdm.tqdm(x):
             for j in y:
                 if Spax_mask[i,j]==False:
-                   
+                    
                     Spax_mask_pick = ThD_mask.copy()
                     Spax_mask_pick[:,:,:] = True
                     if sp_binning=='Nearest':
@@ -2055,9 +2057,7 @@ class Cube:
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
                         flx_spax_m = np.ma.array(data = flx_spax.data, mask=self.sky_clipped_1D)
                         nspaxel= np.sum(np.logical_not(total_mask[22,:,:]))
-                        if nspaxel==0:
-                            nspaxel=1 
-                       
+                        
                         Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube, mask= total_mask)**2, axis=(1,2))/nspaxel)
                         error = sp.error_scaling(self.obs_wave, flx_spax_m, Var_er, err_range, boundary,\
                                                    exp=0)
@@ -2173,7 +2173,6 @@ class Cube:
                 D1_spectrum_er = error
             else:
                 D1_spectrum_er = stats.sigma_clipped_stats(self.D1_spectrum,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
-
 
         return D1_spectrum, D1_spectrum_er, mask_catch
 

@@ -386,7 +386,10 @@ def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
 
     """
     mu = wv_cent*(1+res['z'][0])/1e4
-    FWHM = res[fwhm_name][0]
+    if type(fwhm_name)==str:
+        FWHM = res[fwhm_name][0]
+    else: 
+        FWHM = fwhm_name
     a = 1./(2*(FWHM/3e5*mu/2.35482)**2)
     return res[peak_name][0]*np.sqrt(np.pi/a)
 
@@ -920,7 +923,6 @@ def jadify(object_name, disp_filt, wave, flux, err=None, mask=None, verbose=True
 
     with fits.open(filename) as hdu:
         hdu['DATA'].data = flux
-
         hdu['ERR'].data  = (err if err is not None else np.zeros_like(flux))
         hdu['DIRTY_Data'].data = flux
         hdu['DIRTY_QUALITY'].data = (mask if mask is not None else np.zeros(flux.size, dtype=int))
@@ -991,8 +993,8 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         
         average_var1 = stats.sigma_clipped_stats(error_var[(err_range[0]<obs_wave) \
                                                     &(obs_wave<err_range[1])],sigma=3, mask = error[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])].mask, mask_value=np.ma.median(error[(err_range[0]<obs_wave) \
-                                                    &(obs_wave<err_range[1])]))[1]
+                                                    &(obs_wave<err_range[1])].mask)[1]
+    
         error = error_var*(error1/average_var1)
 
     elif len(err_range)==4:
@@ -1019,13 +1021,17 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         error = error_var/(error1/average_var1)
             
     error[error==0] = np.mean(error)*10
+    try:
+        error[error.mask==True] = np.ma.mean(error)*10
+        error = error.data
+    except:
+        lsk=0
 
     if exp==1:
         try:
             print('Error rescales are: ', error1/average_var1, error2/average_var2 )
         except:
             print('Error rescale is: ', error1/average_var1 )
-
     return error
 
 def where(array, lmin, lmax):
@@ -1052,9 +1058,9 @@ def header_to_2D(header):
 def DS9_region_mask(filepath, header):
     from regions import Regions
     region_sky  = Regions.read(filepath, format='ds9')
-    try:
+    if header['NAXIS']>2:
         new_header = header_to_2D(header)
-    except:
+    else:
         new_header= header
     try:
         region_pix = region_sky[0].to_pixel(wcs.WCS(new_header))
