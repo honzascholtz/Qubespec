@@ -82,7 +82,7 @@ class Fitting:
        
     def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
         priors_update = priors.copy()
-        priors= {'z':[0, 'normal', 0,0.003],\
+        priors= {'z':[0, 'normal_hat', 0,0.003,0.01,0.01],\
                 'cont':[0,'loguniform',-4,1],\
                 'cont_grad':[0,'normal',0,0.3], \
                 'Hal_peak':[0,'loguniform',-3,1],\
@@ -326,7 +326,7 @@ class Fitting:
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak']
             self.pr_code = self.prior_create()
             
-            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
+            pos_l = np.array([self.z,cont,0.01, peak/1.3, peak/10,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
 
@@ -390,6 +390,7 @@ class Fitting:
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible')
 
+        self.init_value = pos_l
         if self.sampler =='emcee':
             nwalkers, ndim = pos.shape
             sampler = emcee.EnsembleSampler(
@@ -651,7 +652,6 @@ class Fitting:
         self.flux_fitloc = self.flux[self.fit_loc]
         self.wave_fitloc = self.wave[self.fit_loc]
         self.error_fitloc = self.error[self.fit_loc]
-        
         if self.sampler =='emcee':
             sampler = emcee.EnsembleSampler(
                         nwalkers, ndim, self.log_probability_general, args=())
@@ -1079,8 +1079,6 @@ class Fitting:
                 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
-        
-        
 
         if self.sampler =='emcee':
             nwalkers, ndim = pos.shape
