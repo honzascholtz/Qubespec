@@ -247,8 +247,15 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
     oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
 
+    outflow_fwhm = fits.ImageHDU(map_outflow_fwhm, name='outflow_fwhm')
+    outflow_vel = fits.ImageHDU(map_outflow_vel, name='outflow_vel')
+
+    Nar_vel = fits.ImageHDU(map_narrow_vel, name='narrow_vel')
+    Nar_fwhm = fits.ImageHDU(map_narrow_fwhm, name='narrow_fwhm')
+
+
     hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,hdu_resid,\
-                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ])
+                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel])
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps'+add+'.fits', overwrite=True)
 
