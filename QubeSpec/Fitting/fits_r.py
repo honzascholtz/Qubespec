@@ -278,6 +278,11 @@ class Fitting:
         
         self.flux_zoom = self.flux[sel]
         self.wave_zoom = self.wave[sel]
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
         
         peak = abs(np.ma.max(self.flux_zoom))
         nwalkers=32
@@ -485,9 +490,11 @@ class Fitting:
             peak_beta = abs((np.max(self.flux_zoomb)))
         except:
             peak_beta = abs(peak/3)
-        
-        if plot==1:
-            print(self.flux[self.fit_loc], self.error[self.fit_loc])
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
 
         nwalkers=64
 
@@ -733,6 +740,10 @@ class Fitting:
         self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
         self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0])
 
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
     # =============================================================================
     #     Finding the initial conditions
     # =============================================================================
@@ -1048,6 +1059,11 @@ class Fitting:
         
         if self.priors['z'][2]==0:
             self.priors['z'][2]=self.z
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.waves = self.wave[np.invert(self.fluxs.mask)]
@@ -1154,6 +1170,11 @@ class Fitting:
         
         if self.priors['z'][2]==0:
             self.priors['z'][2]=self.z
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.waves = self.wave[np.invert(self.fluxs.mask)]
