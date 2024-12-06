@@ -175,7 +175,7 @@ class R1000:
                 ax.set_title(self.ID)
                 '''
                 
-    def Fitting_Halpha(self, N=10000, progress=True,priors= {'z':[0, 'normal', 0,0.003],\
+    def Fitting_Halpha(self, N=10000, progress=True,sampler='emcee',priors= {'z':[0, 'normal', 0,0.003],\
                                                    'cont':[0,'loguniform',-5,1.7],\
                                                    'cont_grad':[0,'normal',0,0.3], \
                                                    'Hal_peak':[0,'loguniform',-3,2.],\
@@ -190,7 +190,7 @@ class R1000:
                 priors['z'] = [self.z, 'normal', self.z, dvstd]
             
             
-            self.Hal_fits = emfit.Fitting(self.Hal_obs_wave, self.Hal_flux, self.Hal_error, self.z, N=N, progress=progress, priors=priors)
+            self.Hal_fits = emfit.Fitting(self.Hal_obs_wave, self.Hal_flux, self.Hal_error, self.z, N=N, progress=progress, priors=priors, sampler=sampler)
             self.Hal_fits.fitting_Halpha(model='gal')
             
             self.Halpha_flux = sp.flux_calc_mcmc(self.Hal_fits, 'Han', norm=1e-15)
@@ -205,7 +205,7 @@ class R1000:
             self.S2b_flux = [0,0,0]
             self.S2r_flux = [0,0,0]
         
-    def Fitting_O3(self, N=10000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
+    def Fitting_O3(self, N=10000, progress=True,sampler='emcee', priors= {'z':[0, 'normal', 0,0.003],\
                                                           'cont':[0,'loguniform',-4,1.7],\
                                                           'cont_grad':[0,'normal',0,0.3], \
                                                           'Nar_fwhm':[300,'uniform',200,900],\
@@ -221,7 +221,7 @@ class R1000:
             dvstd = 300/3e5*(1+self.z)
             if priors['z'][2] ==0:
                 priors['z'] = [self.z, 'normal', self.z, dvstd]
-            self.O3_fits = emfit.Fitting(self.O3_obs_wave, self.O3_flux, self.O3_error, self.z, N=N, progress=progress, priors=priors)
+            self.O3_fits = emfit.Fitting(self.O3_obs_wave, self.O3_flux, self.O3_error, self.z, N=N, progress=progress, priors=priors, sampler=sampler)
             self.O3_fits.fitting_OIII(model='gal')
 
             self.O3_flux = sp.flux_calc_mcmc(self.O3_fits, 'OIIIt', norm=1e-15)
@@ -232,7 +232,7 @@ class R1000:
             self.O3_flux = [0,0,0]
     
     def Fitting_custom(self,model, N=10000, progress=True, labels=['z', 'cont', 'cont_grad', 'peak', 'Nar_fwhm'], plot=1, useb=[-150,150], use=np.array([0]), \
-                       priors= {'z':[0, 'normal', 0,0.001],\
+                       sampler='emcee', priors= {'z':[0, 'normal', 0,0.001],\
                                                           'cont':[0.1,'loguniform',-3,1],\
                                                           'cont_grad':[-0.1,'normal',0,0.3], \
                                                           'Nar_fwhm':[300,'uniform',100,900],\
@@ -244,7 +244,7 @@ class R1000:
             use = np.where( (self.custom_obs_wave>((self.wave_custom+useb[0])*(1+self.z)/1e4)) & (self.custom_obs_wave< ((self.wave_custom+useb[1])*(1+self.z)/1e4))   )[0]
 
         self.use = use
-        self.Fitting = emfit.Fitting(self.custom_obs_wave[use], self.custom_flux[use], self.custom_error[use],z=self.z, priors=self.priors,N=10000, progress=progress)
+        self.Fitting = emfit.Fitting(self.custom_obs_wave[use], self.custom_flux[use], self.custom_error[use],z=self.z, priors=self.priors,N=10000, progress=progress, sampler=sampler)
         self.Fitting.fitting_general(self.model, labels, emfit.logprior_general)
         
         self.yeval = self.model(self.custom_obs_wave, *self.Fitting.props['popt'])

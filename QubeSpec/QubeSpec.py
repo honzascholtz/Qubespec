@@ -2061,8 +2061,10 @@ class Cube:
                         Var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube, mask= total_mask)**2, axis=(1,2))/nspaxel)
                         error = sp.error_scaling(self.obs_wave, flx_spax_m, Var_er, err_range, boundary,\
                                                    exp=0)
-                        
-                        error[error.mask==True] = np.ma.median(error)
+                        try:
+                            error[error.mask==True] = np.ma.median(error)
+                        except:
+                            pass
                     else:
                         flx_spax_t = np.ma.array(data=flux.data,mask=Spax_mask_pick)
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))

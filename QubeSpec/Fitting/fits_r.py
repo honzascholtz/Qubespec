@@ -82,7 +82,7 @@ class Fitting:
        
     def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
         priors_update = priors.copy()
-        priors= {'z':[0, 'normal', 0,0.003],\
+        priors= {'z':[0, 'normal_hat', 0,0.003,0.01,0.01],\
                 'cont':[0,'loguniform',-4,1],\
                 'cont_grad':[0,'normal',0,0.3], \
                 'Hal_peak':[0,'loguniform',-3,1],\
@@ -278,6 +278,11 @@ class Fitting:
         
         self.flux_zoom = self.flux[sel]
         self.wave_zoom = self.wave[sel]
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
         
         peak = abs(np.ma.max(self.flux_zoom))
         nwalkers=32
@@ -326,7 +331,7 @@ class Fitting:
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak']
             self.pr_code = self.prior_create()
             
-            pos_l = np.array([self.z,cont,0.01, peak/2, peak/4,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
+            pos_l = np.array([self.z,cont,0.01, peak/1.3, peak/10,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
 
@@ -390,6 +395,7 @@ class Fitting:
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible')
 
+        self.init_value = pos_l
         if self.sampler =='emcee':
             nwalkers, ndim = pos.shape
             sampler = emcee.EnsembleSampler(
@@ -403,6 +409,8 @@ class Fitting:
                 self.chains[self.labels[i]] = self.flat_samples[:,i]
                 
             self.props = self.prop_calc()
+            self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+
         elif self.sampler=='leastsq':
             from scipy.optimize import curve_fit
             popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
@@ -417,12 +425,10 @@ class Fitting:
         
         else:
             raise ValueError('Sampler value not understood. Should be emcee or leastsq')
-        
-        
+
         self.chi2 = np.nansum(((self.flux_fitloc-self.fitted_model(self.wave_fitloc, *self.props['popt']))**2)/self.error_fitloc**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
-        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
         
     # =============================================================================
@@ -484,9 +490,11 @@ class Fitting:
             peak_beta = abs((np.max(self.flux_zoomb)))
         except:
             peak_beta = abs(peak/3)
-        
-        if plot==1:
-            print(self.flux[self.fit_loc], self.error[self.fit_loc])
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
 
         nwalkers=64
 
@@ -651,7 +659,6 @@ class Fitting:
         self.flux_fitloc = self.flux[self.fit_loc]
         self.wave_fitloc = self.wave[self.fit_loc]
         self.error_fitloc = self.error[self.fit_loc]
-        
         if self.sampler =='emcee':
             sampler = emcee.EnsembleSampler(
                         nwalkers, ndim, self.log_probability_general, args=())
@@ -733,6 +740,10 @@ class Fitting:
         self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
         self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0])
 
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
     # =============================================================================
     #     Finding the initial conditions
     # =============================================================================
@@ -1048,6 +1059,11 @@ class Fitting:
         
         if self.priors['z'][2]==0:
             self.priors['z'][2]=self.z
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.waves = self.wave[np.invert(self.fluxs.mask)]
@@ -1079,8 +1095,6 @@ class Fitting:
                 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
-        
-        
 
         if self.sampler =='emcee':
             nwalkers, ndim = pos.shape
@@ -1156,6 +1170,11 @@ class Fitting:
         
         if self.priors['z'][2]==0:
             self.priors['z'][2]=self.z
+
+        if isinstance(self.error, np.ma.MaskedArray) == True:
+            self.error = self.error.data
+        self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
+        self.error[self.error==0] = 10000*np.nanmedian(self.error)
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.waves = self.wave[np.invert(self.fluxs.mask)]
