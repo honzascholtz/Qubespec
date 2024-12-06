@@ -409,6 +409,8 @@ class Fitting:
                 self.chains[self.labels[i]] = self.flat_samples[:,i]
                 
             self.props = self.prop_calc()
+            self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+
         elif self.sampler=='leastsq':
             from scipy.optimize import curve_fit
             popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
@@ -423,12 +425,10 @@ class Fitting:
         
         else:
             raise ValueError('Sampler value not understood. Should be emcee or leastsq')
-        
-        
+
         self.chi2 = np.nansum(((self.flux_fitloc-self.fitted_model(self.wave_fitloc, *self.props['popt']))**2)/self.error_fitloc**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
-        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
         self.yeval = self.fitted_model(self.wave, *self.props['popt'])
         
     # =============================================================================
