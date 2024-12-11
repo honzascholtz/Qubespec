@@ -39,11 +39,10 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
                 if dist< arc*rad:
                     mask_catch[:,ix,iy] = False
     else:
-        for ix in range(shapes[0]):
-            for iy in range(shapes[1]):
-                
-                if manual_mask[ix,iy]==False:
-                    mask_catch[:,ix,iy] = False
+        mask_3d = np.dstack([manual_mask]*self.flux.shape[0])
+        # Rearranging the mask so the order of the axis is the same as the cube - moving wavelength axis first 
+        mask_catch = np.moveaxis(mask_3d, -1, 0)
+        # Creating the mask array across the whole cube - spectra of masked spaxels will be ignored in other actions 
 
     mask_spax = mask_catch.copy()
     # Loading mask of the sky lines an bad features in the spectrum

@@ -196,7 +196,7 @@ class Cube:
                 with fits.open(self.Cube_path, memmap=False) as hdulist:
                     flux_temp = hdulist['SCI'].data/norm*1e4
                     self.error_cube = hdulist['ERR'].data/norm*1e4
-                    self.w = wcs.WCS(hdulist[1].header)
+                    self.wcs = wcs.WCS(hdulist[1].header)
                     self.header = hdulist[1].header
 
             elif self.instrument=='MIRI':
@@ -2126,11 +2126,10 @@ class Cube:
                         mask_catch[:,ix,iy] = False
         else:
             print('Selecting spaxel based on the supplied mask.')
-            for ix in range(self.dim[0]):
-                for iy in range(self.dim[1]):
-                    
-                    if manual_mask[ix,iy]==False:
-                        mask_catch[:,ix,iy] = False
+            mask_3d = np.dstack([manual_mask]*self.flux.shape[0])
+            # Rearranging the mask so the order of the axis is the same as the cube - moving wavelength axis first 
+            mask_catch = np.moveaxis(mask_3d, -1, 0)
+            # Creating the mask array across the whole cube - spectra of masked spaxels will be ignored in other actions 
             
 
         # Loading mask of the sky lines an bad features in the spectrum
