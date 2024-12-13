@@ -165,11 +165,13 @@ def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip
 
     primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
     hdus = [primary_hdu]
-    hdus.append(fits.ImageHDU(self.background.data, name='background'))
-    hdus.append(fits.ImageHDU(self.flux.data, name='flux_bkg'))
+    hdus.append(fits.ImageHDU(self.flux.data, name='flux_bkg_sub',header=self.header))
+    hdus.append(fits.ImageHDU(self.error_cube, name='error', header=self.header))
+    hdus.append(fits.ImageHDU(self.background.data, name='background',header=self.header))
+    
 
     hdulist = fits.HDUList(hdus)
-    hdulist.writeto(self.savepath+'/'+self.ID+'BKG.fits', overwrite=True)
+    hdulist.writeto(self.savepath+'/'+self.ID+'_BKG.fits', overwrite=True)
 
     if plot==1:
         f, ax = plt.subplots(1)
