@@ -166,7 +166,7 @@ def prop_calc(results):
     return res_dict
         
 
-def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_name=''):
+def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_name='', lsf=0):
     """ Calculates the SNR of a line
     wave - observed wavelength
     flux - flux of the spectrum
@@ -183,7 +183,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     
     if mode=='general':
         center = wv_cent*(1+dictsol['z'][0])/1e4
-        fwhm = dictsol[fwhm_name][0]
+        fwhm = (dictsol[fwhm_name][0]**2 + lsf**2)**0.5
         contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
         model = gauss(wave, dictsol[peak_name][0],center, fwhm)
     elif mode =='OIII':

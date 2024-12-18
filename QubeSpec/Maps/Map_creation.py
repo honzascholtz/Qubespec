@@ -1622,7 +1622,7 @@ def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velr
     return f
 
 def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
-                            brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)) ):
+                            brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)), use=np.array([]) ):
     """ Function to post process fits. The function will load the fits results and determine which model is more likely,
         based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
         Afterwards it saves all of it as .fits file. 
@@ -1664,6 +1664,9 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
     Result_cube_error = Cube.error_cube.data
     
     info_keys = list(info.keys())
+
+    if len(use) ==0:
+        use = np.arange(Result_cube.shape[0])
     
     for key in info_keys:
         if key=='params':
@@ -1706,12 +1709,12 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             failed_fits+=1
             continue
 
-        Result_cube_data[:,i,j] = Fits.fluxs.data
+        Result_cube_data[use,i,j] = Fits.fluxs.data
         try:
-            Result_cube_error[:,i,j] = Fits.error.data
+            Result_cube_error[use,i,j] = Fits.error.data
         except:
             lds=0
-        Result_cube[:,i,j] = Fits.yeval
+        Result_cube[use,i,j] = Fits.yeval
         try:
             chi2_map[i,j], BIC_map[i,j] = Fits.chi2, Fits.BIC
         except:
@@ -1724,10 +1727,14 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             
             else:
                 if 'kin' not in key:
-                    SNR= sp.SNR_calc(Cube.obs_wave, Fits.fluxs, Fits.error, Fits.props, 'general',\
+                    if 'lsf' in list(info[key].keys()):
+                        lsf = info[key]['lsf']
+                    else:
+                        lsf = 0
+                    SNR= sp.SNR_calc(Cube.obs_wave[use], Fits.fluxs, Fits.error, Fits.props, 'general',\
                                         wv_cent = info[key]['wv'],\
                                         peak_name = key+'_peak', \
-                                            fwhm_name = info[key]['fwhm'])
+                                            fwhm_name = info[key]['fwhm'], lsf=lsf)
                     
                     info[key]['flux_map'][0,i,j] = SNR
                     
@@ -1735,7 +1742,7 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                         flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
                                                             wv_cent = info[key]['wv'],\
                                                             peak_name = key+'_peak', \
-                                                                fwhm_name = info[key]['fwhm'])
+                                                                fwhm_name = info[key]['fwhm'], lsf=lsf)
                         
                         info[key]['flux_map'][1,i,j] = flux
                         info[key]['flux_map'][2,i,j] = p16
@@ -1771,7 +1778,7 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
         
         ax.plot(Fits.wave, Fits.fluxs.data, drawstyle='steps-mid')
         y= Fits.yeval
-        ax.plot(Cube.obs_wave,  y, 'r--')
+        ax.plot(Fits.wave,  y, 'r--')
         
         ax.set_xlabel('wavelength (um)')
         ax.set_ylabel('Flux density')
