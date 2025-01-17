@@ -25,7 +25,8 @@ from brokenaxes import brokenaxes
 from matplotlib.widgets import Slider, Button, RadioButtons, RangeSlider
 
 class Viz_outreach:
-    def __init__(self, path_res, map_hdu, indc = [1,0], z=None ):
+    '''Class to visualize '''
+    def __init__(self, path_res, map_hdu, indc = [1,0],vlim2= [-100,100], z=None ):
         """
         Load the fit and the data
         Returns
@@ -34,6 +35,7 @@ class Viz_outreach:
         self.indc = indc
         self.z = z
         self.map_hdu_name = map_hdu
+        self.vlim2 = vlim2
 
         with pyfits.open(path_res, memmap=False) as hdulist:
             self.map = []
@@ -55,10 +57,13 @@ class Viz_outreach:
             self.header = hdulist['PRIMARY'].header
             nwave = np.shape(self.yeval)[0]
             self.obs_wave = self.header['CRVAL3'] + (np.arange(nwave) - (self.header['CRPIX3'] - 1.0))*self.header['CDELT3']
-        self.slice_val_ind = 0
-        self.slice_val = self.obs_wave[0]
+        self.slice_val_ind = 2
+        self.slice_val = self.obs_wave[2]
 
     def plot_general(self, i,j):
+        ''' 
+        General function to plot the updated spaxel spectrum in the plot
+        '''
         self.axspec.cla()
         fluxm= self.flux[:,j,i]
         errorm= self.error[:,j,i]
@@ -74,9 +79,7 @@ class Viz_outreach:
 
 
         self.axspec.set_ylim(-0.1*max(yevalm), 1.1*max(yevalm))
-        if self.z is not None:
-            self.axspec.vlines(self.slice_val,-0.1*max(yevalm), 1.1*max(yevalm), color='k', linestyle='dashed')
-
+        
         if self.xlims is not None:
             self.axspec.set_xlim(self.xlims[0], self.xlims[1])
             
@@ -94,6 +97,9 @@ class Viz_outreach:
 
 
     def showme(self, xlims= None, vmax=1e-15, ylims=None):
+        '''
+        Function to initialize the whole setup and layout
+        '''
         self.xlims = xlims
         self.ylims = ylims
         fig = plt.figure(figsize=(15.6, 8))
@@ -113,16 +119,19 @@ class Viz_outreach:
 
         self.axes= self.axes[:len(self.map)]
 
-        self.ax2.imshow(self.flux[self.slice_val_ind,:,:])
+        self.ax2.imshow(np.sum(self.flux[self.slice_val_ind-1:self.slice_val_ind+1,:,:],axis=0), origin='lower')
         k=0
         for ax, map,its in zip(self.axes,self.map, range(len(self.axes))):
             if its==1:
                 cmap='coolwarm'
                 map_ind= self.indc[k]
+                _img_ = ax.imshow(map[map_ind,:,:], origin='lower',vmin=self.vlim2[0], vmax=self.vlim2[1], cmap=cmap)
             else:
                 cmap='viridis'
                 map_ind=self.indc[k]
-            _img_ = ax.imshow(map[map_ind,:,:], origin='lower', cmap=cmap)
+                _img_ = ax.imshow(map[map_ind,:,:], origin='lower', cmap=cmap)
+            
+            
             k+=1
         
         self.xlimax = plt.axes([0.12, 0.95, 0.8, 0.03])
@@ -153,6 +162,9 @@ class Viz_outreach:
         #plt.tight_layout()
 
         def update_plot(event):
+            '''
+            Function to update the plot after a click 
+            '''
             selector0.set_visible(True)
             self.i, self.j = int(event.xdata), int(event.ydata)
 
@@ -182,15 +194,10 @@ class Viz_outreach:
         self.slice_val = self.slice_slider.val
         self.slice_val_ind = np.argmin(np.abs(self.obs_wave-self.slice_val))
         self.ax2.cla()
-        self.ax2.imshow(self.flux[self.slice_val_ind,:,:])
+        self.ax2.imshow(np.sum(self.flux[self.slice_val_ind-1:self.slice_val_ind+1,:,:],axis=0), origin='lower')
         self.line_slice.set_visible(False)
         limst = self.axspec.get_ylim()
         self.line_slice = self.axspec.vlines(self.slice_val,limst[0], limst[1], color='k', linestyle='dashed')
-
-
-
-        
-
 
 class Visualize:
     def __init__(self, path_res, map_hdu, indc = [1,1,0], z=None ):
