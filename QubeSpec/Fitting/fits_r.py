@@ -299,11 +299,18 @@ class Fitting:
             self.pr_code = self.prior_create()
             
             pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
+            self.pos_l = pos_l
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                 
             pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
             pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+
+            for i,lb in enumerate(self.labels):
+                if lb =='zBLR':
+                    pos[:,i] = np.random.normal(self.z,0.001, nwalkers)
+
+            self.pos =pos
             
             self.res = {'name': 'Halpha_wth_BLR'}
         
@@ -317,6 +324,7 @@ class Fitting:
             
             pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6,\
                               peak/6, peak/6, 700, -100])
+            self.pos_l = pos_l
             for i in enumerate(self.labels):
                 pos_l[i[0]] = pos_l[i[0]] if self.priors[i[1]][0]==0 else self.priors[i[1]][0] 
                 
@@ -1389,6 +1397,7 @@ class Fitting:
             show_titles=True,
             title_kwargs={"fontsize": 12})
         return fig
+    
     def bounds_est(self):
         up = np.array([])
         do = np.array([])

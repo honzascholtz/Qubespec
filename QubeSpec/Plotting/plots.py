@@ -189,7 +189,7 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
         ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
         
 
-        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7000))[0]
         ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
         if errors==True:
             ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
@@ -197,6 +197,7 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
 
     except:
         ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
+        
 
     y_tot = res.yeval[fit_loc]
 
@@ -301,8 +302,9 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
             ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
         y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
-    except:
+    except Exception as e:
         ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
+        print(e)
 
     #if len(error) !=1:
     #    ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')

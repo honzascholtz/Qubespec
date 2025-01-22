@@ -1563,8 +1563,9 @@ class Cube:
                 
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
-                
+            
             else:
                 print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
                 
@@ -1578,6 +1579,26 @@ class Cube:
                 self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
+
+
+        elif models=='BLR_simple':
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors, sampler=sampler)
+            Fits_sig.fitting_OIII(model='BLR_simple', Fe_template=Fe_template )
+                
+            
+            
+            
+            self.D1_fit_results = Fits_sig.props
+            self.D1_fit_chain = Fits_sig.chains
+            self.D1_fit_model = Fits_sig.fitted_model
+            self.D1_fit_full = Fits_sig
+                
+            self.z = self.D1_fit_results['popt'][0]
+                
+            self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+            self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+                
+            
            
         elif models=='QSO_bkp':
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors, sampler=sampler)
