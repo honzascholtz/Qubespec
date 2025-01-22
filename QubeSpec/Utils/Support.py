@@ -1078,7 +1078,6 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         average_var2 = stats.sigma_clipped_stats(error_var[(err_range[2]<obs_wave) \
                                                     &(obs_wave<err_range[3])],sigma=3, mask = error[(err_range[2]<obs_wave) \
                                                     &(obs_wave<err_range[3])].mask)[1]
-        
         error[obs_wave<boundary] = error_var[obs_wave<boundary]*(error1/average_var1)
         error[obs_wave>boundary] = error_var[obs_wave>boundary]*(error2/average_var2)
     else:

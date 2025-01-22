@@ -1189,7 +1189,7 @@ class Cube:
         elif models=='BLR_only':
             
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors, sampler=sampler)
-            Fits_sig.fitting_Halpha(model='BLR')
+            Fits_sig.fitting_Halpha(model='BLR_simple')
         
             self.D1_fit_results = Fits_sig.props
             self.D1_fit_chain = Fits_sig.chains
