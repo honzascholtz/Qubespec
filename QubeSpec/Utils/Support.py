@@ -12,6 +12,7 @@ from astropy.table import Table, join, vstack
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 from scipy.optimize import curve_fit
+import astropy.units as u 
 
 nan= float('nan')
 
@@ -1144,3 +1145,132 @@ def MSA_load(Full_path):
         flux = np.ma.masked_invalid(flux_orig.copy())
     
     return obs_wave, flux, error
+
+def NIRCam_image(Cube, possible_filters=( 'F410M_FPHO', 'F444W_FPHO')):
+    import sedpy
+    import astropy.units as u
+
+    c = 3.*10**8*u.m/u.s
+
+    Fluxl = Cube.flux_old.copy()
+    Fluxl *= Cube.flux_norm/ 1e4
+    
+    Flux =  (Fluxl)#* u.Unit(Cube.header['BUNIT'])
+
+    #Flux = Flux.to('1 erg/(s cm2 AA)')
+    obs_wave = Cube.obs_wave*u.um
+    
+    maggies_to_nJy = 3631
+    filts=[i.replace("_FPHO", "") for i in possible_filters]
+    filts1=[i.lower() for i in filts]
+    filternames = ['jwst_'+n if len(n)==5 else 'jwst_mod'+n[5]+'_'+n[:5] for n in filts1]
+        
+    filters = sedpy.observate.load_filters(filternames)
+    filter_wav_um=(np.array([f.wave_effective for f in filters])*u.AA).to('um')
+    shapes = Fluxl.shape
+    NIRCam_image = np.zeros((shapes[1], shapes[2], len(filternames)))
+
+    for i in range(shapes[1]):
+        for j in range(shapes[2]):
+            NIRCam_image[i,j,:] = (sedpy.observate.getSED(obs_wave.to('AA').value, Flux[:,i,j],\
+									   linear_flux=True, filterlist=filters))*maggies_to_nJy
+
+    
+    NIRCam_image[NIRCam_image==3631] = np.nan
+    return NIRCam_image, filter_wav_um
+
+
+def twoD_Gaussian(dm, amplitude, xo, yo, sigma_x, sigma_y, theta, offset): 
+    """ 2D Gaussian array used to find center of emission 
+	
+	"""
+    x, y = dm
+    xo = float(xo)
+    yo = float(yo)    
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) 
+                            + c*((y-yo)**2)))
+    return g.ravel()
+
+def Image_center_fit(image, init_loc, plot_it = 0, mask=None):
+    import astropy.stats as stats
+    rms = stats.sigma_clipped_stats(image, sigma=3)[2]
+    shapes = image.shape
+
+    # Create the x inputs for the curve_fit
+    x = np.linspace(0, shapes[1]-1, shapes[1])
+    y = np.linspace(0, shapes[0]-1, shapes[0])
+    x, y = np.meshgrid(x, y)
+    if mask is not None:
+        image = np.ma.masked_array(image, mask=mask)
+
+    plt.figure()
+    plt.imshow(image, vmin=-rms, vmax=5*rms, cmap='gray')
+    import scipy.optimize as opt
+
+    print(image[50,50])
+
+    print(image[init_loc[0],init_loc[1]])
+    # Setting the
+    initial_guess = (image[init_loc[0],init_loc[1]],  init_loc[1],init_loc[0],1,1,0,0)
+
+    print ('Initial guesses', initial_guess)
+
+    
+    dm = (x,y)
+    popt, pcov = opt.curve_fit(twoD_Gaussian, dm, image.ravel(),  p0=initial_guess, bounds=([-np.inf, -np.inf, -np.inf, 0.1,0.1, -np.inf, -np.inf],[np.inf, np.inf, np.inf, 5,5, np.inf, np.inf]))
+    popt_l = popt.copy()
+    popt_l[0] = 1
+    er = np.sqrt(np.diag(pcov))
+    print(popt)
+
+    print ('Cont loc ', popt[1:3])
+    print ('Cont loc er', er[1:3])
+
+    if plot_it==1:
+        
+        plt.figure()
+        plt.imshow(image, vmin=-rms, vmax=5*rms, cmap='gray')
+
+        data_fit = twoD_Gaussian((x,y), *popt_l)
+
+        plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 8, colors='r')
+
+        plt.xlim(popt[1]-10,popt[1]+10)
+        plt.ylim(popt[2]-10,popt[2]+10)
+        
+        plt.plot(popt[1],popt[2], 'ro')
+
+def plot_filters(ax,norm=1):
+    # 090W, 115W,150W, 200W, 277W, 356W, 410M, 444W
+
+    lowl = ax.get_ylim()[0]
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F090W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='lightskyblue', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F115W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='blue', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F150W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='darkblue', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F200W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='lightgreen', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F277W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='orange', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F335M_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='peru', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F356W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='darkorange', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F410M_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='red', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F444W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='firebrick', alpha=0.2)

@@ -563,7 +563,7 @@ class Cube:
 
             data_fit = sp.twoD_Gaussian((x,y), *self.center_data)
 
-            plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 8, colors='w')
+            plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 20, colors='w')
             plt.savefig(self.savepath+'Diagnostics/1D_spectrum_Selected_pixel.pdf')
 
 
