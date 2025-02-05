@@ -215,7 +215,7 @@ class Fitting:
              nwalkers, ndim, self.log_probability_general, args=())
      
         sampler.run_mcmc(pos, self.N, progress=self.progress)
-        self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+        self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)      
         
         self.chains = {'name': 'Full_optical'}
         for i in range(len(self.labels)):
@@ -410,7 +410,7 @@ class Fitting:
                 nwalkers, ndim, self.log_probability_general, args=())
         
             sampler.run_mcmc(pos, self.N, progress=self.progress)
-            self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+            self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)      
             
             self.chains = {'name': 'Halpha'}
             for i in range(len(self.labels)):
@@ -672,7 +672,7 @@ class Fitting:
                         nwalkers, ndim, self.log_probability_general, args=())
             
             sampler.run_mcmc(pos, self.N, progress=self.progress)
-            self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+            self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)      
             
             self.chains = {'name': 'OIII'}
             for i in range(len(self.labels)):
@@ -1005,7 +1005,7 @@ class Fitting:
                 nwalkers, ndim, self.log_probability_general, args=())
         
             sampler.run_mcmc(pos, self.N, progress=self.progress)
-            self.flat_samples = sampler.get_chain(discard=int(0.25*self.N), thin=15, flat=True)      
+            self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)      
             
             self.chains = {'name': 'Halpha_OIII'}
             for i in range(len(self.labels)):

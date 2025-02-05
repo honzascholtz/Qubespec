@@ -1146,28 +1146,29 @@ def MSA_load(Full_path):
     
     return obs_wave, flux, error
 
-def NIRCam_image(Cube, possible_filters=( 'F410M_FPHO', 'F444W_FPHO')):
+def NIRCam_image(Cube, possible_filters=( 'F356W_FPHO', 'F444W_FPHO')):
     import sedpy
     import astropy.units as u
 
     c = 3.*10**8*u.m/u.s
 
-    Fluxl = Cube.flux_old.copy()
-    Fluxl *= Cube.flux_norm/ 1e4
+    Flux = Cube.flux_old.copy() # I am using non background subtracted cube
+    Flux *= Cube.flux_norm/ 1e4 # setting the units to ergs/s/cm2/AA
     
-    Flux =  (Fluxl)#* u.Unit(Cube.header['BUNIT'])
 
     #Flux = Flux.to('1 erg/(s cm2 AA)')
-    obs_wave = Cube.obs_wave*u.um
+    obs_wave = Cube.obs_wave*u.um # setting th 
     
-    maggies_to_nJy = 3631
+    maggies_to_nJy = 3631 # conversion from maggies to nJy or Jy not sure
+
+    # Setting the filters in SEDpy
     filts=[i.replace("_FPHO", "") for i in possible_filters]
     filts1=[i.lower() for i in filts]
     filternames = ['jwst_'+n if len(n)==5 else 'jwst_mod'+n[5]+'_'+n[:5] for n in filts1]
         
     filters = sedpy.observate.load_filters(filternames)
     filter_wav_um=(np.array([f.wave_effective for f in filters])*u.AA).to('um')
-    shapes = Fluxl.shape
+    shapes = Flux.shape
     NIRCam_image = np.zeros((shapes[1], shapes[2], len(filternames)))
 
     for i in range(shapes[1]):
