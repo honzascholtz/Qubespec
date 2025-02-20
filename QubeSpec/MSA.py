@@ -277,6 +277,17 @@ class R1000:
         
         
         return self.Fitting
+    
+    def weed_out(self, N=1000):
+
+        for key in self.Fitting.labels:
+            self.Fitting.chains[key] = np.random.choice(self.Fitting.chains[key], N, replace=False)
+        self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
+        
+
+        
+    
+
         
         
             

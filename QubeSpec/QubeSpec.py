@@ -120,7 +120,7 @@ def Shortcut(QubeSpec_setup):
 class Cube:
     """Main Class for QubeSpec
     """
-    def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='', norm=1e-13,):
+    def __init__(self, Full_path='', z='', ID='', flag='', savepath='', Band='',data='SCI', norm=1e-13,):
         """The main class for QubeSpex
 
         Args:
@@ -168,18 +168,18 @@ class Cube:
             elif self.instrument=='NIRSPEC_IFU':
                 with fits.open(self.Cube_path, memmap=False) as hdulist:
                     try:
-                        flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
+                        flux_temp = hdulist[data].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
                         error = hdulist['ERR'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
                     except Exception as _exc_:
                         print(_exc_)
-                        flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit('Jy')*1e-6
+                        flux_temp = hdulist[data].data/norm * astropy.units.Unit('Jy')*1e-6
                         error = hdulist['ERR'].data/norm * astropy.units.Unit('Jy')*1e-6
 
                     w = wcs.WCS(hdulist[1].header)
                     self.header = hdulist[1].header
-                    cube_wcs = astropy.wcs.WCS(hdulist['SCI'].header)
+                    cube_wcs = astropy.wcs.WCS(hdulist[data].header)
                     wave = cube_wcs.all_pix2world(0., 0., np.arange(cube_wcs._naxis[2]), 0)[2]
-                    wave *= astropy.units.Unit(hdulist['SCI'].header['CUNIT3'])
+                    wave *= astropy.units.Unit(hdulist[data].header['CUNIT3'])
                     if wave.unit==astropy.units.m:
                         wave = wave.to('um')
                     else:
@@ -194,7 +194,7 @@ class Cube:
 
             elif self.instrument=='NIRSPEC_IFU_fl':
                 with fits.open(self.Cube_path, memmap=False) as hdulist:
-                    flux_temp = hdulist['SCI'].data/norm*1e4
+                    flux_temp = hdulist[data].data/norm*1e4
                     self.error_cube = hdulist['ERR'].data/norm*1e4
                     self.wcs = wcs.WCS(hdulist[1].header)
                     self.header = hdulist[1].header
@@ -1580,6 +1580,42 @@ class Cube:
                 self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
                 self.dBIC = Fits_out.BIC-Fits_sig.BIC
 
+        elif models=='QSO_simple':
+            Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors, sampler=sampler)
+            Fits_sig.fitting_OIII(model='gal', Fe_template=Fe_template )
+                
+            Fits_out = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors, sampler=sampler)
+            Fits_out.fitting_OIII(model='BLR_simple', Fe_template=Fe_template )
+            
+            if Fits_out.BIC-Fits_sig.BIC <-2:
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                print('BICM', Fits_out.BIC)
+                self.D1_fit_results = Fits_out.props
+                self.D1_fit_chain = Fits_out.chains
+                self.D1_fit_model = Fits_out.fitted_model
+                self.D1_fit_full = Fits_out
+                
+                self.z = self.D1_fit_results['popt'][0]
+                
+                self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+                self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
+            
+            else:
+                print('Delta BIC' , Fits_out.BIC-Fits_sig.BIC, ' ')
+                
+                self.D1_fit_results = Fits_sig.props
+                self.D1_fit_chain = Fits_sig.chains
+                self.D1_fit_model = Fits_sig.fitted_model
+                self.D1_fit_full = Fits_sig
+                
+                self.z = self.D1_fit_results['popt'][0]
+                
+                self.SNR =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'OIII')
+                self.SNR_hb =  sp.SNR_calc(wave, flux, error, self.D1_fit_results, 'Hb')
+                self.dBIC = Fits_out.BIC-Fits_sig.BIC
+
 
         elif models=='BLR_simple':
             Fits_sig = emfit.Fitting(wave, flux, error, self.z,N=N,progress=progress, priors=priors, sampler=sampler)
@@ -1786,7 +1822,7 @@ class Cube:
 
         flux = self.D1_spectrum.data/(1e-7*1e4)*self.flux_norm
         obs_wave = self.obs_wave
-        errors = self.D1_spectrum_er.data/(1e-7*1e4)*self.flux_norm
+        errors = self.D1_spectrum_er/(1e-7*1e4)*self.flux_norm
         import spectres as spres
         from . import jadify_temp as pth
         PATH_TO_jadify = pth.__path__[0]+ '/'
@@ -1810,20 +1846,19 @@ class Cube:
 
         with open(self.savepath+'/PRISM_1D/R100_1D_setup_test.yaml', 'w') as f:
             data = yaml.dump(data, f, sort_keys=False, default_flow_style=True)
-        from . import jadify_temp as pth
-        PATH_TO_jadify = pth.__path__[0]+ '/'
-        filename = PATH_TO_jadify+ 'red_table_template.csv'
-        redshift_cat = Table.read(filename)
 
-        redshift_cat['ID'][0] = 100000
-        redshift_cat['z_visinsp'][0] = self.z
-        redshift_cat['z_phot'][0] = self.z
-        redshift_cat['z_bagp'][0] = self.z
-        redshift_cat.write(self.savepath+'/PRISM_1D/redshift_1D.csv',overwrite=True)
+        #filename = PATH_TO_jadify+ 'red_table_template.csv'
+        #redshift_cat = Table.read(filename)
+
+        #redshift_cat['ID'][0] = 100000
+        #redshift_cat['z_visinsp'][0] = self.z
+        #redshift_cat['z_phot'][0] = self.z
+        #redshift_cat['z_bagp'][0] = self.z
+        #redshift_cat.write(self.savepath+'/PRISM_1D/redshift_1D.csv',overwrite=True)
 
         import nirspecxf
         id = 100000
-        config100 = nirspecxf.NIRSpecConfig(self.savepath+'PRISM_1D/R100_1D_setup_manual.yaml')
+        config100 = nirspecxf.NIRSpecConfig(self.savepath+'/R100_1D_setup_manual.yaml')
         ns, _ = nirspecxf.process_object_id(id, config100)
 
         self.D1_ppxf = ns
