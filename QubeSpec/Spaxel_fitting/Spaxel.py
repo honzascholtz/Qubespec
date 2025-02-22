@@ -702,7 +702,7 @@ class general:
     def __init__(self):
         self.status = 'ok'
 
-    def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
+    def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior,sampler='emcee', nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
         """ Function to use to fit Spaxels. 
 
         Parameters
@@ -746,7 +746,8 @@ class general:
         self.logprior = logprior
         self.nwalkers = nwalkers
         self.use = use
-        self.N = N     
+        self.N = N  
+        self.sampler = sampler    
         
         if Ncores<1:
             Ncores=1
@@ -823,7 +824,7 @@ class general:
             self.use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
         try:
-            Fits_sig = Fitting(wave[self.use], flx_spax_m[self.use], error[self.use], z,N=self.N,progress=progress, priors=self.priors)
+            Fits_sig = Fitting(wave[self.use], flx_spax_m[self.use], error[self.use], z,N=self.N,progress=progress, priors=self.priors, sampler=self.sampler)
             Fits_sig.fitting_general(self.fitted_model, self.labels, self.logprior, nwalkers=self.nwalkers)
             Fits_sig.fitted_model = 0
         
