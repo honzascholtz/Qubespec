@@ -209,7 +209,8 @@ class Fitting:
                 
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible')
-
+        self.pos = pos
+        self.pos_l = pos_l
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(
              nwalkers, ndim, self.log_probability_general, args=())
@@ -1103,6 +1104,9 @@ class Fitting:
                 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
         pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+
+        self.pos = pos
+        self.pos_l = pos_l
 
         if self.sampler =='emcee':
             nwalkers, ndim = pos.shape
