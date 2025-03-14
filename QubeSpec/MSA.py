@@ -40,6 +40,14 @@ paths['medium_jwst_gs'] = ['/Users/jansen/JADES/GOODS-S/NIRSpec/medium_jwst_gs/'
 
 
 
+def load_data(path):
+    with pyfits.open(path, memmap=False) as hdulist:
+        flux_orig = hdulist['DATA'].data*1e-7*1e4
+        error =  hdulist['ERR'].data*1e-7*1e4
+        flux = np.ma.masked_invalid(flux_orig.copy())
+        obs_wave = hdulist['wavelength'].data*1e6
+    return obs_wave, flux, error
+
 def gauss(x, k, mu, fwhm):
     sig= fwhm/3e5*mu/2.35482
     expo= -((x-mu)**2)/(2*sig*sig)
@@ -269,6 +277,17 @@ class R1000:
         
         
         return self.Fitting
+    
+    def weed_out(self, N=1000):
+
+        for key in self.Fitting.labels:
+            self.Fitting.chains[key] = np.random.choice(self.Fitting.chains[key], N, replace=False)
+        self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
+        
+
+        
+    
+
         
         
             

@@ -12,6 +12,7 @@ from astropy.table import Table, join, vstack
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle
 from scipy.optimize import curve_fit
+import astropy.units as u 
 
 nan= float('nan')
 
@@ -166,7 +167,7 @@ def prop_calc(results):
     return res_dict
         
 
-def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_name=''):
+def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_name='', lsf=0):
     """ Calculates the SNR of a line
     wave - observed wavelength
     flux - flux of the spectrum
@@ -183,7 +184,7 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     
     if mode=='general':
         center = wv_cent*(1+dictsol['z'][0])/1e4
-        fwhm = dictsol[fwhm_name][0]
+        fwhm = (dictsol[fwhm_name][0]**2 + lsf**2)**0.5
         contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
         model = gauss(wave, dictsol[peak_name][0],center, fwhm)
     elif mode =='OIII':
@@ -371,7 +372,7 @@ def QFitsview_mask(filepath):
     mask[mask==-2] = 0
     return mask
 
-def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
+def flux_calc_general(wv_cent, res, fwhm_name, peak_name, lsf=0):
     """
     Calculate the flux using the general formula.
 
@@ -387,14 +388,14 @@ def flux_calc_general(wv_cent, res, fwhm_name, peak_name):
     """
     mu = wv_cent*(1+res['z'][0])/1e4
     if type(fwhm_name)==str:
-        FWHM = res[fwhm_name][0]
+        FWHM = (res[fwhm_name][0]**2+ lsf**2)**0.5
     else: 
-        FWHM = fwhm_name
+        FWHM = (fwhm_name**2+ lsf**2)**0.5
     a = 1./(2*(FWHM/3e5*mu/2.35482)**2)
     return res[peak_name][0]*np.sqrt(np.pi/a)
 
 
-def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
+def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0):
     """
     Calculate the flux for different emission lines based on the given parameters.
 
@@ -437,44 +438,44 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
             ratio=1
         else:
             ratio=res[ratio_name][0]
-        flx =  ratio*flux_calc_general(wv_cent, res, fwhm_name, peak_name)
+        flx =  ratio*flux_calc_general(wv_cent, res, fwhm_name, peak_name, lsf=lsf)
         return flx*norm
     
     elif mode=='OIIIt':
-        flx =  flux_calc_general(OIIIr, res, 'Nar_fwhm', 'OIII_peak')
+        flx =  flux_calc_general(OIIIr, res, 'Nar_fwhm', 'OIII_peak', lsf=lsf)
         if 'OIII_out_peak' in keys:  
-            flx +=  flux_calc_general(OIIIr, res, 'outflow_fwhm', 'OIII_out_peak')      
+            flx +=  flux_calc_general(OIIIr, res, 'outflow_fwhm', 'OIII_out_peak', lsf=lsf)      
         return flx*norm
             
             
     elif mode=='OIIIn':
-        flx =  flux_calc_general(OIIIr, res, 'Nar_fwhm', 'OIII_peak')
+        flx =  flux_calc_general(OIIIr, res, 'Nar_fwhm', 'OIII_peak', lsf=lsf)
         return flx*norm
         
     elif mode=='OIIIw':
         if 'OIII_out_peak' in keys:
-            flx =  flux_calc_general(OIIIr, res, 'outflow_fwhm', 'OIII_out_peak')  
+            flx =  flux_calc_general(OIIIr, res, 'outflow_fwhm', 'OIII_out_peak', lsf=lsf)  
             return flx*norm
         else:
             return 0
     
     elif mode=='Hat':
-        flx =  flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak')
+        flx =  flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak', lsf=lsf)
         if 'outflow_fwhm' in list(res.keys()):
-            flx +=  flux_calc_general(Hal, res, 'outflow_fwhm', 'Hal_out_peak')
+            flx +=  flux_calc_general(Hal, res, 'outflow_fwhm', 'Hal_out_peak', lsf=lsf)
         return flx*norm
     
     elif mode=='Han':
-        flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak')
+        flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_peak', lsf=lsf)
         return flx*norm
 
     elif mode=='Haw':
-        flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_out_peak')
+        flx = flux_calc_general(Hal, res, 'Nar_fwhm', 'Hal_out_peak', lsf=lsf)
         return flx*norm
         
     elif mode=='Hal_BLR':
         if 'BLR_fwhm' in keys:
-            flx = flux_calc_general(Hal, res, 'BLR_fwhm', 'BLR_Hal_peak')
+            flx = flux_calc_general(Hal, res, 'BLR_fwhm', 'BLR_Hal_peak', lsf=lsf)
             return flx*norm
             
         elif 'BLR_alp1' in keys:
@@ -486,52 +487,52 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
             return 0
     
     elif mode=='NIIt':
-        flx = flux_calc_general(NII_r, res, 'Nar_fwhm', 'NII_peak')
+        flx = flux_calc_general(NII_r, res, 'Nar_fwhm', 'NII_peak', lsf=lsf)
         
         if 'outflow_fwhm' in list(res.keys()):
-            flx +=  flux_calc_general(NII_r, res, 'outflow_fwhm', 'NII_out_peak')
+            flx +=  flux_calc_general(NII_r, res, 'outflow_fwhm', 'NII_out_peak', lsf=lsf)
         return flx*norm
     
     elif mode=='NII':
-        flx = flux_calc_general(NII_r, res, 'Nar_fwhm', 'NII_peak')
+        flx = flux_calc_general(NII_r, res, 'Nar_fwhm', 'NII_peak', lsf=lsf)
         return flx*norm
               
     elif mode=='NIIo':
-        flx = flux_calc_general(NII_r, res, 'outflow_fwhm', 'NII_out_peak')
+        flx = flux_calc_general(NII_r, res, 'outflow_fwhm', 'NII_out_peak', lsf=lsf)
         return flx*norm
         
     elif mode=='Hbeta':     
         try:
-            flx = flux_calc_general(Hbe, res, 'Nar_fwhm', 'Hbeta_peak')
+            flx = flux_calc_general(Hbe, res, 'Nar_fwhm', 'Hbeta_peak', lsf=lsf)
         except:
-            flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak')
+            flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak', lsf=lsf)
         return flx*norm
     
     elif mode=='Hbe_BLR':
         if 'BLR_fwhm' in keys:
-            flx = flux_calc_general(Hbe, res, 'BLR_fwhm', 'BLR_Hbeta_peak')
+            flx = flux_calc_general(Hbe, res, 'BLR_fwhm', 'BLR_Hbeta_peak', lsf=lsf)
             return flx*norm
         
         elif 'BLR_alp1' in keys:
             wave = np.linspace(4800,4900,700)*(1+res['z'][0])/1e4
             from ..Models.QSO_models import BKPLG
-            model = BKPLG(wave, res['BLR_peak'][0], Hbe, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0])
+            model = BKPLG(wave, res['BLR_peak'][0], Hbe, res['BLR_sig'][0], res['BLR_alp1'][0], res['BLR_alp2'][0], lsf=lsf)
         else:
             return 0 
         
     elif mode=='Hbetaw':
-        flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak')
+        flx = flux_calc_general(Hbe, res, 'Hbeta_fwhm', 'Hbeta_peak', lsf=lsf)
         return flx*norm
     elif mode=='Hbetan':
-        flx = flux_calc_general(Hbe, res, 'Hbetan_fwhm', 'Hbetan_peak')
+        flx = flux_calc_general(Hbe, res, 'Hbetan_fwhm', 'Hbetan_peak', lsf=lsf)
         return flx*norm  
     
     elif mode=='SIIr':
-        flx = flux_calc_general(6732, res, 'Nar_fwhm', 'SIIr_peak')
+        flx = flux_calc_general(6732, res, 'Nar_fwhm', 'SIIr_peak', lsf=lsf)
         return flx*norm
         
     elif mode=='SIIb':
-        flx = flux_calc_general(6718, res, 'Nar_fwhm', 'SIIb_peak') 
+        flx = flux_calc_general(6718, res, 'Nar_fwhm', 'SIIb_peak', lsf=lsf) 
         return flx*norm
     
     else:
@@ -544,7 +545,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     return Flux
 
 import random
-def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name=''):
+def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0):
     """
     Calculates flux and 68% confidence iterval. 
 
@@ -599,12 +600,79 @@ def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fw
             res_new[labels[i+1]] = [popt[i], 0,0 ]
         
         res_new['popt'] = popt
-        Fluxes.append(flux_calc(res_new, mode,norm, wv_cent=wv_cent, peak_name=peak_name, fwhm_name=fwhm_name, ratio_name=ratio_name))
+        Fluxes.append(flux_calc(res_new, mode,norm, wv_cent=wv_cent, peak_name=peak_name, fwhm_name=fwhm_name, ratio_name=ratio_name, lsf=lsf))
     
     p50,p16,p84 = np.percentile(Fluxes, (50,16,84))
     p16 = p50-p16
     p84 = p84-p50
     return p50, p16, p84
+
+def EW_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0, wv_cont=5008):
+    """
+    Calculates EW and 68% confidence iterval. 
+
+    Parameters
+    ----------
+
+        fit_obj - object
+            Fitting class object
+        
+        mode - string
+            modes: general, OIIIn, OIIIw, OIIIt, Han, NII, Hbeta, SIIr, SIIb
+        
+        norm - value
+            normalization used in the QubeSpec cube class 
+
+        N - int
+            number of sampling of the chains
+        
+        wv_cent - float
+            rest-frame wavelength in ang of the line if mode='general'
+        
+        peak_name - string
+          if mode='general' name of the peak name to use
+
+        fwhm_name - string
+            if mode='general' name of the fwhm name to use
+
+        ratio_name - string
+            if mode='general' name of the ratio to use (e.g. in [OII])
+
+    Returns
+    -------
+
+    array of median value and +- 1sigma
+    """
+    chains = fit_obj.chains
+    res = fit_obj.props
+    labels = list(chains.keys())
+
+    popt = np.zeros_like(res['popt'])
+    Fluxes = []
+    res_new = {'name': res['name']}
+    
+    Nchain = len(chains['z'])
+    itere = np.arange(Nchain/2,Nchain,1, dtype=int)
+        
+    for j in itere:
+        #sel = random.randint(Nchain/2,N-1)
+        for i in range(len(popt)): 
+            
+            popt[i] = chains[labels[i+1]][j]
+            res_new[labels[i+1]] = [popt[i], 0,0 ]
+        
+        res_new['popt'] = popt
+        Fluxes.append(flux_calc(res_new, mode,norm, wv_cent=wv_cent, peak_name=peak_name, fwhm_name=fwhm_name, ratio_name=ratio_name, lsf=lsf))
+    Conts = PowerLaw1D.evaluate(wv_cent/1e4*(1+fit_obj.chains['z'][itere]),fit_obj.chains['cont'][itere], wv_cont/1e4*(1+fit_obj.chains['z'][itere]), fit_obj.chains['cont_grad'][itere] )*norm
+
+    EWs = np.array(Fluxes)/Conts*1e4/(1+fit_obj.chains['z'][itere])
+
+    p50,p16,p84 = np.percentile(EWs, (50,16,84))
+    p16 = p50-p16
+    p84 = p84-p50
+    return p50, p16, p84
+
+
 
 
 def vel_kin_percentiles(self, peak_names, fwhm_names, vel_names,rest_wave,vel_percentiles=[], z=0, error_range=[50,16,84], N=100):
@@ -1011,7 +1079,6 @@ def error_scaling(obs_wave,flux, error_var, err_range, boundary, exp=0):
         average_var2 = stats.sigma_clipped_stats(error_var[(err_range[2]<obs_wave) \
                                                     &(obs_wave<err_range[3])],sigma=3, mask = error[(err_range[2]<obs_wave) \
                                                     &(obs_wave<err_range[3])].mask)[1]
-        
         error[obs_wave<boundary] = error_var[obs_wave<boundary]*(error1/average_var1)
         error[obs_wave>boundary] = error_var[obs_wave>boundary]*(error2/average_var2)
     else:
@@ -1078,3 +1145,133 @@ def MSA_load(Full_path):
         flux = np.ma.masked_invalid(flux_orig.copy())
     
     return obs_wave, flux, error
+
+def NIRCam_image(Cube, possible_filters=( 'F356W_FPHO', 'F444W_FPHO')):
+    import sedpy
+    import astropy.units as u
+
+    c = 3.*10**8*u.m/u.s
+
+    Flux = Cube.flux_old.copy() # I am using non background subtracted cube
+    Flux *= Cube.flux_norm/ 1e4 # setting the units to ergs/s/cm2/AA
+    
+
+    #Flux = Flux.to('1 erg/(s cm2 AA)')
+    obs_wave = Cube.obs_wave*u.um # setting th 
+    
+    maggies_to_nJy = 3631 # conversion from maggies to nJy or Jy not sure
+
+    # Setting the filters in SEDpy
+    filts=[i.replace("_FPHO", "") for i in possible_filters]
+    filts1=[i.lower() for i in filts]
+    filternames = ['jwst_'+n if len(n)==5 else 'jwst_mod'+n[5]+'_'+n[:5] for n in filts1]
+        
+    filters = sedpy.observate.load_filters(filternames)
+    filter_wav_um=(np.array([f.wave_effective for f in filters])*u.AA).to('um')
+    shapes = Flux.shape
+    NIRCam_image = np.zeros((shapes[1], shapes[2], len(filternames)))
+
+    for i in range(shapes[1]):
+        for j in range(shapes[2]):
+            NIRCam_image[i,j,:] = (sedpy.observate.getSED(obs_wave.to('AA').value, Flux[:,i,j],\
+									   linear_flux=True, filterlist=filters))*maggies_to_nJy
+
+    
+    NIRCam_image[NIRCam_image==3631] = np.nan
+    return NIRCam_image, filter_wav_um
+
+
+def twoD_Gaussian(dm, amplitude, xo, yo, sigma_x, sigma_y, theta, offset): 
+    """ 2D Gaussian array used to find center of emission 
+	
+	"""
+    x, y = dm
+    xo = float(xo)
+    yo = float(yo)    
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) 
+                            + c*((y-yo)**2)))
+    return g.ravel()
+
+def Image_center_fit(image, init_loc, plot_it = 0, mask=None):
+    import astropy.stats as stats
+    rms = stats.sigma_clipped_stats(image, sigma=3)[2]
+    shapes = image.shape
+
+    # Create the x inputs for the curve_fit
+    x = np.linspace(0, shapes[1]-1, shapes[1])
+    y = np.linspace(0, shapes[0]-1, shapes[0])
+    x, y = np.meshgrid(x, y)
+    if mask is not None:
+        image = np.ma.masked_array(image, mask=mask)
+
+    plt.figure()
+    plt.imshow(image, vmin=-rms, vmax=5*rms, cmap='gray')
+    import scipy.optimize as opt
+
+    print(image[50,50])
+
+    print(image[init_loc[0],init_loc[1]])
+    # Setting the
+    initial_guess = (image[init_loc[0],init_loc[1]],  init_loc[1],init_loc[0],1,1,0,0)
+
+    print ('Initial guesses', initial_guess)
+
+    
+    dm = (x,y)
+    popt, pcov = opt.curve_fit(twoD_Gaussian, dm, image.ravel(),  p0=initial_guess, bounds=([-np.inf, -np.inf, -np.inf, 0.1,0.1, -np.inf, -np.inf],[np.inf, np.inf, np.inf, 5,5, np.inf, np.inf]))
+    popt_l = popt.copy()
+    popt_l[0] = 1
+    er = np.sqrt(np.diag(pcov))
+    print(popt)
+
+    print ('Cont loc ', popt[1:3])
+    print ('Cont loc er', er[1:3])
+
+    if plot_it==1:
+        
+        plt.figure()
+        plt.imshow(image, vmin=-rms, vmax=5*rms, cmap='gray')
+
+        data_fit = twoD_Gaussian((x,y), *popt_l)
+
+        plt.contour(x, y, data_fit.reshape(shapes[0], shapes[1]), 8, colors='r')
+
+        plt.xlim(popt[1]-10,popt[1]+10)
+        plt.ylim(popt[2]-10,popt[2]+10)
+        
+        plt.plot(popt[1],popt[2], 'ro')
+
+def plot_filters(ax,norm=1):
+    # 090W, 115W,150W, 200W, 277W, 356W, 410M, 444W
+
+    lowl = ax.get_ylim()[0]
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F090W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='lightskyblue', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F115W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='blue', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F150W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='darkblue', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F200W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='lightgreen', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F277W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='orange', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F335M_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='peru', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F356W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='darkorange', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F410M_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='red', alpha=0.2)
+
+    Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F444W_mean_system_throughput.txt' , format='ascii')
+    ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='firebrick', alpha=0.2)
