@@ -2105,7 +2105,7 @@ class Cube:
 
                     if self.instrument=='NIRSPEC_IFU':
                         total_mask = np.logical_or(Spax_mask_pick, self.sky_clipped)
-                        flx_spax_t = np.ma.array(data=flux.data,mask=total_mask)
+                        flx_spax_t = np.ma.array(data=flux.data.copy(),mask=total_mask)
 
                         flx_spax = np.ma.median(flx_spax_t, axis=(1,2))
                         flx_spax_m = np.ma.array(data = flx_spax.data, mask=self.sky_clipped_1D)

@@ -1709,9 +1709,9 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             failed_fits+=1
             continue
 
-        Result_cube_data[use,i,j] = Fits.fluxs.data
+        Result_cube_data[use,i,j] = Fits.fluxs.data.copy()
         try:
-            Result_cube_error[use,i,j] = Fits.error.data
+            Result_cube_error[use,i,j] = Fits.error.data.copy()
         except:
             lds=0
         Result_cube[use,i,j] = Fits.yeval
