@@ -1035,7 +1035,7 @@ class Fitting:
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
 
         
-    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64, skip_check=False):
+    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64, skip_check=False, zscale=0.001):
         """ Fitting any general function that you pass. You need to put in fitted_model, labels and
         you can pass logprior function or number of walkers.  
 
@@ -1103,7 +1103,7 @@ class Fitting:
                             boundries are sensible')
                 
         pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(self.z,0.001, nwalkers)
+        pos[:,0] = np.random.normal(self.z,zscale, nwalkers)
 
         self.pos = pos
         self.pos_l = pos_l
@@ -1367,6 +1367,7 @@ class Fitting:
             
             pr_code[key[0]][1] = self.priors[key[1]][2]
             pr_code[key[0]][2] = self.priors[key[1]][3]
+
         return pr_code
     
     def prop_calc(self): 

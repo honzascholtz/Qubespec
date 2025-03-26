@@ -248,6 +248,7 @@ class Visualize:
         self.axspec.set_ylim(-0.1*max(yevalm), 1.1*max(yevalm))
         if self.z is not None:
             self.axspec.vlines(0.5008*(1+self.z),-0.1*max(yevalm), 1.1*max(yevalm), color='k', linestyle='dashed')
+            self.axspec.vlines(0.6563*(1+self.z),-0.1*max(yevalm), 1.1*max(yevalm), color='k', linestyle='dashed')
 
         if self.xlims is not None:
             self.axspec.set_xlim(self.xlims[0], self.xlims[1])
