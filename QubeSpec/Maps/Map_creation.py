@@ -1675,7 +1675,7 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                 info[key][param] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
 
         else:
-            map_flx = np.zeros((4,Cube.dim[0], Cube.dim[1]))
+            map_flx = np.zeros((5,Cube.dim[0], Cube.dim[1]))
             map_flx[:,:,:] = np.nan
                 
             info[key]['flux_map'] = map_flx
@@ -1737,12 +1737,15 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                                             fwhm_name = info[key]['fwhm'], lsf=lsf)
                     
                     info[key]['flux_map'][0,i,j] = SNR
-                    
-                    if SNR>SNR_cut:
-                        flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
+
+                    flux, p16,p84 = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
                                                             wv_cent = info[key]['wv'],\
                                                             peak_name = key+'_peak', \
                                                                 fwhm_name = info[key]['fwhm'], lsf=lsf)
+                    
+                    info[key]['flux_map'][4,i,j] = flux/p16
+                    
+                    if SNR>SNR_cut:
                         
                         info[key]['flux_map'][1,i,j] = flux
                         info[key]['flux_map'][2,i,j] = p16
