@@ -918,8 +918,8 @@ def Plot_results_Halpha_OIII(file, center=[27,27], fwhmrange = [100,500], velran
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-def colorbar(f, ax, im, label):
+def colorbar(f, ax, im, label, fontsize=12):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('right', size='5%', pad=0.0)
     f.colorbar(im, cax=cax, orientation='vertical') 
-    cax.set_ylabel(label)
+    cax.set_ylabel(label, fontsize=fontsize)
