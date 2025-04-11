@@ -1035,7 +1035,7 @@ class Fitting:
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
 
         
-    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64, skip_check=False, zscale=0.001):
+    def fitting_general(self, fitted_model, labels, logprior=None, nwalkers=64, skip_check=False, zscale=0.001, odd=False):
         """ Fitting any general function that you pass. You need to put in fitted_model, labels and
         you can pass logprior function or number of walkers.  
 
@@ -1081,6 +1081,12 @@ class Fitting:
         self.flux_fitloc = self.flux.copy()
         self.wave_fitloc = self.waves.copy()
         self.error_fitloc = self.errors.copy()
+
+        if odd==True:
+            if len(self.flux_fitloc) % 2 == 0:
+                self.flux_fitloc = self.flux_fitloc[:-1]
+                self.wave_fitloc = self.wave_fitloc[:-1]
+                self.error_fitloc = self.error_fitloc[:-1]
 
         self.pr_code = self.prior_create()
        
