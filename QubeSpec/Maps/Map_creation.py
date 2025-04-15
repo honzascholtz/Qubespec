@@ -109,16 +109,18 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
             flag= 'outflow'
         else:
             flag='single'
-            
-        Result_cube_data[:,i,j] = Fits.fluxs.data
+           
+        
         try:
+            Result_cube_data[:,i,j] = Fits.fluxs.data
             Result_cube_error[:,i,j] = Fits.error.data
+            Result_cube[:,i,j] = Fits.yeval
         except:
             lds=0
-        Result_cube[:,i,j] = Fits.yeval
+        
 
         z = Fits.props['popt'][0]
-        SNR = sp.SNR_calc(Fits.wave, Fits.fluxs, Fits.error, Fits.props, 'OIII')
+        SNR = sp.SNR_calc_obj(Fits, 'OIII')
         flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
 
         map_oiii[0,i,j]= SNR

@@ -156,6 +156,8 @@ class Cube:
                 self.header = filemarker[1].header # FITS header in HDU 1
                 flux_temp  = filemarker[1].data/norm
 
+                self.error_cube = filemarker[2].data/norm
+
                 filemarker.close()  # FITS HDU file marker closed
 
             elif self.instrument=='Sinfoni':
@@ -676,7 +678,7 @@ class Cube:
                 error[self.obs_wave>boundary] = error2
                 self.D1_spectrum_er = error
             else:
-                self.D1_spectrum_er = stats.sigma_clipped_stats(self.D1_spectra,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
+                self.D1_spectrum_er = stats.sigma_clipped_stats(self.D1_spectrum,sigma=3)[2]*np.ones(len(self.D1_spectrum)) #STD_calc(wave/(1+self.z)*1e4,self.D1_spectrum, self.band)* np.ones(len(self.D1_spectrum))
 
         if self.ID =='cdfs_220':
             self.D1_spectrum_er = 0.05*np.ones(len(self.D1_spectrum))
@@ -1826,12 +1828,8 @@ class Cube:
         import spectres as spres
         from . import jadify_temp as pth
         PATH_TO_jadify = pth.__path__[0]+ '/'
-        with fits.open(PATH_TO_jadify+ 'temp_prism_clear_v3.0_extr3_1D.fits', memmap=False) as hdulist:
-            wave_new = hdulist['wavelength'].data*1e6
-
-        flux_new, error_new = spres.spectres( wave_new , obs_wave,flux,errors,fill=np.nan, verbose=False)
     
-        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', wave_new, flux_new, err=error_new, mask=np.zeros_like(wave_new),
+        sp.jadify(self.savepath+'PRISM_1D/prism_clear/100000', 'prism_clear', obs_wave, flux, err=errors, mask=np.zeros_like(obs_wave),
                         overwrite=True, descr=None, author='jscholtz', verbose=False)
         import yaml
         from yaml.loader import SafeLoader
