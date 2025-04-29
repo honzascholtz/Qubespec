@@ -662,7 +662,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     return Flux
 
 import random
-def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0):
+def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0,std=0):
     """
     Calculates flux and 68% confidence iterval. 
 
@@ -722,7 +722,12 @@ def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fw
     p50,p16,p84 = np.percentile(Fluxes, (50,16,84))
     p16 = p50-p16
     p84 = p84-p50
-    return p50, p16, p84
+    if std==0:
+        return p50, p16, p84
+    else:
+        return p50, p16, p84, np.std(Fluxes)
+
+
 
 def EW_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0, wv_cont=5008):
     """
