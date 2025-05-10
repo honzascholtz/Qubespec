@@ -444,7 +444,7 @@ class Fitting:
     # Primary function to fit [OIII] with and without outflows. 
     # =============================================================================
     
-    def fitting_OIII(self, model, Fe_template=0, plot=0):
+    def fitting_OIII(self, model, Fe_template=0, plot=0, expand_prism=0):
         """ Method to fit [OIII] + Hbeta
         
         Parameters
@@ -484,6 +484,9 @@ class Fitting:
         self.wave = self.wave[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
+        if expand_prism==1:
+            self.fit_loc = np.where((self.wave>4600*(1+self.z)/1e4)&(self.wave<5600*(1+self.z)/1e4))[0]
+
         sel=  np.where((self.wave<5025*(1+self.z)/1e4)& (self.wave>4980*(1+self.z)/1e4))[0]
         self.flux_zoom = self.flux[sel]
         self.wave_zoom = self.wave[sel]
@@ -683,6 +686,14 @@ class Fitting:
             self.props = self.prop_calc()
         elif self.sampler=='leastsq':
             from scipy.optimize import curve_fit
+
+            use = pos_l < self.bounds_est()[0]
+            if True in use:
+                raise ValueError(f'Initial guess is outside of the lower bounds {print(self.labels[use])}')
+            use = pos_l > self.bounds_est()[1]
+            if True in use:
+                raise ValueError(f'Initial guess is outside of the higher bounds in {print(self.labels[use])}')
+            
             popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
             errs = np.sqrt(np.diag(pcov))
 
@@ -698,8 +709,10 @@ class Fitting:
         
         if self.template:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'], self.template)
+            self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'], self.template)
         else:
             self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+            self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
         self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         

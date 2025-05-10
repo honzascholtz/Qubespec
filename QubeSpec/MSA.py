@@ -309,10 +309,6 @@ class R100:
         self.O3_band = self.band
         self.custom_band = self.band
         
-        # Set boundries of the R1000 boundries 
-        B1M = [0.7, 1.88936]
-        B2M = [1.66, 3.16934]
-        B3M = [2.87, 5.26872]
         
         # Caluclating the redshifted wavelength of Halpha and OIII
         self.Hal_wv = 0.6563*(1+self.z)
