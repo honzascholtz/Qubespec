@@ -283,17 +283,10 @@ class R1000:
         for key in self.Fitting.labels:
             self.Fitting.chains[key] = np.random.choice(self.Fitting.chains[key], N, replace=False)
         self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
-        
-
-        
-    
-
-        
-        
-            
+                   
 
 class R100:  
-    def __init__(self, path, z, ID, wave_custom=0 ,version ='3.0', add='_extr3'):
+    def __init__(self, path='', z=0, ID='', version ='4.0', add='', full_path=None):
         # Store basic stuff
         self.z = z
         self.ID = ID
@@ -304,22 +297,22 @@ class R100:
         self.version = version
 
         self.version = version
-        self.add = add
-        self.Hal_band = self.band
-        self.O3_band = self.band
-        self.custom_band = self.band
-        
-        
-        # Caluclating the redshifted wavelength of Halpha and OIII
-        self.Hal_wv = 0.6563*(1+self.z)
-        self.O3_wv = 0.5008*(1+self.z)
-        self.wave_custom = wave_custom
-        self.wave_custom_obs = self.wave_custom*(1+self.z)/1e4
-        
-        
+        self.add = add 
+        self.Full_path = full_path
+
+        if self.Full_path == None:
+            self.Full_path = self.path +'prism_clear/'+ self.ID + '_prism_clear' +self.version+self.add+'_1D.fits'
+
+        with pyfits.open(self.Full_path, memmap=False) as hdulist:
+            flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
+            self.error =  hdulist['ERR'].data*1e-7*1e4*1e15
+            self.flux = np.ma.masked_invalid(flux_orig.copy())
+            self.obs_wave = hdulist['wavelength'].data*1e6
+            
+         
     def load_data(self):
-        
-        self.Full_path = self.path +self.band +'/'+ self.ID + '_' + self.band +self.version+self.add+'_1D.fits'
+        if self.Full_path == None:
+            self.Full_path = self.path +'prism_clear/'+ self.ID + '_prism_clear' +self.version+self.add+'_1D.fits'
 
         with pyfits.open(self.Full_path, memmap=False) as hdulist:
             flux_orig = hdulist['DATA'].data*1e-7*1e4*1e15
@@ -330,9 +323,7 @@ class R100:
             plt.figure()
             plt.plot(self.obs_wave, self.flux, drawstyle='steps-mid')
         
-        
-                
-                
+                  
                 
     def Fitting_Halpha(self, N=10000, progress=True,priors= {'z':[0, 'normal', 0,0.003],\
                                                    'cont':[0,'loguniform',-5,1],\
@@ -342,27 +333,22 @@ class R100:
                                                    'SIIr_peak':[0,'loguniform',-3,1],\
                                                    'SIIb_peak':[0,'loguniform',-3,1],\
                                                    'NII_peak':[0,'loguniform',-3,1]}):
-        if self.Hal_band != None:  
-            z_std = 200/3e5*(1+self.z)
-            zlim = 600/3e5*(1+self.z)
-            priors['z'] = [self.z, 'normal_hat', self.z, z_std, self.z-zlim, self.z+zlim]
-            
-            
-            self.Hal_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
-            self.Hal_fits.fitting_Halpha(model='gal')
-            
-            f,ax = plt.subplots(1)
-            emplot.plotting_Halpha(self.obs_wave, self.flux, ax, self.Hal_fits.props, self.Hal_fits.fitted_model)
-            
-            
-            
-            self.Halpha_flux = sp.flux_calc_mcmc(self.Hal_fits.props, self.Hal_fits.chains, 'Han', norm=1e-15)
-            self.N2_flux = sp.flux_calc_mcmc(self.Hal_fits.props, self.Hal_fits.chains, 'NIIt', norm=1e-15)
+         
+        z_std = 200/3e5*(1+self.z)
+        zlim = 600/3e5*(1+self.z)
+        priors['z'] = [self.z, 'normal_hat', self.z, z_std, self.z-zlim, self.z+zlim]
         
-        else:
-            self.Hal_fits = None
-            self.Halpha_flux = [0,0,0]
-            self.N2_flux = [0,0,0]
+        
+        self.Hal_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
+        self.Hal_fits.fitting_Halpha(model='gal')
+        
+        f,ax = plt.subplots(1)
+        emplot.plotting_Halpha(self.obs_wave, self.flux, ax, self.Hal_fits.props, self.Hal_fits.fitted_model)
+        
+        
+        
+        self.Halpha_flux = sp.flux_calc_mcmc(self.Hal_fits.props, self.Hal_fits.chains, 'Han', norm=1e-15)
+        self.N2_flux = sp.flux_calc_mcmc(self.Hal_fits.props, self.Hal_fits.chains, 'NIIt', norm=1e-15)
         
     def Fitting_O3(self, N=10000, progress=True, priors= {'z':[0, 'normal', 0,0.003],\
                                                           'cont':[0,'loguniform',-3,1],\
@@ -376,26 +362,65 @@ class R100:
                                                           'Hbeta_fwhm':[200,'uniform',120,900],\
                                                           'Hbeta_vel':[10,'normal', 0,10]}):
         
-        if self.O3_band != None:  
-            priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
-            self.O3_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
-            
-            self.O3_fits.fitting_OIII(model='gal')
-            
-            f,ax = plt.subplots(1)
-            #ax.plot(self.O3_obs_wave, self.O3_flux)
-            #ax.plot(self.O3_obs_wave, O3_fits.fitted_model(self.O3_obs_wave, *O3_fits.props['popt']), 'r--')
-            emplot.plotting_OIII(self.obs_wave, self.flux, ax, self.O3_fits.props, self.O3_fits.fitted_model)
-            
-            self.O3_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'OIIIt', norm=1e-15)
-            self.Hbeta_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'Hbeta', norm=1e-15)
-        else:
-            self.O3_fits = None
-            self.O3_flux = [0,0,0]
-            self.O3_flux = [0,0,0]
         
+        priors['z'] = [self.z, 'uniform', self.z-0.01, self.z+0.01]
+        self.O3_fits = emfit.Fitting(self.obs_wave, self.flux, self.error, self.z, N=N, progress=progress, priors=priors)
         
+        self.O3_fits.fitting_OIII(model='gal')
+        
+        f,ax = plt.subplots(1)
+        #ax.plot(self.O3_obs_wave, self.O3_flux)
+        #ax.plot(self.O3_obs_wave, O3_fits.fitted_model(self.O3_obs_wave, *O3_fits.props['popt']), 'r--')
+        emplot.plotting_OIII(self.obs_wave, self.flux, ax, self.O3_fits.props, self.O3_fits.fitted_model)
+        
+        self.O3_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'OIIIt', norm=1e-15)
+        self.Hbeta_flux = sp.flux_calc_mcmc(self.O3_fits.props, self.O3_fits.chains, 'Hbeta', norm=1e-15)
+
+    def cal_1500_mag(self, z, lmin=1475, lmax=1525):
+        """
+        Input: MPDAF Spectrum object, redshift
+        Output: UV mag, upper bound, lower bound, F(1500), Error F(1500)
+
+        Calculate the 1500 magnitude.
+        Reference here: https://astronomy.stackexchange.com/questions/35396/how-to-convert-luminosity-at-rest-frame-wavelength-of-1450-a-to-absolute-magnitu
+        """
+        from astropy.stats import sigma_clipped_stats
+        import astropy.units as u
+        from astropy.cosmology import Planck18 as cosmo 
+
+        self.rest_wave = self.obs_wave/(1+z)*1e4
+        self.rest_flux = self.flux*1e-15/1e4*(1+z)
+        use =(self.rest_wave>lmin) & (self.rest_wave<lmax)
+
+        ### start by calculating the flux at 1500A rest-frame
+        f1500, median, std = sigma_clipped_stats( self.rest_flux[use], sigma=3)
+        err_f1500 = np.std(self.rest_flux[use])
+
+        f1500 = f1500 * u.erg/u.s/u.cm**2/u.AA
+        err_f1500 = err_f1500 * u.erg/u.s/u.cm**2/u.AA
+        lumdist = cosmo.luminosity_distance(z).to(u.parsec)
+        
+        ### flux_density at a distance of 10 parsec (definition of UV mag)
+        fnu_1500 = (f1500 * (lumdist/(10.*u.parsec))**2).to(u.erg/u.s/u.cm**2/u.Hertz, 
+                                                            equivalencies=u.spectral_density(1500*u.AA))
+        fnu_1500_u = ((f1500 + err_f1500) * (lumdist/(10.*u.parsec))**2).to(u.erg/u.s/u.cm**2/u.Hertz, 
+                                                                            equivalencies=u.spectral_density(1500*u.AA))
+        fnu_1500_l = ((f1500 - err_f1500) * (lumdist/(10.*u.parsec))**2).to(u.erg/u.s/u.cm**2/u.Hertz, 
+                                                                            equivalencies=u.spectral_density(1500*u.AA))
+        
+        ### UV absolute mag calculation
+        mab_1500 = (-2.5 * np.log10(fnu_1500.value)) - 48.60
+        mab_1500_u = abs((-2.5 * np.log10(fnu_1500_u.value) - 48.60) - mab_1500)
+        mab_1500_l = abs((-2.5 * np.log10(fnu_1500_l.value) - 48.60) - mab_1500)
+
+        ### UV observed mag calculation
+        mab_1500_obs = mab_1500 + 5 * np.log10(lumdist/(10.*u.parsec))
+        mab_1500_obs_u = mab_1500_u + 5 *np.log10 (lumdist/(10.*u.parsec))
+        mab_1500_obs_l = mab_1500 + 5 * np.log10(lumdist/(10.*u.parsec))
+
+        ### return the results
+        return(mab_1500, mab_1500_u, mab_1500_l, f1500, err_f1500, mab_1500_obs, mab_1500_obs_u, mab_1500_obs_l)
     
        
-        
+      
    

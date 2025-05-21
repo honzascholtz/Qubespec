@@ -1397,3 +1397,19 @@ def plot_filters(ax,norm=1):
 
     Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F444W_mean_system_throughput.txt' , format='ascii')
     ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='firebrick', alpha=0.2)
+
+
+def cal_sfr_kennicutt(ha_flux, err_ha_flux, redshift):
+    """
+    Use the Kennicutt+94 SFR relation, that relies on a standard Salpeter IMF
+    return sfr and err_sfr
+    """
+    from astropy.cosmology import Planck18 as cosmo 
+
+    conversion_factor = 1.26e41 # solar mass/yr.erg/s
+    ha_lum = ha_flux * (4*np.pi*(cosmo.luminosity_distance(redshift).to(u.cm))**2).value
+
+    sfr = ha_lum/conversion_factor
+    err_sfr = sfr * (err_ha_flux/ha_flux)
+
+    return(sfr, err_sfr)   
