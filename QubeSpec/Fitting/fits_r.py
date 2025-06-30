@@ -491,9 +491,13 @@ class Fitting:
         self.flux_zoom = self.flux[sel]
         self.wave_zoom = self.wave[sel]
         
-        peak_loc = np.argmax(self.flux_zoom)
-        peak = abs((np.max(self.flux_zoom)))
-        
+        try:
+            peak_loc = np.argmax(self.flux_zoom)
+            peak = abs((np.max(self.flux_zoom)))
+        except:
+            peak_loc = np.argmax(self.flux[self.fit_loc])
+            peak = abs((np.max(self.flux[self.fit_loc])))
+
         selb =  np.where((self.wave<4880*(1+self.z)/1e4)& (self.wave>4820*(1+self.z)/1e4))[0]
         self.flux_zoomb = self.flux[selb]
         self.wave_zoomb = self.wave[selb]

@@ -132,28 +132,31 @@ class R1000:
         
         
     def load_data(self):
-        
-        if self.Hal_band != None:  
-            Full_path = self.path + self.Hal_band +'/'+ self.ID + '_' + self.Hal_band+self.version +self.add+'_1D.fits'
-            with pyfits.open(Full_path, memmap=False) as hdulist:
-                flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
-                self.Hal_error =  hdulist['ERR'].data*1e-7*1e4*1e15
-                self.Hal_flux = np.ma.masked_invalid(flux_orig.copy())
-                self.Hal_obs_wave = hdulist['wavelength'].data*1e6
-                
-                #plt.figure()
-                #plt.plot(self.Hal_obs_wave, self.Hal_flux, drawstyle='steps-mid')
-        
-        if self.O3_band != None:  
-            Full_path = self.path + self.O3_band +'/'+ self.ID + '_' + self.O3_band +self.version+self.add+'_1D.fits'
-            with pyfits.open(Full_path, memmap=False) as hdulist:
-                flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
-                self.O3_error =  hdulist['ERR'].data*1e-7*1e4*1e15
-                self.O3_flux = np.ma.masked_invalid(flux_orig.copy())
-                self.O3_obs_wave = hdulist['wavelength'].data*1e6
-                #plt.figure()
-                #plt.plot(self.O3_obs_wave, self.O3_flux, drawstyle='steps-mid')
-    
+        try:
+            if self.Hal_band != None:  
+                Full_path = self.path + self.Hal_band +'/'+ self.ID + '_' + self.Hal_band+self.version +self.add+'_1D.fits'
+                with pyfits.open(Full_path, memmap=False) as hdulist:
+                    flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
+                    self.Hal_error =  hdulist['ERR'].data*1e-7*1e4*1e15
+                    self.Hal_flux = np.ma.masked_invalid(flux_orig.copy())
+                    self.Hal_obs_wave = hdulist['wavelength'].data*1e6
+                    
+                    #plt.figure()
+                    #plt.plot(self.Hal_obs_wave, self.Hal_flux, drawstyle='steps-mid')
+        except:
+            ls =  0 
+        try: 
+            if self.O3_band != None:  
+                Full_path = self.path + self.O3_band +'/'+ self.ID + '_' + self.O3_band +self.version+self.add+'_1D.fits'
+                with pyfits.open(Full_path, memmap=False) as hdulist:
+                    flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
+                    self.O3_error =  hdulist['ERR'].data*1e-7*1e4*1e15
+                    self.O3_flux = np.ma.masked_invalid(flux_orig.copy())
+                    self.O3_obs_wave = hdulist['wavelength'].data*1e6
+                    #plt.figure()
+                    #plt.plot(self.O3_obs_wave, self.O3_flux, drawstyle='steps-mid')
+        except:
+            ls = 0
         if self.band_custom:  
             try:
                 Full_path = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
