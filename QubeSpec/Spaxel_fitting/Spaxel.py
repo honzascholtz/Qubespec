@@ -702,7 +702,7 @@ class general:
     def __init__(self):
         self.status = 'ok'
 
-    def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior,sampler='emcee', nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
+    def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior,sampler='emcee', nwalkers=64,use=np.array([]), N=10000, add='',add_save='',Ncores=(mp.cpu_count() - 2), **kwargs):
         """ Function to use to fit Spaxels. 
 
         Parameters
@@ -769,13 +769,13 @@ class general:
                         self.fit_spaxel, Unwrapped_cube),
                     total=len(Unwrapped_cube)))
                 
-        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+add_save+'.txt', "wb") as fp:
             pickle.dump( cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
 
-    def Spaxel_topup(self, Cube, to_fit ,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',Ncores=(mp.cpu_count() - 2), **kwargs):
+    def Spaxel_topup(self, Cube, to_fit ,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',add_save='',Ncores=(mp.cpu_count() - 2), **kwargs):
         import pickle
         start_time = time.time()
         with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
@@ -810,7 +810,7 @@ class general:
 
                 ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
                 
-        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+add_save+'.txt', "wb") as fp:
             pickle.dump( Cube_res,fp)  
         
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))

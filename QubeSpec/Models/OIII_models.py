@@ -79,44 +79,48 @@ def OIII_outflow_BLR(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OI
     return y
 
 
+class OIII_fe_models:
+    def __init__(self, template):
+        self.template = template
 
-def OIII_gal_BLR_Fe(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak,\
-                  zBLR, Hbeta_blr_peak, BLR_fwhm,\
-                     FeII_peak, FeII_fwhm, template):
-    y = OIII_gal(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak)
+    def OIII_gal_BLR_Fe(self, x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak,\
+                    zBLR, Hbeta_blr_peak, BLR_fwhm,\
+                        FeII_peak, FeII_fwhm):
+        
+        y = OIII_gal(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak)
 
-    Hbeta_blr = 4862.6*(1+zBLR)/1e4
-    y += gauss(x, Hbeta_blr_peak, Hbeta_blr, BLR_fwhm )
+        Hbeta_blr = 4862.6*(1+zBLR)/1e4
+        y += gauss(x, Hbeta_blr_peak, Hbeta_blr, BLR_fwhm )
 
-    if template=='BG92':
-        FeII_fce = Fem.FeII_BG92
-    if template=='Tsuzuki':
-        FeII_fce = Fem.FeII_Tsuzuki
-    if template=='Veron':
-        FeII_fce = Fem.FeII_Veron
+        if self.template=='BG92':
+            FeII_fce = Fem.FeII_BG92
+        if self.template=='Tsuzuki':
+            FeII_fce = Fem.FeII_Tsuzuki
+        if self.template=='Veron':
+            FeII_fce = Fem.FeII_Veron
 
-    y += FeII_peak*FeII_fce(x, z, FeII_fwhm)
+        y += FeII_peak*FeII_fce(x, z, FeII_fwhm)
 
-    return y
+        return y
 
-def OIII_outflow_BLR_Fe(x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_out_peak,\
-                      zBLR, Hbeta_blr_peak, BLR_fwhm,\
-                         FeII_peak, FeII_fwhm, template):
+    def OIII_outflow_BLR_Fe(self, x, z, cont,cont_grad, OIIIn_peak, OIIIw_peak, OIII_fwhm, OIII_out, out_vel, Hbeta_peak, Hbeta_out_peak,\
+                        zBLR, Hbeta_blr_peak, BLR_fwhm,\
+                            FeII_peak, FeII_fwhm):
 
-    y = OIII_gal(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak)
-    z_out = z+ out_vel/3e5*(1+z)
-    y += OIII_gal(x, z_out, 0, 0, OIIIw_peak,  OIII_out, Hbeta_out_peak)
-    
-    Hbeta_blr = 4862.6*(1+zBLR)/1e4
-    y += gauss(x, Hbeta_blr_peak, Hbeta_blr, BLR_fwhm )
+        y = OIII_gal(x, z, cont, cont_grad, OIIIn_peak,  OIII_fwhm, Hbeta_peak)
+        z_out = z+ out_vel/3e5*(1+z)
+        y += OIII_gal(x, z_out, 0, 0, OIIIw_peak,  OIII_out, Hbeta_out_peak)
+        
+        Hbeta_blr = 4862.6*(1+zBLR)/1e4
+        y += gauss(x, Hbeta_blr_peak, Hbeta_blr, BLR_fwhm )
 
-    if template=='BG92':
-        FeII_fce = Fem.FeII_BG92
-    if template=='Tsuzuki':
-        FeII_fce = Fem.FeII_Tsuzuki
-    if template=='Veron':
-        FeII_fce = Fem.FeII_Veron
+        if self.template=='BG92':
+            FeII_fce = Fem.FeII_BG92
+        if self.template=='Tsuzuki':
+            FeII_fce = Fem.FeII_Tsuzuki
+        if self.template=='Veron':
+            FeII_fce = Fem.FeII_Veron
 
-    y += FeII_peak*FeII_fce(x, z, FeII_fwhm)
+        y += FeII_peak*FeII_fce(x, z, FeII_fwhm)
 
-    return y
+        return y

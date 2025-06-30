@@ -279,6 +279,123 @@ def SNR_calc(wave,flux, error, dictsol, mode, wv_cent=5008, peak_name='', fwhm_n
     
     return SNR  
 
+def SNR_calc_obj(obj_fit, mode, wv_cent=5008, peak_name='', fwhm_name='', lsf=0):
+    """ Calculates the SNR of a line
+    wave - observed wavelength
+    flux - flux of the spectrum
+    error - error on the spectrum
+    dictsol - spectral fitting results in dictionary form 
+    mode - which emission line do you want to caluclate the SNR for: OIII, Hn, Hblr, NII,
+           Hb, SII
+	
+	"""
+    dictsol = obj_fit.props
+    wave = obj_fit.wave_fitloc
+    flux = obj_fit.flux_fitloc
+    error = obj_fit.error_fitloc
+
+    keys = list(dictsol.keys())
+
+    sol = dictsol['popt']
+    
+    
+    if mode=='general':
+        center = wv_cent*(1+dictsol['z'][0])/1e4
+        fwhm = (dictsol[fwhm_name][0]**2 + lsf**2)**0.5
+        contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
+        model = gauss(wave, dictsol[peak_name][0],center, fwhm)
+    elif mode =='OIII':
+        center = OIIIr*(1+sol[0])/1e4
+        if 'outflow_fwhm' in keys:
+            fwhms = sol[5]/3e5*center
+            fwhm = dictsol['outflow_fwhm'][0]
+            
+            center = OIIIr*(1+sol[0])/1e4
+            centerw = OIIIr*(1+sol[0])/1e4 + sol[7]/3e5*center
+            
+            contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
+            model = flux-contfce 
+        elif 'Nar_fwhm' in keys:
+            fwhm = dictsol['Nar_fwhm'][0]
+            
+            center = OIIIr*(1+sol[0])/1e4
+            
+            contfce = PowerLaw1D.evaluate(wave, sol[1],center, alpha=sol[2])
+            model = flux-contfce 
+        else:   
+            fwhm = sol[4]/3e5*center
+            model = flux- PowerLaw1D.evaluate(wave,sol[1],center, alpha=sol[2])        
+            
+    elif mode =='Hn':
+        center = Hal*(1+sol[0])/1e4
+
+        fwhm = dictsol['Nar_fwhm'][0]
+        model = gauss(wave, dictsol['Hal_peak'][0], center, fwhm)
+    
+    elif mode =='Hblr':
+        center = Hal*(1+sol[0])/1e4
+        
+        fwhm = sol[7]/3e5*center
+        model = gauss(wave, sol[4], center, fwhm/2.35)
+            
+    elif mode =='NII':
+        center = NII_r*(1+sol[0])/1e4
+        fwhm = dictsol['Nar_fwhm'][0]
+        model = gauss(wave, dictsol['NII_peak'][0], center, fwhm)
+    
+    elif mode =='Hb':
+        center = Hbe*(1+sol[0])/1e4
+        if 'Hbetan_fwhm' in keys:
+            fwhm = dictsol['Hbetan_fwhm'][0]
+            model = gauss(wave, dictsol['Hbetan_peak'][0], center, fwhm)
+        elif 'Nar_fwhm' in keys:
+            fwhm = dictsol['Nar_fwhm'][0]
+            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm)
+        else:
+            fwhm = dictsol['Hbeta_fwhm'][0]
+            model = gauss(wave, dictsol['Hbeta_peak'][0], center, fwhm)
+    
+    elif mode =='SII':
+        center = SII_r*(1+sol[0])/1e4
+        
+        fwhm = dictsol['Nar_fwhm'][0]
+        try:
+            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm) 
+            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm) 
+        except:
+            model_r = gauss(wave, dictsol['SIIr_peak'][0], center, fwhm) 
+            model_b = gauss(wave, dictsol['SIIb_peak'][0], center, fwhm) 
+        
+        model = model_r + model_b
+        
+        center = 6724*(1+sol[0])/1e4
+        fwhm = fwhm/3e5*center
+        use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0]   
+        flux_l = model[use]
+        std = error[use]
+        
+        n = len(use)
+        SNR = np.nansum(flux_l)/np.sqrt(np.nansum(std**2))
+        
+        if SNR < 0:
+            SNR=0
+        
+        return SNR
+    
+    else:
+        raise Exception('Sorry mode in SNR_calc not understood')
+    fwhm = fwhm/3e5*center
+    use = np.where((wave< center+fwhm*1)&(wave> center-fwhm*1))[0] 
+    flux_l = model[use]
+    std = error[use]
+    
+    n = len(use)
+    SNR =np.nansum(flux_l)/np.sqrt(np.nansum(std**2))
+    if SNR < 0:
+        SNR=0
+    
+    return SNR  
+
 def BIC_calc(wave,fluxm,error, model, results, mode, template=0):
     """ calculates BIC
 	
@@ -545,7 +662,7 @@ def flux_calc(res, mode, norm=1e-13, wv_cent=5008, peak_name='', fwhm_name='', r
     return Flux
 
 import random
-def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0):
+def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0,std=0):
     """
     Calculates flux and 68% confidence iterval. 
 
@@ -605,7 +722,12 @@ def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fw
     p50,p16,p84 = np.percentile(Fluxes, (50,16,84))
     p16 = p50-p16
     p84 = p84-p50
-    return p50, p16, p84
+    if std==0:
+        return p50, p16, p84
+    else:
+        return p50, p16, p84, np.std(Fluxes)
+
+
 
 def EW_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fwhm_name='', ratio_name='', lsf=0, wv_cont=5008):
     """
@@ -1275,3 +1397,19 @@ def plot_filters(ax,norm=1):
 
     Filt = Table.read( '/Users/jansen/JADES/NIRCam_trans/F444W_mean_system_throughput.txt' , format='ascii')
     ax.fill_between(Filt['Microns'],y2=lowl, y1= Filt['Throughput']/max(Filt['Throughput'])*norm+lowl, color='firebrick', alpha=0.2)
+
+
+def cal_sfr_kennicutt(ha_flux, err_ha_flux, redshift):
+    """
+    Use the Kennicutt+94 SFR relation, that relies on a standard Salpeter IMF
+    return sfr and err_sfr
+    """
+    from astropy.cosmology import Planck18 as cosmo 
+
+    conversion_factor = 1.26e41 # solar mass/yr.erg/s
+    ha_lum = ha_flux * (4*np.pi*(cosmo.luminosity_distance(redshift).to(u.cm))**2).value
+
+    sfr = ha_lum/conversion_factor
+    err_sfr = sfr * (err_ha_flux/ha_flux)
+
+    return(sfr, err_sfr)   

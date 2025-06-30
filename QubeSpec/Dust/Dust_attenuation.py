@@ -82,6 +82,7 @@ class Dust_cor:
         Av=[]
         f=[]
 
+        
         for i in range(F.shape[0]):
             try:
                 Av1= -2.5 * np.log10((fb1[i]/fb2[i])/Balmer_rat) * K/(Kb1- Kb2)
@@ -215,3 +216,6 @@ class Dust_cor:
         b = -1.475 + 1.132*xc + 1.463*D + 0.294*F
         return 1 + b/R_v
 
+#cls = Dust_cor()
+#res = cls.flux_cor(np.array([1]), 5008., np.array([5e-18]), np.array([5e-18*0.43]), R_v = 3.1, curve='calzetti2000', fb_names='Hbeta_Hgamma')
+#print(res)
