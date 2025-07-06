@@ -69,9 +69,9 @@ class R1000:
         self.version = version
 
         # Set boundries of the R1000 boundries 
-        B1M = [0.7, 1.88936]
-        B2M = [1.66, 3.16934]
-        B3M = [2.87, 5.26872]
+        B1M = [0.7, 2.2]
+        B2M = [1.66, 4.0]
+        B3M = [2.87, 5.5]
         
         # Caluclating the redshifted wavelength of Halpha and OIII
         self.Hal_wv = 0.6563*(1+self.z)
