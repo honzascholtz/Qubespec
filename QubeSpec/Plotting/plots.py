@@ -217,11 +217,11 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
 
     ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]), \
             color='orange', linestyle='dashed')
-
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]), \
-            color='darkgreen', linestyle='dashed')
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]), \
-            color='darkgreen', linestyle='dashed')
+    if 'NII_peak' in list(sol.keys()):
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]), \
+                color='darkgreen', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]), \
+                color='darkgreen', linestyle='dashed')
 
     if 'SIIr_peak' in keys:
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]), \
@@ -328,10 +328,11 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
     ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]), \
             color='orange', linestyle='dashed')
 
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]), \
-            color='darkgreen', linestyle='dashed')
-    ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]), \
-            color='darkgreen', linestyle='dashed')
+    if 'NII_peak' in list(sol.keys()):
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0], NII_r, sol['Nar_fwhm'][0]), \
+                color='darkgreen', linestyle='dashed')
+        ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['NII_peak'][0]/3, NII_b, sol['Nar_fwhm'][0]), \
+                color='darkgreen', linestyle='dashed')
 
     if 'SIIr_peak' in list(sol.keys()):
         ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['SIIr_peak'][0], SII_r, sol['Nar_fwhm'][0]), \
