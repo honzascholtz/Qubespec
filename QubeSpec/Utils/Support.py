@@ -698,22 +698,22 @@ def flux_calc_mcmc(fit_obj, mode, norm=1, N=2000, wv_cent=5008, peak_name='', fw
 
     array of median value and +- 1sigma
     """
-    chains = fit_obj.chains
+    chainss = fit_obj.chains
     res = fit_obj.props
-    labels = list(chains.keys())
+    labels = list(chainss.keys())
 
     popt = np.zeros_like(res['popt'])
     Fluxes = []
     res_new = {'name': res['name']}
     
-    Nchain = len(chains['z'])
+    Nchain = len(chainss['z'])
     itere = np.arange(Nchain/2,Nchain,1, dtype=int)
         
     for j in itere:
         #sel = random.randint(Nchain/2,N-1)
         for i in range(len(popt)): 
             
-            popt[i] = chains[labels[i+1]][j]
+            popt[i] = chainss[labels[i+1]][j]
             res_new[labels[i+1]] = [popt[i], 0,0 ]
         
         res_new['popt'] = popt
