@@ -41,7 +41,7 @@ error = np.full_like(wave, 0.003)
 # Test nested sampling
 from QubeSpec.Fitting_JAX.nested_sampling import JAXNestedSampler, create_default_priors
 
-print("Testing corrected nested sampling...")
+print("=== JAX Parameter Recovery Test ===")
 rng_key = random.PRNGKey(42)
 sampler = JAXNestedSampler(rng_key, num_live=50, num_delete=10)
 
