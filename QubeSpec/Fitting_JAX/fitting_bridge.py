@@ -94,6 +94,17 @@ class FittingJAX:
         self.model = None
         self.nested_results = None
         
+    def set_model(self, model_name: str) -> None:
+        """Set the model to be fitted."""
+        self.model = model_name
+        
+    def set_priors(self, priors: Union[str, Dict]) -> None:
+        """Set the priors for fitting."""
+        if priors == 'default':
+            self.priors, self.labels = create_default_priors(self.model, self.z)
+        else:
+            self.priors = priors
+        
     def fitting_collapse_Halpha_OIII(self, models: str = 'Single_only', plot: int = 0) -> None:
         """
         Fit Halpha + [OIII] model to collapsed spectrum.
