@@ -40,10 +40,32 @@ paths['medium_jwst_gs'] = ['/Users/jansen/JADES/GOODS-S/NIRSpec/medium_jwst_gs/'
 
 
 
-def load_data(path):
+def load_data_old(path):
     with pyfits.open(path, memmap=False) as hdulist:
         flux_orig = hdulist['DATA'].data*1e-7*1e4
         error =  hdulist['ERR'].data*1e-7*1e4
+        flux = np.ma.masked_invalid(flux_orig.copy())
+        obs_wave = hdulist['wavelength'].data*1e6
+    return obs_wave, flux, error
+
+def load_data(path, extr='5pix', dirty=False):
+    if extr == '5pix':
+        _data_name = 'DATA'
+        _err_name = 'ERR'
+        _dirty_name = 'DIRTY'
+    elif extr == '3pix':
+        _data_name = 'EXTR3'
+        _err_name = 'EXTR3ERR'
+        _dirty_name = 'EXTR3DIRTY'
+    else:
+        raise ValueError("extr must be '5pix' or '3pix'")
+
+    if dirty==True:
+        _data_name = _dirty_name
+    
+    with pyfits.open(path, memmap=False) as hdulist:
+        flux_orig = hdulist[_data_name].data*1e-7*1e4
+        error =  hdulist[_err_name].data*1e-7*1e4
         flux = np.ma.masked_invalid(flux_orig.copy())
         obs_wave = hdulist['wavelength'].data*1e6
     return obs_wave, flux, error
@@ -127,10 +149,7 @@ class R1000:
         else:
             self.band_custom= None
             
-            
-            
-        
-        
+               
     def load_data(self):
         try:
             if self.Hal_band != None:  
@@ -158,13 +177,20 @@ class R1000:
         except:
             ls = 0
         if self.band_custom:  
-            try:
-                Full_path = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
-                with pyfits.open(Full_path, memmap=False) as hdulist:
-                    flux_orig = hdulist[self.data_hdu].data*1e-7*1e4*1e15
-                    self.custom_error =  hdulist['ERR'].data*1e-7*1e4*1e15
-                    self.custom_flux = np.ma.masked_invalid(flux_orig.copy())
-                    self.custom_obs_wave = hdulist['wavelength'].data*1e6
+            if 1==1:
+                Full_path = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+'_1D.fits'
+
+                if 'extr3' in self.add:
+                    ext = '3pix'
+                else:
+                    ext = '5pix'
+                if self.data_hdu == 'DATA':
+                    dirty = False
+                else:
+                    dirty = True
+
+                self.custom_obs_wave, self.custom_flux, self.custom_error = load_data(Full_path, extr=ext, dirty=dirty)
+            '''
             except:
                 Full_path = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
                 with pyfits.open(Full_path, memmap=False) as hdulist:
@@ -172,19 +198,8 @@ class R1000:
                     self.custom_error =  hdulist['ERR'].data*1e-7*1e4*1e15
                     self.custom_flux = np.ma.masked_invalid(flux_orig.copy())
                     self.custom_obs_wave = hdulist['wavelength'].data*1e6
+            '''
                 
-                
-                '''
-                f,ax = plt.subplots()
-                ax.plot(self.custom_obs_wave, self.custom_flux, drawstyle='steps-mid')
-                ax.vlines(self.wave_custom_obs, 0,1, color='red')
-                
-                yer = np.ma.median( np.ma.masked_invalid( self.custom_error))
-                
-                ax.set_ylim(-yer, 5*yer)
-                
-                ax.set_title(self.ID)
-                '''
                 
     def Fitting_Halpha(self, N=10000, progress=True,sampler='emcee',priors= {'z':[0, 'normal', 0,0.003],\
                                                    'cont':[0,'loguniform',-5,1.7],\
