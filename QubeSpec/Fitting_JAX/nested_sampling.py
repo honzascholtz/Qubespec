@@ -16,6 +16,7 @@ from jax.typing import ArrayLike
 import numpy as np
 from anesthetic import NestedSamples
 import time
+import tqdm
 
 # Configure JAX for 64-bit precision
 jax.config.update("jax_enable_x64", True)
@@ -95,8 +96,8 @@ class JAXNestedSampler:
                     model_name: str,
                     priors: Dict[str, List],
                     param_names: List[str],
-                    max_iterations: int = 10000,
-                    tolerance: float = 0.01) -> NestedSamplingResults:
+                    num_inner_steps_multiplier: int = 5,
+                    convergence_criterion: float = -3.0) -> NestedSamplingResults:
         """
         Fit a spectrum using nested sampling.
         
@@ -114,93 +115,89 @@ class JAXNestedSampler:
             Prior specifications
         param_names : List[str]
             Parameter names
-        max_iterations : int
-            Maximum number of iterations
-        tolerance : float
-            Convergence tolerance
+        num_inner_steps_multiplier : int
+            Multiplier for num_dims to set the number of inner MCMC steps
+        convergence_criterion : float
+            Convergence criterion based on logZ - logZ_live
             
         Returns
         -------
         NestedSamplingResults
             Results object
         """
-        # Get model function
-        model_func = self._get_model_function(model_name)
-        
-        # Create prior and likelihood functions
-        log_prior = create_prior_function(priors)
-        prior_transform = create_prior_transform(priors)
-        log_likelihood = create_log_likelihood_function(model_func, wavelength, flux, error)
-        
-        # Run nested sampling
         start_time = time.time()
         
-        # Create uniform prior bounds for nested sampling
+        # 1. Get model and create JAX-native likelihood function
+        model_func = self._get_model_function(model_name)
+        log_likelihood = create_log_likelihood_function(model_func, wavelength, flux, error)
+        
+        # 2. Define prior bounds and parameter dictionaries
         lower_bounds, upper_bounds = self._create_uniform_bounds(priors)
         prior_bounds = {param_names[i]: (lower_bounds[i], upper_bounds[i]) 
                        for i in range(len(param_names))}
         
-        # Initialize nested sampler using BlackJAX proper API
+        # It's highly recommended to use dicts for the likelihood to avoid ordering bugs
+        dict_log_likelihood = self._create_dict_likelihood(log_likelihood, param_names)
+
+        # 3. Initialize the nested sampler
         key_init, self.rng_key = random.split(self.rng_key)
-        particles, logprior_fn = blackjax.ns.utils.uniform_prior(
-            key_init, self.num_live, prior_bounds
-        )
+        particles, logprior_fn = blackjax.ns.utils.uniform_prior(key_init, self.num_live, prior_bounds)
         
-        # Create nested sampler
         nested_sampler = blackjax.nss(
             logprior_fn=logprior_fn,
-            loglikelihood_fn=self._create_dict_likelihood(log_likelihood, param_names),
+            loglikelihood_fn=dict_log_likelihood,
             num_delete=self.num_delete,
-            num_inner_steps=len(param_names) * 5
+            num_inner_steps=len(param_names) * num_inner_steps_multiplier
         )
         
-        # JIT compile functions
+        # 4. JIT compile the init and step functions
         init_fn = jax.jit(nested_sampler.init)
         step_fn = jax.jit(nested_sampler.step)
         
-        # Initialize sampler state
+        # 5. Run the nested sampling loop with the CORRECT convergence criterion
         live = init_fn(particles)
         dead = []
         
+        # Use tqdm for progress monitoring, which is very helpful for debugging hangs
+        pbar = tqdm.tqdm(desc="Nested Sampling", unit=" dead points")
+        
         iteration = 0
-        while iteration < max_iterations:
+        while not live.logZ_live - live.logZ < convergence_criterion:
             key_step, self.rng_key = random.split(self.rng_key)
-            live, info = step_fn(key_step, live)
+            live, dead_info = step_fn(key_step, live)
             
-            # Store dead points
-            if hasattr(info, 'dead_point'):
-                dead.append(info.dead_point)
+            # The second return value *is* the dead points info
+            dead.append(dead_info)
+            
+            # Update progress bar
+            pbar.update(self.num_delete)
+            pbar.set_postfix({'logZ': f'{live.logZ:.2f}', 'logZ_live': f'{live.logZ_live:.2f}'})
             
             iteration += 1
-            
-            # Check convergence
-            if hasattr(info, 'log_evidence_err'):
-                if info.log_evidence_err < tolerance:
-                    break
-        
+            # Optional: Add a safety break for pathologically non-converging fits
+            if iteration > 20000:  # A very high number
+                print("Warning: Max iterations reached without convergence.")
+                break
+                
+        pbar.close()
+
+        # 6. CRUCIAL: Finalize the run by adding the remaining live points
+        dead = blackjax.ns.utils.finalise(live, dead)
         end_time = time.time()
         
-        # Process results
-        if len(dead) > 0:
-            # Convert dead points to samples
-            dead_array = jnp.array(dead)
-            samples_array = dead_array  # Adjust structure based on actual dead point format
-            
-            # Create anesthetic NestedSamples object
-            nested_samples = NestedSamples(
-                data=np.array(samples_array),
-                columns=param_names
-            )
-            
-            # Calculate evidence
-            logz = nested_samples.logZ()
-            logz_err = nested_samples.logZ_err()
-            
-        else:
-            # Fallback if no samples collected
-            nested_samples = None
-            logz = -jnp.inf
-            logz_err = jnp.inf
+        # 7. Process results with anesthetic using the correct logL values
+        data = jnp.vstack([dead.particles[key] for key in param_names]).T
+        
+        nested_samples = NestedSamples(
+            data=np.array(data),
+            logL=np.array(dead.loglikelihood),
+            logL_birth=np.array(dead.loglikelihood_birth),
+            columns=param_names,
+            logzero=jnp.nan  # Important for anesthetic
+        )
+        
+        logz = nested_samples.logZ()
+        logz_err = nested_samples.logZ(nsamples=100).std()
         
         # Create info dictionary
         info_dict = {
@@ -209,8 +206,7 @@ class JAXNestedSampler:
             'model_name': model_name,
             'num_live': self.num_live,
             'num_delete': self.num_delete,
-            'convergence_tolerance': tolerance,
-            'max_iterations': max_iterations
+            'convergence_criterion': convergence_criterion,
         }
         
         return NestedSamplingResults(nested_samples, logz, logz_err, info_dict)
