@@ -20,6 +20,11 @@ For JAX-based high-performance fitting:
 pip install -r requirements_jax.txt
 ```
 
+**Important**: The JAX conversion requires BlackJAX from the handley-lab repository for nested sampling support:
+```bash
+pip install git+https://github.com/handley-lab/blackjax.git
+```
+
 Import the package in Python:
 ```python
 import QubeSpec
