@@ -74,7 +74,8 @@ def fwhm_to_sigma(fwhm: float, center_wavelength: float) -> float:
         Sigma in wavelength units
     """
     # Convert km/s to fractional velocity, then to wavelength
-    velocity_fraction = (fwhm / 1000.0) / (C / 1000.0)  # km/s to c
+    # fwhm is already in km/s, C/1000 converts m/s to km/s
+    velocity_fraction = fwhm / (C / 1000.0)  # km/s to c
     sigma_wavelength = velocity_fraction * center_wavelength / 2.35482
     return sigma_wavelength
 
