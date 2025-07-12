@@ -64,8 +64,8 @@ def load_data(path, extr='5pix', dirty=False):
         _data_name = _dirty_name
     
     with pyfits.open(path, memmap=False) as hdulist:
-        flux_orig = hdulist[_data_name].data*1e-7*1e4
-        error =  hdulist[_err_name].data*1e-7*1e4
+        flux_orig = hdulist[_data_name].data*1e-7*1e4*1e15
+        error =  hdulist[_err_name].data*1e-7*1e4*1e15
         flux = np.ma.masked_invalid(flux_orig.copy())
         obs_wave = hdulist['wavelength'].data*1e6
     return obs_wave, flux, error
