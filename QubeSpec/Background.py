@@ -63,7 +63,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
     Sky_smooth = medfilt(Sky, smooth)
     self.flux_old = self.flux.copy()
 
-    self.flux =  -= Sky_smooth[:,np.newaxis,np.newaxis]
+    self.flux -= Sky_smooth[:,np.newaxis,np.newaxis]
     
     self.background = Sky_smooth
     
