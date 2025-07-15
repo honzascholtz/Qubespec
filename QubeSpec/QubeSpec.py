@@ -2254,7 +2254,7 @@ class Cube:
 
             primary_hdu = fits.PrimaryHDU(np.zeros(1), header=self.header)
 
-            hdus = [primary_hdu,fits.ImageHDU(psf_matched.data, name='SCI', header=self.header), fits.ImageHDU(error_matched, name='ERR', header=self.header)]
+            hdus = [primary_hdu,fits.ImageHDU(psf_matched.data*self.flux_norm/1e4, name='SCI', header=self.header), fits.ImageHDU(error_matched*self.flux_norm/1e4, name='ERR', header=self.header)]
             hdulist = fits.HDUList(hdus)
             hdulist.writeto( self.Cube_path[:-4] +'psf_matched.fits', overwrite=True)
 
