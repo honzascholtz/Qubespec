@@ -484,7 +484,7 @@ class Fitting:
         self.wave = self.wave[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
-        if expand_prism==1:
+        if (expand_prism==1) | (expand_prism==True):
             self.fit_loc = np.where((self.wave>4600*(1+self.z)/1e4)&(self.wave<5600*(1+self.z)/1e4))[0]
 
         sel=  np.where((self.wave<5025*(1+self.z)/1e4)& (self.wave>4980*(1+self.z)/1e4))[0]
@@ -1101,7 +1101,8 @@ class Fitting:
             if ('cont' == name) & (self.priors[name][0] ==0):
                 pos_l[i] = np.nanmedian(self.flux_fitloc)*5
             
-                
+        self.pos_l = pos_l
+       
         if (self.log_prior_fce(pos_l, self.pr_code)==-np.inf) | (self.log_prior_fce(pos_l, self.pr_code)== np.nan):
             logprior_general_test(pos_l, self.pr_code, self.labels)
                 
@@ -1112,7 +1113,6 @@ class Fitting:
         pos[:,0] = np.random.normal(self.z,zscale, nwalkers)
 
         self.pos = pos
-        self.pos_l = pos_l
 
         if self.sampler =='emcee':
             nwalkers, ndim = pos.shape
