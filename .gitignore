@@ -25,3 +25,4 @@ QubeSpec.zip
 dist/*.gz
 dist/.DS_Store
 QubeSpec/Dust/__pycache__/*
+Tutorial/.DS_Store

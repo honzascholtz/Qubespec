@@ -7,6 +7,7 @@ Created on Thu Aug 17 10:11:38 2017
 """
 
 #importing modules
+from ast import Raise
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -43,7 +44,7 @@ def gauss(x, k, mu,FWHM):
     y= k* e**expo
     return y
 
-def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None):
+def plotting_OIII(res, ax, errors=False, template=0, residual='none',mode='restframe',axres=None):
     sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
@@ -51,24 +52,33 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None)
     wave = res.wave
     fluxs = res.fluxs
     error = res.error
-    wv_rest = wave/(1+z)*1e4
-    fit_loc = np.where((wv_rest>4700)&(wv_rest<5200))[0]
 
+    if mode=='restframe':
+        wv_rest = wave/(1+z)*1e4
+        fit_loc = np.where((wv_rest>4700.)&(wv_rest<5200.))[0]
+    elif mode=='observedframe':
+        wv_rest = wave
+        fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
+    else:
+        raise ValueError('mode must be restframe or observed')
     try:
         flux = fluxs.data[np.invert(fluxs.mask)]
-        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
         
+        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
 
-        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
-        ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
-        if errors==True:
-            ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k', step='mid')
-        y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
-
+        if mode=='restframe':
+            fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        elif mode=='observedframe':
+            fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
+        else:
+            raise ValueError('mode must be restframe or observedframe')
+    
     except:
-        ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
-
+        if mode=='restframe':
+            ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
+        elif mode=='observedframe':
+            ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
     y_tot = res.yeval[fit_loc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
@@ -77,7 +87,12 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None)
 
     ax.set_ylim(-0.1*np.nanmax(y_tot[flt]), np.nanmax(y_tot[flt])*1.1)
     ax.tick_params(direction='in')
-    ax.set_xlim(4700,5050 )
+    if mode=='restframe':
+        ax.set_xlim(4700,5050 )
+    elif mode=='observedframe':
+        ax.set_xlim(4700*(1+z)/1e4,5050*(1+z)/1e4)
+    else:
+        raise ValueError('mode must be restframe or observedframe')
 
     OIIIr = 5008.24*(1+z)/1e4
     OIIIb = 4960.3*(1+z)/1e4
@@ -172,7 +187,7 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',axres=None)
 
 
 
-def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
+def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='restframe'):
     sol = res.props
     popt = sol['popt']
     z = popt[0]
@@ -181,30 +196,50 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
     fluxs = res.fluxs
     error = res.error
     keys = list(sol.keys())
-    wv_rest = wave/(1+z)*1e4
-    fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
+    if mode=='restframe':
+        wv_rest = wave/(1+z)*1e4
+        fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
+    elif mode=='observedframe':
+        wv_rest = wave
+        fit_loc = np.where((wv_rest>(6000.*(1+z)/1e4))&(wv_rest<(7500.*(1+z)/1e4)))[0]
+    else:
+        raise ValueError('mode must be restframe or observedframe')
+    
     try:
         flux = fluxs.data[np.invert(fluxs.mask)]
-        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
         ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
         
+        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
 
-        fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7000))[0]
+        if mode=='restframe':
+            fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7000))[0]
+        elif mode=='observedframe':
+            fit_loc_sc = np.where((wv_rst_sc>6000*(1+z)/1e4)&(wv_rst_sc<7000*(1+z)/1e4))[0]
+        else:
+            raise ValueError('mode must be restframe or observedframe')
+
         ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
         if errors==True:
             ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
         y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
 
     except:
-        ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
-        
+        if mode=='restframe':
+            ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
+        elif mode=='observedframe':
+            ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
 
     y_tot = res.yeval[fit_loc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 
     ax.set_ylim(-0.1*max(y_tot), max(y_tot)*1.1)
-    ax.set_xlim(6564.52-250,6564.52+250 )
+    if mode=='restframe':
+        ax.set_xlim(6564.52-150,6564.52+150 )
+    elif mode=='observedframe':
+        ax.set_xlim((6564.52-150)*(1+z)/1e4, (6564.52+150)*(1+z)/1e4)
+    else:
+        raise ValueError('mode must be restframe or observedframe')
     ax.tick_params(direction='in')
 
     Hal_wv = 6564.52*(1+z)/1e4
@@ -213,7 +248,6 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None):
 
     SII_r = 6732.67*(1+z)/1e4
     SII_b = 6718.29*(1+z)/1e4
-
 
     ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]), \
             color='orange', linestyle='dashed')
@@ -324,7 +358,6 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
     NII_b = 6549.86*(1+z)/1e4
     SII_r = 6732.67*(1+z)/1e4
     SII_b = 6718.29*(1+z)/1e4
-
     ax.plot(wv_rest[fit_loc], gauss(wave[fit_loc], sol['Hal_peak'][0], Hal_wv, sol['Nar_fwhm'][0]), \
             color='orange', linestyle='dashed')
 

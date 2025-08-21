@@ -78,7 +78,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
 
 
 def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,\
-                source_mask=[], wave_smooth=25, wave_range=None, plot=0, detection_threshold=3, **kwargs):
+                source_mask=[], wave_smooth=25, wave_range=None, plot=0, detection_threshold=3,save=False, **kwargs):
     '''
     Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -162,15 +162,16 @@ def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip
     self.flux_old = self.flux.copy()
     self.flux = self.flux-self.background
 
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
-    hdus = [primary_hdu]
-    hdus.append(fits.ImageHDU(self.flux.data, name='flux_bkg_sub',header=self.header))
-    hdus.append(fits.ImageHDU(self.error_cube, name='error', header=self.header))
-    hdus.append(fits.ImageHDU(self.background.data, name='background',header=self.header))
-    
+    if save==True:
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        hdus.append(fits.ImageHDU(self.flux.data, name='flux_bkg_sub',header=self.header))
+        hdus.append(fits.ImageHDU(self.error_cube, name='error', header=self.header))
+        hdus.append(fits.ImageHDU(self.background.data, name='background',header=self.header))
+        
 
-    hdulist = fits.HDUList(hdus)
-    hdulist.writeto(self.savepath+'/'+self.ID+'_BKG.fits', overwrite=True)
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+'/'+self.ID+'_BKG.fits', overwrite=True)
 
     if plot==1:
         f, ax = plt.subplots(1)

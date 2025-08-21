@@ -746,8 +746,8 @@ class Fitting:
         self.wave = self.wave[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
-        self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
-        self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0])
+        #self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
+        self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+200)*(1+self.z)/1e4))[0])
 
         if isinstance(self.error, np.ma.MaskedArray) == True:
             self.error = self.error.data
