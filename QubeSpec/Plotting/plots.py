@@ -80,6 +80,7 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',mode='restf
         elif mode=='observedframe':
             ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
     y_tot = res.yeval[fit_loc]
+    y_tot_rs = res.yeval[fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
 

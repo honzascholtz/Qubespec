@@ -300,8 +300,10 @@ class R1000:
 
         for key in self.Fitting.labels:
             self.Fitting.chains[key] = np.random.choice(self.Fitting.chains[key], N, replace=False)
-        self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
-                   
+        try:
+            self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
+        except AttributeError:
+            pass
 
 class R100:  
     def __init__(self, path='', z=0, ID='', version ='4.0', add='', full_path=None):
