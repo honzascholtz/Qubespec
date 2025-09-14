@@ -1,0 +1,27 @@
+# JAX + BlackJAX requirements for QubeSpec conversion
+# Core JAX ecosystem
+jax>=0.4.20
+jaxlib>=0.4.20
+jaxopt>=0.8.0
+
+# BlackJAX nested sampling
+git+https://github.com/handley-lab/blackjax@nested_sampling
+
+# Analysis and visualization
+anesthetic>=2.0.0
+matplotlib>=3.5.0
+corner>=2.2.0
+
+# Existing QubeSpec dependencies (JAX-compatible versions)
+numpy>=1.21.0
+scipy>=1.9.0
+astropy>=5.0.0
+tqdm>=4.40.0
+
+# Optional GPU support
+# Uncomment the following for NVIDIA GPU support:
+# jax[cuda11_pip]>=0.4.20 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
+# Optional TPU support
+# Uncomment the following for TPU support:
+# jax[tpu]>=0.4.20 -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
