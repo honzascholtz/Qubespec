@@ -53,32 +53,30 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',mode='restf
     fluxs = res.fluxs
     error = res.error
 
+    wv_rest = wave/(1+z)*1e4
+    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+
     if mode=='restframe':
-        wv_rest = wave/(1+z)*1e4
         fit_loc = np.where((wv_rest>4700.)&(wv_rest<5200.))[0]
+        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
     elif mode=='observedframe':
         wv_rest = wave
         fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
+        fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
     else:
         raise ValueError('mode must be restframe or observed')
-    try:
-        flux = fluxs.data[np.invert(fluxs.mask)]
-        ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
-        
-        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
-
-        if mode=='restframe':
-            fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
-        elif mode=='observedframe':
-            fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
-        else:
-            raise ValueError('mode must be restframe or observedframe')
     
-    except:
-        if mode=='restframe':
-            ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
-        elif mode=='observedframe':
-            ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
+    flux = fluxs.data[np.invert(fluxs.mask)]
+    
+    if mode=='restframe':
+        ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
+        ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+    
+    elif mode=='observedframe':
+        ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
+        ax.plot(res.wave[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+    
+
     y_tot = res.yeval[fit_loc]
     y_tot_rs = res.yeval[fit_loc_sc]
 
@@ -197,38 +195,31 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='r
     fluxs = res.fluxs
     error = res.error
     keys = list(sol.keys())
+
+    wv_rest = wave/(1+z)*1e4
+    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+
     if mode=='restframe':
-        wv_rest = wave/(1+z)*1e4
-        fit_loc = np.where((wv_rest>6000.)&(wv_rest<7500.))[0]
+        fit_loc = np.where((wv_rest>4700.)&(wv_rest<5200.))[0]
+        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
     elif mode=='observedframe':
         wv_rest = wave
-        fit_loc = np.where((wv_rest>(6000.*(1+z)/1e4))&(wv_rest<(7500.*(1+z)/1e4)))[0]
+        fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
+        fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
     else:
-        raise ValueError('mode must be restframe or observedframe')
+        raise ValueError('mode must be restframe or observed')
     
-    try:
-        flux = fluxs.data[np.invert(fluxs.mask)]
-        ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
-        
-        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
+    flux = fluxs.data[np.invert(fluxs.mask)]
+    
+    if mode=='restframe':
+        ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
+        ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+    
+    elif mode=='observedframe':
+        ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
+        ax.plot(res.wave[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+    
 
-        if mode=='restframe':
-            fit_loc_sc = np.where((wv_rst_sc>6000)&(wv_rst_sc<7000))[0]
-        elif mode=='observedframe':
-            fit_loc_sc = np.where((wv_rst_sc>6000*(1+z)/1e4)&(wv_rst_sc<7000*(1+z)/1e4))[0]
-        else:
-            raise ValueError('mode must be restframe or observedframe')
-
-        ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
-        if errors==True:
-            ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
-        y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
-
-    except:
-        if mode=='restframe':
-            ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
-        elif mode=='observedframe':
-            ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
 
     y_tot = res.yeval[fit_loc]
 
@@ -312,7 +303,7 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='r
             axres.fill_between(wv_rst_sc[fit_loc_sc],resid_OIII-error[fit_loc_sc],resid_OIII+error[fit_loc_sc], alpha=0.3, color='k', step='mid')
 
 
-def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, template=0):
+def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None,mode='restframe', template=0):
     sol = res.props
     popt = sol['popt']
     keys = list(sol.keys())
@@ -325,21 +316,28 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None, temp
     wv_rest = wave/(1+z)*1e4
     fit_loc = np.where((wv_rest>100.)&(wv_rest<16000.))[0]
 
-    try:
-        flux = fluxs.data[np.invert(fluxs.mask)]
-        wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
-        ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)
-        
+    wv_rest = wave/(1+z)*1e4
+    wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
 
+    if mode=='restframe':
+        fit_loc = np.where((wv_rest>4700.)&(wv_rest<5200.))[0]
         fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
-        ax.plot(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc], drawstyle='steps-mid', label='data')
-        if errors==True:
-            ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
-        y_tot_rs = res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
-
-    except Exception as e:
+    elif mode=='observedframe':
+        wv_rest = wave
+        fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
+        fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
+    else:
+        raise ValueError('mode must be restframe or observed')
+    
+    flux = fluxs.data[np.invert(fluxs.mask)]
+    
+    if mode=='restframe':
         ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
-        print(e)
+        ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+    
+    elif mode=='observedframe':
+        ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
+        ax.plot(res.wave[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
 
     #if len(error) !=1:
     #    ax.fill_between(wv_rst_sc[fit_loc_sc],flux[fit_loc_sc]-error[fit_loc_sc],flux[fit_loc_sc]+error[fit_loc_sc], alpha=0.3, color='k')
