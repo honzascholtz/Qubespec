@@ -49,7 +49,7 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',mode='restf
     popt = sol['popt']
     keys = list(sol.keys())
     z = sol['z'][0]
-    wave = res.wave
+    wave = res.waves
     fluxs = res.fluxs
     error = res.error
 
@@ -191,7 +191,7 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='r
     popt = sol['popt']
     z = popt[0]
 
-    wave = res.wave
+    wave = res.waves
     fluxs = res.fluxs
     error = res.error
     keys = list(sol.keys())
@@ -291,7 +291,7 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='r
         ax.plot(wv_rest[fit_loc] , Ha_BLR , color= 'magenta', linestyle ='dashed')
 
     if residual !='none':
-        resid_OIII = flux[fit_loc_sc]-y_tot_rs
+        resid_OIII = flux[fit_loc_sc]-res.yeval[np.invert(fluxs.mask)][fit_loc_sc]
         sigma_OIII = np.std(resid_OIII)
         RMS_OIII = np.sqrt(np.mean(resid_OIII**2))
 
@@ -310,7 +310,7 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None,mode=
     z = popt[0]
     error =res.error
 
-    wave = res.wave
+    wave = res.waves
     fluxs = res.fluxs
 
     wv_rest = wave/(1+z)*1e4

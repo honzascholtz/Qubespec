@@ -18,6 +18,9 @@ import corner
 from astropy.modeling.powerlaws import PowerLaw1D
 nan= float('nan')
 
+from typing import Dict, List, Tuple, Optional, Union
+
+
 pi= np.pi
 e= np.e
 
@@ -112,7 +115,7 @@ class Fitting:
         self.priors = priors # storing priors
         self.progress = progress # progress bar?
         self.z = z  # redshift
-        self.wave = wave # wavelength 
+        self.waves = wave # wavelength 
         self.fluxs = flux # flux density
         self.error = error # errors
         self.ncpu= ncpu # number of cpus to use in the fit 
@@ -148,14 +151,14 @@ class Fitting:
         
         self.fluxs[np.isnan(self.fluxs)] = 0
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
-         
-        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
-        sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
-        
+        self.waves = self.waves[np.invert(self.fluxs.mask)]
+
+        self.fit_loc = np.where((self.waves>(6564.52-170)*(1+self.z)/1e4)&(self.waves<(6564.52+170)*(1+self.z)/1e4))[0]
+        sel=  np.where(((self.waves<(6564.52+20)*(1+self.z)/1e4))& (self.waves>(6564.52-20)*(1+self.z)/1e4))[0]
+
         self.flux_zoom = self.flux[sel]
-        self.wave_zoom = self.wave[sel]
-        
+        self.wave_zoom = self.waves[sel]
+
         peak = np.ma.max(self.flux_zoom)
         nwalkers=64
 
@@ -229,7 +232,8 @@ class Fitting:
             self.chi2, self.BIC = np.nan, np.nan
         
         self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
+        self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
 
     def fitting_Halpha(self, model='gal'):
         """ Method to fit Halpha+[NII +[SII]]
@@ -272,7 +276,7 @@ class Fitting:
             
         self.fluxs[np.isnan(self.fluxs)] = 0
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
          
         self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
@@ -438,7 +442,8 @@ class Fitting:
         self.chi2 = np.nansum(((self.flux_fitloc-self.fitted_model(self.wave_fitloc, *self.props['popt']))**2)/self.error_fitloc**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
+        self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
         
     # =============================================================================
     # Primary function to fit [OIII] with and without outflows. 
@@ -481,7 +486,7 @@ class Fitting:
                 self.priors['zBLR'][5] = self.z+1000/3e5*(1+self.z)
 
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
         if (expand_prism==1) | (expand_prism==True):
@@ -697,7 +702,7 @@ class Fitting:
         else:
             raise ValueError('Sampler value not understood. Should be emcee or leastsq')
         
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
         self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
 
         self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
@@ -743,7 +748,7 @@ class Fitting:
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.waves = self.wave.copy()
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
         #self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
@@ -1029,7 +1034,8 @@ class Fitting:
             raise ValueError('Sampler value not understood. Should be emcee or leastsq')
 
 
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
+        self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
         
         self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
@@ -1075,7 +1081,7 @@ class Fitting:
         self.error[self.error==0] = 10000*np.nanmedian(self.error)
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.waves = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
         self.errors = self.error[np.invert(self.fluxs.mask)]
 
         self.flux_fitloc = self.flux.copy()
@@ -1299,6 +1305,7 @@ class Fitting:
         except:
             lp[np.isnan(lp)] = -np.inf
 
+        #evalm = self.fitted_model(self.wave_fitloc,*theta)
         try:
             evalm = self.fitted_model(self.wave_fitloc,*theta)
         except:
@@ -1443,6 +1450,350 @@ class Fitting:
         #print(up)
         return self.bounds
     
-        
 
+    @staticmethod
+    def gaussian(x, amplitude, center, sigma):
+        """Gaussian line profile"""
+        return amplitude * np.exp(-0.5 * ((x - center) / sigma) ** 2)
+    
+    @staticmethod
+    def powerlaw_continuum(x, amplitude, x0, alpha):
+        """Power-law continuum"""
+        return PowerLaw1D.evaluate(x, amplitude, x0, alpha)
+    
+    @staticmethod
+    def linear_continuum(x, slope, intercept):
+        """Linear continuum"""
+        return slope * x + intercept
+    
+   
+    
+    def redshift_wavelength(self, rest_wavelength: float, z: float) -> float:
+        """
+        Apply redshift to rest wavelength.
+        
+        Parameters:
+        -----------
+        rest_wavelength : float
+            Rest wavelength in Angstroms
+        z : float
+            Redshift parameter
+            
+        Returns:
+        --------
+        float
+            Observed wavelength
+        """
+        return rest_wavelength * (1 + z)
+    
+    def parse_line_components(self, line_names: List[str], 
+                            components: List[int]) -> Dict[int, List[str]]:
+        """
+        Parse line names and components into groups.
+        
+        Parameters:
+        -----------
+        line_names : list
+            List of emission line names
+        components : list
+            List of component numbers (same length as line_names)
+            
+        Returns:
+        --------
+        dict
+            Dictionary mapping component numbers to lists of line names
+        """
+        if len(line_names) != len(components):
+            raise ValueError("line_names and components must have the same length")
+        
+        component_groups = {}
+        for line_name, comp in zip(line_names, components):
+            if comp not in component_groups:
+                component_groups[comp] = []
+            component_groups[comp].append(line_name)
+        
+        return component_groups
+    
+    
+    def fit_multiple_components_with_doublets(self,
+                                            priors,
+                                            continuum: str = 'linear',
+                                            z_init: Union[float, List[float]] = 0.0,
+                                            fwhm_init: Union[float, List[float]] = 2.0) -> Dict:
+        """
+        Fit multiple emission lines grouped by velocity components with doublet support.
+        
+        Parameters:
+        -----------
+        line_names : list
+            Names of emission lines to fit
+        components : list
+            Component numbers for each line (same length as line_names)
+        doublets : list, optional
+            Doublet names for each line (None for single lines)
+        doublet_ratios : list, optional
+            Custom ratios for doublets (if not using predefined ratios)
+        profile : str
+            Line profile for all lines
+        continuum : str
+            Continuum type
+            
+        Returns:
+        --------
+        dict
+            Combined fitting results
+        """
+        # Parse components and doublets
+        parsed_data = self.parse_line_components_and_doublets(
+            line_names, components, doublets, doublet_ratios)
+        
+        component_groups = parsed_data['component_groups']
+        doublet_info = parsed_data['doublet_info']
+        unique_components = sorted(component_groups.keys())
+        n_components = len(unique_components)
+        
+        # Handle initial parameter setup
+        if isinstance(z_init, (int, float)):
+            z_inits = [z_init] * n_components
+        else:
+            if len(z_init) != n_components:
+                raise ValueError(f"z_init list length ({len(z_init)}) must match number of components ({n_components})")
+            z_inits = z_init
+            
+        if isinstance(fwhm_init, (int, float)):
+            fwhm_inits = [fwhm_init] * n_components
+        else:
+            if len(fwhm_init) != n_components:
+                raise ValueError(f"fwhm_init list length ({len(fwhm_init)}) must match number of components ({n_components})")
+            fwhm_inits = fwhm_init
+        
+        sigma_inits = [fwhm / 2.355 for fwhm in fwhm_inits]
+        
+        if profile == 'gaussian' and continuum == 'linear':
+            def fit_func(x, *params):
+                # Parameter structure for each component:
+                # [single_line_amps..., doublet_primary_amps..., z, sigma]
+                # Final: [slope, intercept]
+                
+                result = self.linear_continuum(x, params[-2], params[-1])
+                param_idx = 0
+                
+                for comp_idx, comp_num in enumerate(unique_components):
+                    comp_data = component_groups[comp_num]
+                    
+                    # Count parameters needed for this component
+                    n_single_lines = len(comp_data['single_lines'])
+                    n_doublet_groups = len(comp_data['doublets'])
+                    
+                    # Extract parameters for this component
+                    single_amps = params[param_idx:param_idx + n_single_lines]
+                    param_idx += n_single_lines
+                    
+                    doublet_primary_amps = params[param_idx:param_idx + n_doublet_groups]
+                    param_idx += n_doublet_groups
+                    
+                    z_comp = params[param_idx]
+                    sigma_comp = params[param_idx + 1]
+                    param_idx += 2
+                    
+                    # Add single lines
+                    for line_idx, line_name in enumerate(comp_data['single_lines']):
+                        rest_wl = self.emission_lines[line_name]
+                        observed_center = self.redshift_wavelength(rest_wl, z_comp)
+                        result += self.gaussian(x, single_amps[line_idx], observed_center, sigma_comp)
+                    
+                    # Add doublet lines
+                    for doublet_idx, (doublet_name, doublet_lines) in enumerate(comp_data['doublets'].items()):
+                        primary_amp = doublet_primary_amps[doublet_idx]
+                        doublet_ratio = doublet_info[doublet_name]['ratio']
+                        doublet_line_names = doublet_info[doublet_name]['lines']
+                        
+                        # Determine which line is primary (stronger) and secondary
+                        if len(doublet_lines) != 2:
+                            raise ValueError(f"Doublet {doublet_name} must have exactly 2 lines")
+                        
+                        # Find primary line (first in the predefined order)
+                        primary_line = doublet_line_names[0]
+                        secondary_line = doublet_line_names[1]
+                        
+                        # Add primary line
+                        rest_wl_primary = self.emission_lines[primary_line]
+                        observed_center_primary = self.redshift_wavelength(rest_wl_primary, z_comp)
+                        result += self.gaussian(x, primary_amp, observed_center_primary, sigma_comp)
+                        
+                        # Add secondary line with fixed ratio
+                        secondary_amp = primary_amp / doublet_ratio
+                        rest_wl_secondary = self.emission_lines[secondary_line]
+                        observed_center_secondary = self.redshift_wavelength(rest_wl_secondary, z_comp)
+                        result += self.gaussian(x, secondary_amp, observed_center_secondary, sigma_comp)
+                
+                return result
+            
+            # Build initial parameters and names
+            p0 = []
+            param_names = []
+            
+            for comp_idx, comp_num in enumerate(unique_components):
+                comp_data = component_groups[comp_num]
+                
+                # Single line amplitudes
+                for line_name in comp_data['single_lines']:
+                    amp_guess = (np.max(flux) - np.min(flux)) / len(line_names)
+                    p0.append(amp_guess)
+                    param_names.append(f'{line_name}_comp{comp_num}_amplitude')
+                
+                # Doublet primary amplitudes
+                for doublet_name in comp_data['doublets'].keys():
+                    primary_amp_guess = (np.max(flux) - np.min(flux)) / len(line_names) * 2
+                    p0.append(primary_amp_guess)
+                    param_names.append(f'{doublet_name}_comp{comp_num}_primary_amplitude')
+                
+                # Component redshift and sigma
+                p0.append(z_inits[comp_idx])
+                p0.append(sigma_inits[comp_idx])
+                param_names.append(f'component{comp_num}_redshift')
+                param_names.append(f'component{comp_num}_sigma')
+            
+            # Continuum parameters
+            p0.extend([0.0, np.median(flux)])
+            param_names.extend(['slope', 'intercept'])
+            
+        else:
+            raise ValueError(f"Configuration {profile}/{continuum} not implemented for doublet fitting")
+        
+        try:
+            # Perform the fit
+            popt, pcov = curve_fit(fit_func, wavelengths, flux, p0=p0)
+            perr = np.sqrt(np.diag(pcov))
+            
+            # Calculate goodness of fit
+            fitted_flux = fit_func(wavelengths, *popt)
+            residuals = flux - fitted_flux
+            chi_squared = np.sum(residuals**2)
+            r_squared = 1 - np.sum(residuals**2) / np.sum((flux - np.mean(flux))**2)
+            
+            # Parse results
+            result = {
+                'line_names': line_names,
+                'components': components,
+                'doublets': doublets,
+                'component_groups': component_groups,
+                'doublet_info': doublet_info,
+                'profile': profile,
+                'continuum': continuum,
+                'parameters': popt,
+                'parameter_names': param_names,
+                'errors': perr,
+                'chi_squared': chi_squared,
+                'r_squared': r_squared,
+                'fitted_flux': fitted_flux,
+                'residuals': residuals,
+                'individual_lines': {},
+                'component_params': {},
+                'doublet_params': {}
+            }
+            
+            # Extract component and line parameters
+            param_idx = 0
+            c = 299792.458  # km/s
+            
+            for comp_idx, comp_num in enumerate(unique_components):
+                comp_data = component_groups[comp_num]
+                n_single_lines = len(comp_data['single_lines'])
+                n_doublet_groups = len(comp_data['doublets'])
+                
+                # Skip to component parameters
+                z_param_idx = param_idx + n_single_lines + n_doublet_groups
+                z_comp = popt[z_param_idx]
+                sigma_comp = popt[z_param_idx + 1]
+                z_comp_error = perr[z_param_idx]
+                sigma_comp_error = perr[z_param_idx + 1]
+                
+                result['component_params'][comp_num] = {
+                    'redshift': z_comp,
+                    'redshift_error': z_comp_error,
+                    'velocity_shift': c * z_comp,
+                    'velocity_shift_error': c * z_comp_error,
+                    'sigma': sigma_comp,
+                    'sigma_error': sigma_comp_error,
+                    'fwhm': 2.355 * sigma_comp,
+                    'fwhm_error': 2.355 * sigma_comp_error,
+                    'single_lines': comp_data['single_lines'],
+                    'doublets': list(comp_data['doublets'].keys())
+                }
+                
+                # Extract single line parameters
+                for line_idx, line_name in enumerate(comp_data['single_lines']):
+                    rest_wl = self.emission_lines[line_name]
+                    observed_center = self.redshift_wavelength(rest_wl, z_comp)
+                    amplitude = popt[param_idx + line_idx]
+                    amplitude_error = perr[param_idx + line_idx]
+                    equivalent_width = np.abs(amplitude * sigma_comp * np.sqrt(2*np.pi))
+                    
+                    line_result = {
+                        'component': comp_num,
+                        'is_doublet': False,
+                        'amplitude': amplitude,
+                        'amplitude_error': amplitude_error,
+                        'rest_wavelength': rest_wl,
+                        'observed_center': observed_center,
+                        'redshift': z_comp,
+                        'velocity_shift': c * z_comp,
+                        'sigma': sigma_comp,
+                        'fwhm': 2.355 * sigma_comp,
+                        'equivalent_width': equivalent_width
+                    }
+                    result['individual_lines'][line_name] = line_result
+                
+                # Extract doublet parameters
+                doublet_start_idx = param_idx + n_single_lines
+                for doublet_idx, (doublet_name, doublet_lines) in enumerate(comp_data['doublets'].items()):
+                    primary_amp = popt[doublet_start_idx + doublet_idx]
+                    primary_amp_error = perr[doublet_start_idx + doublet_idx]
+                    doublet_ratio = doublet_info[doublet_name]['ratio']
+                    doublet_line_names = doublet_info[doublet_name]['lines']
+                    
+                    # Store doublet information
+                    result['doublet_params'][f'{doublet_name}_comp{comp_num}'] = {
+                        'component': comp_num,
+                        'primary_amplitude': primary_amp,
+                        'primary_amplitude_error': primary_amp_error,
+                        'ratio': doublet_ratio,
+                        'lines': doublet_line_names
+                    }
+                    
+                    # Add individual doublet lines
+                    primary_line = doublet_line_names[0]
+                    secondary_line = doublet_line_names[1]
+                    secondary_amp = primary_amp / doublet_ratio
+                    
+                    for line_name, amplitude in [(primary_line, primary_amp), 
+                                               (secondary_line, secondary_amp)]:
+                        rest_wl = self.emission_lines[line_name]
+                        observed_center = self.redshift_wavelength(rest_wl, z_comp)
+                        equivalent_width = np.abs(amplitude * sigma_comp * np.sqrt(2*np.pi))
+                        
+                        line_result = {
+                            'component': comp_num,
+                            'is_doublet': True,
+                            'doublet_name': doublet_name,
+                            'doublet_role': 'primary' if line_name == primary_line else 'secondary',
+                            'amplitude': amplitude,
+                            'amplitude_error': primary_amp_error if line_name == primary_line else primary_amp_error / doublet_ratio,
+                            'rest_wavelength': rest_wl,
+                            'observed_center': observed_center,
+                            'redshift': z_comp,
+                            'velocity_shift': c * z_comp,
+                            'sigma': sigma_comp,
+                            'fwhm': 2.355 * sigma_comp,
+                            'equivalent_width': equivalent_width,
+                            'doublet_ratio': doublet_ratio
+                        }
+                        result['individual_lines'][line_name] = line_result
+    
+            return result
+            
+        except Exception as e:
+            print(f"Multi-component doublet fitting failed: {e}")
+            return None
 
