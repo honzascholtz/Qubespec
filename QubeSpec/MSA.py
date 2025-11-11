@@ -52,7 +52,7 @@ def load_data(path, extr='5pix', dirty=False):
     if extr == '5pix':
         _data_name = 'DATA'
         _err_name = 'ERR'
-        _dirty_name = 'DIRTY'
+        _dirty_name = 'DIRTY_DATA'
     elif extr == '3pix':
         _data_name = 'EXTR3'
         _err_name = 'EXTR3ERR'

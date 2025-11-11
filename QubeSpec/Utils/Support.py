@@ -3,6 +3,7 @@
 """
 
 #importing modules
+from networkx import center
 import numpy as np
 import matplotlib.pyplot as plt; plt.ioff()
 
@@ -1417,3 +1418,107 @@ def cal_sfr_kennicutt(ha_flux, err_ha_flux, redshift):
     err_sfr = sfr * (err_ha_flux/ha_flux)
 
     return(sfr, err_sfr)   
+
+
+def create_MSA_shutter_reg(center, rotation_deg, dx, dy ):
+    from matplotlib.patches import Rectangle
+    from astropy.coordinates import SkyCoord
+    import astropy.units as u
+    from regions import PolygonSkyRegion, Regions
+    import numpy as np
+
+    RA, Dec = center
+
+    # MSA shutter dimensions
+    width_arcsec = 0.2
+    height_arcsec = 0.46
+
+    translation_vector = np.array([dx* width_arcsec,dy* height_arcsec])
+
+    gap_arcsec = 0.07  # gap between shutters
+
+    # Rotation matrix (counterclockwise)
+    theta = np.radians(-rotation_deg)
+    rot_matrix = np.array([[np.cos(theta), -np.sin(theta)],
+                        [np.sin(theta), np.cos(theta)]])
+
+    # Calculate offsets for shutters above and below (in unrotated frame)
+    shutter_spacing = height_arcsec + gap_arcsec
+    offsets_arcsec = np.array([
+        [0, 0],                    # center shutter
+        [0, shutter_spacing],      # shutter above
+        [0, -shutter_spacing]      # shutter below
+    ])
+
+    # Apply rotation to offsets
+    offsets_rotated = offsets_arcsec @ rot_matrix.T
+
+    # Corner offsets in arcsec (before rotation, relative to shutter center)
+    corners_offset = np.array([
+        [-width_arcsec/2, -height_arcsec/2],  # bottom-left
+        [width_arcsec/2, -height_arcsec/2],   # bottom-right
+        [width_arcsec/2, height_arcsec/2],    # top-right
+        [-width_arcsec/2, height_arcsec/2]    # top-left
+    ])
+
+    cos_dec = np.cos(np.radians(Dec))
+    corner_labels = ['Bottom-Left', 'Bottom-Right', 'Top-Right', 'Top-Left']
+    labels = ['Center', 'Above', 'Below']
+    colors = ['red', 'cyan', 'yellow']
+
+    # Store regions
+    region_list = []
+
+    print("MSA Shutter Configuration:")
+    print(f"Central shutter: RA={RA:.8f}°, Dec={Dec:.8f}°")
+    print(f"Size: {width_arcsec}\" × {height_arcsec}\"")
+    print(f"Gap between shutters: {gap_arcsec}\"")
+    print(f"Rotation: {rotation_deg}° from North\n")
+
+    for shutter_idx, (shutter_offset, shutter_label, color) in enumerate(zip(offsets_rotated, labels, colors)):
+        if shutter_label =='Center':
+            print(f"\n{'='*60}")
+            print(f"{shutter_label} Shutter:")
+            print(f"{'='*60}")
+        
+        # Store corner coordinates for this shutter
+        corner_coords = []
+        
+        for i, corner_label in enumerate(corner_labels):
+            # Total offset is shutter offset + corner offset (both in unrotated frame)
+            total_offset = offsets_arcsec[shutter_idx] + corners_offset[i]
+            
+            # Apply rotation
+            rotated_corner = total_offset @ rot_matrix.T
+            
+            # Convert to RA/Dec offsets
+            ra_offset = rotated_corner[0] / (3600 * cos_dec)  # degrees
+            dec_offset = rotated_corner[1] / 3600  # degrees
+
+             # Apply translation in rotated coordinates
+            shifted_corner = rotated_corner + translation_vector
+
+            # Convert to RA/Dec offsets
+            ra_offset = shifted_corner[0] / (3600 * cos_dec)  # degrees
+            dec_offset = shifted_corner[1] / 3600  # degrees
+            
+            # Calculate final RA/Dec
+            corner_ra = RA + ra_offset
+            corner_dec = Dec + dec_offset
+                
+            # Calculate corner RA/Dec
+            corner_ra = RA + ra_offset
+            corner_dec = Dec + dec_offset
+            if shutter_label =='Center':
+                print(f"{corner_label:12s}: RA={corner_ra:.8f}°, Dec={corner_dec:.8f}°")
+            
+            corner_coords.append(SkyCoord(corner_ra*u.deg, corner_dec*u.deg, frame='icrs'))
+        
+        # Create polygon region from corners
+        polygon_region = PolygonSkyRegion(vertices=SkyCoord(corner_coords))
+        region_list.append(polygon_region)
+   
+
+    # Create a Regions object and save to DS9 format
+    return Regions(region_list)
+    

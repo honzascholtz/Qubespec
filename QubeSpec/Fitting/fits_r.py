@@ -116,6 +116,7 @@ class Fitting:
         self.progress = progress # progress bar?
         self.z = z  # redshift
         self.waves = wave # wavelength 
+        self.wave = wave # wavelength 
         self.fluxs = flux # flux density
         self.error = error # errors
         self.ncpu= ncpu # number of cpus to use in the fit 
@@ -278,7 +279,7 @@ class Fitting:
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.waves[np.invert(self.fluxs.mask)]
          
-        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
+        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+200)*(1+self.z)/1e4))[0]
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
         
         self.flux_zoom = self.flux[sel]

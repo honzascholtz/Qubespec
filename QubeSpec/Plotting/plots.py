@@ -64,7 +64,7 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',mode='restf
         fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
         fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
     else:
-        raise ValueError('mode must be restframe or observed')
+        raise ValueError('mode must be restframe or observedframe')
     
     flux = fluxs.data[np.invert(fluxs.mask)]
     
@@ -200,12 +200,12 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='r
     wv_rst_sc= wv_rest[np.invert(fluxs.mask)]
 
     if mode=='restframe':
-        fit_loc = np.where((wv_rest>4700.)&(wv_rest<5200.))[0]
-        fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        fit_loc = np.where((wv_rest>6394.)&(wv_rest<6764.))[0]
+        fit_loc_sc = np.where((wv_rst_sc>6394)&(wv_rst_sc<6764))[0]
     elif mode=='observedframe':
         wv_rest = wave
-        fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
-        fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
+        fit_loc = np.where((wv_rest>(6394.*(1+z)/1e4))&(wv_rest<(6764.*(1+z)/1e4)))[0]
+        fit_loc_sc = np.where((wv_rst_sc>6394*(1+z)/1e4)&(wv_rst_sc<6764*(1+z)/1e4))[0]
     else:
         raise ValueError('mode must be restframe or observed')
     
@@ -218,13 +218,11 @@ def plotting_Halpha( res, ax, errors=False, residual='none', axres=None, mode='r
     elif mode=='observedframe':
         ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
         ax.plot(res.wave[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
-    
-
 
     y_tot = res.yeval[fit_loc]
+    y_tot_rs = res.yeval[fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
-
     ax.set_ylim(-0.1*max(y_tot), max(y_tot)*1.1)
     if mode=='restframe':
         ax.set_xlim(6564.52-150,6564.52+150 )
@@ -321,11 +319,16 @@ def plotting_Halpha_OIII(res, ax,errors=False, residual='none', axres=None,mode=
 
     if mode=='restframe':
         fit_loc = np.where((wv_rest>4700.)&(wv_rest<5200.))[0]
+        fit_loc = np.append(fit_loc, np.where((wv_rest>6394.)&(wv_rest<6764.))[0])
+        
         fit_loc_sc = np.where((wv_rst_sc>4700)&(wv_rst_sc<5200))[0]
+        fit_loc_sc = np.append(fit_loc_sc, np.where((wv_rst_sc>6394)&(wv_rst_sc<6764))[0])
     elif mode=='observedframe':
         wv_rest = wave
         fit_loc = np.where((wv_rest>(4700.*(1+z)/1e4))&(wv_rest<(5200.*(1+z)/1e4)))[0]
+        fit_loc = np.append(fit_loc, np.where((wv_rest>(6394.*(1+z)/1e4))&(wv_rest<(6764.*(1+z)/1e4)))[0])
         fit_loc_sc = np.where((wv_rst_sc>4700*(1+z)/1e4)&(wv_rst_sc<5200*(1+z)/1e4))[0]
+        fit_loc_sc = np.append(fit_loc_sc, np.where((wv_rst_sc>6394*(1+z)/1e4)&(wv_rst_sc<6764*(1+z)/1e4))[0])
     else:
         raise ValueError('mode must be restframe or observed')
     
