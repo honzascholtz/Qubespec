@@ -1447,7 +1447,9 @@ def create_MSA_shutter_reg(center, rotation_deg, dx, dy ):
     offsets_arcsec = np.array([
         [0, 0],                    # center shutter
         [0, shutter_spacing],      # shutter above
-        [0, -shutter_spacing]      # shutter below
+        [0, -shutter_spacing],      # shutter below
+        [0, 2*shutter_spacing],      # shutter above
+        [0, -2*shutter_spacing]      # shutter below
     ])
 
     # Apply rotation to offsets
@@ -1463,8 +1465,8 @@ def create_MSA_shutter_reg(center, rotation_deg, dx, dy ):
 
     cos_dec = np.cos(np.radians(Dec))
     corner_labels = ['Bottom-Left', 'Bottom-Right', 'Top-Right', 'Top-Left']
-    labels = ['Center', 'Above', 'Below']
-    colors = ['red', 'cyan', 'yellow']
+    labels = ['Center', 'Above', 'Below', '2Above', '2Below']
+    colors = ['cyan', 'cyan', 'cyan', 'cyan', 'cyan']
 
     # Store regions
     region_list = []
