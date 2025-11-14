@@ -83,7 +83,7 @@ class Fitting:
         
     """
        
-    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
+    def __init__(self, wave=np.array([]), flux=np.array([]), error=np.array([]), z=1, N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
         priors_update = priors.copy()
         priors= {'z':[0, 'normal_hat', 0,0.003,0.01,0.01],\
                 'cont':[0,'loguniform',-4,1],\
@@ -115,10 +115,11 @@ class Fitting:
         self.priors = priors # storing priors
         self.progress = progress # progress bar?
         self.z = z  # redshift
-        self.waves = wave # wavelength 
-        self.wave = wave # wavelength 
-        self.fluxs = flux # flux density
-        self.error = error # errors
+        self.waves = wave.copy() # wavelength 
+        self.wave = wave.copy() # wavelength 
+        self.fluxs = flux.copy() # flux density
+        self.errors = error.copy() # errors
+        self.error = error.copy() # errors
         self.ncpu= ncpu # number of cpus to use in the fit 
         self.sampler = sampler
     
@@ -1083,11 +1084,11 @@ class Fitting:
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.waves[np.invert(self.fluxs.mask)]
-        self.errors = self.error[np.invert(self.fluxs.mask)]
+        self.error = self.errors[np.invert(self.fluxs.mask)]
 
         self.flux_fitloc = self.flux.copy()
-        self.wave_fitloc = self.waves.copy()
-        self.error_fitloc = self.errors.copy()
+        self.wave_fitloc = self.wave.copy()
+        self.error_fitloc = self.error.copy()
 
         if odd==True:
             if len(self.flux_fitloc) % 2 == 0:
@@ -1116,18 +1117,16 @@ class Fitting:
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible')
                 
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(self.z,zscale, nwalkers)
-
-        self.pos = pos
+        self.pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        self.pos[:,0] = np.random.normal(self.z,zscale, nwalkers)
 
         if self.sampler =='emcee':
-            nwalkers, ndim = pos.shape
+            nwalkers, ndim = self.pos.shape
         
             if self.ncpu==1:
                 sampler = emcee.EnsembleSampler(
                     nwalkers, ndim, self.log_probability_general, args=()) 
-                sampler.run_mcmc(pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
+                sampler.run_mcmc(self.pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
             
             elif self.ncpu>1:
                 from multiprocess import Pool
@@ -1135,7 +1134,7 @@ class Fitting:
                     sampler = emcee.EnsembleSampler(
                         nwalkers, ndim, self.log_probability_general, args=(), pool=pool) 
                 
-                    sampler.run_mcmc(pos, self.N, progress=self.progress)
+                    sampler.run_mcmc(self.pos, self.N, progress=self.progress)
 
             self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
             self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
