@@ -1281,6 +1281,20 @@ class Fitting:
         self.yeval = self.Model.calculate_values(self.waves)
         self.comps = self.Model.lines
 
+    def bic_calc(self, obs_wave):
+        """ Calculate BIC for a given observed wavelength array
+        """
+        yeval_obs = self.fitted_model(obs_wave, *self.props['popt'])
+        
+        use = (self.wave_fitloc>=np.min(obs_wave)) & (self.wave_fitloc<=np.max(obs_wave))
+
+        flux_setup = self.flux_fitloc[use]
+        error_setup = self.error_fitloc[use]
+
+        chi2 = np.nansum(((flux_setup-yeval_obs)/error_setup)**2)
+        BIC = chi2+ len(self.props['popt'])*np.log(len(flux_setup))
+        return BIC
+
 
     def save(self, file_path):
         import pickle

@@ -71,18 +71,19 @@ def plotting_OIII(res, ax, errors=False, template=0, residual='none',mode='restf
     if mode=='restframe':
         ax.plot(res.wave/(1+z)*1e4, res.flux, drawstyle='steps-mid', label='data')
         ax.plot(wv_rest[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+        flt = np.where((wv_rest[fit_loc]>4900)&(wv_rest[fit_loc]<5100))[0]
     
     elif mode=='observedframe':
         ax.plot(res.wave, res.flux, drawstyle='steps-mid', label='data')
         ax.plot(res.wave[fit_loc], fluxs.data[fit_loc], color='grey', drawstyle='steps-mid', alpha=0.2)  
+
+        flt = np.where((wv_rest[fit_loc]>(4900*(1+z)/1e4))&(wv_rest[fit_loc]<5100*(1+z)/1e4))[0]
     
 
     y_tot = res.yeval[fit_loc]
     y_tot_rs = res.yeval[fit_loc_sc]
 
     ax.plot(wv_rest[fit_loc], y_tot, 'r--')
-
-    flt = np.where((wv_rest[fit_loc]>4900)&(wv_rest[fit_loc]<5100))[0]
 
     ax.set_ylim(-0.1*np.nanmax(y_tot[flt]), np.nanmax(y_tot[flt])*1.1)
     ax.tick_params(direction='in')
