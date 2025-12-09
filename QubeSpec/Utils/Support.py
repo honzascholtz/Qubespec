@@ -1523,4 +1523,26 @@ def create_MSA_shutter_reg(center, rotation_deg, dx, dy ):
 
     # Create a Regions object and save to DS9 format
     return Regions(region_list)
+
+
+
+def image_cutout(data, header, coor, size):
+    '''
+    Docstring for image_cutout
     
+    :param data: Image 
+    :param header: Header
+    :param coor:Ra, Dec as list or as Skycoord
+    :param size: size - make sure it is in arcsec units
+    '''
+    from astropy.nddata.utils import Cutout2D
+    from astropy.wcs import WCS
+
+    if isinstance(header, WCS):
+        w = header
+    else:
+        w = WCS(header)
+
+    cutout = Cutout2D(data, coor, size, wcs=w)
+
+    return cutout

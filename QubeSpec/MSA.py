@@ -143,8 +143,8 @@ class R1000:
                 else:
                     self.band_custom = None
 
-            
-            self.Full_path_custom = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
+            if self.band_custom is not None:
+                self.Full_path_custom = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
 
         else:
             self.band_custom= None
