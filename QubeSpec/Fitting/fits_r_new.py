@@ -1785,3 +1785,73 @@ def quick_fit(
     )
     
     return fitter.props
+
+
+# =============================================================================
+# Batch Processing Utilities
+# =============================================================================
+
+def fit_multiple_spectra(
+    spectra: List[Tuple[np.ndarray, np.ndarray, np.ndarray, float]],
+    line_region: str = 'halpha',
+    model: str = 'gal',
+    parallel: bool = False,
+    n_jobs: int = -1,
+    **kwargs
+) -> List[Fitting]:
+    """
+    Fit multiple spectra with the same configuration.
+    
+    Parameters
+    ----------
+    spectra : list of tuples
+        List of (wavelength, flux, error, redshift) tuples
+    line_region : str, optional
+        Region to fit
+    model : str, optional
+        Model type
+    parallel : bool, optional
+        Use parallel processing (requires joblib)
+    n_jobs : int, optional
+        Number of parallel jobs (-1 for all CPUs)
+    **kwargs
+        Additional arguments passed to SpectralFitter
+        
+    Returns
+    -------
+    list of SpectralFitter
+        List of fitted objects
+        
+    Examples
+    --------
+    >>> spectra_list = [
+    ...     (wave1, flux1, error1, z1),
+    ...     (wave2, flux2, error2, z2),
+    ...     (wave3, flux3, error3, z3),
+    ... ]
+    >>> 
+    >>> fitters = fit_multiple_spectra(spectra_list, line_region='halpha',
+    ...                               model='gal', parallel=True)
+    >>> 
+    >>> for i, fitter in enumerate(fitters):
+    ...     print(f"Spectrum {i}: χ² = {fitter.chi2:.1f}, BIC = {fitter.BIC:.1f}")
+    """
+    def _fit_single(spec_data):
+        wave, flux, error, z = spec_data
+        return fit_emission_lines(wave, flux, error, z,
+                                 line_region=line_region,
+                                 model=model, **kwargs)
+    
+    if parallel:
+        try:
+            from joblib import Parallel, delayed
+            results = Parallel(n_jobs=n_jobs)(
+                delayed(_fit_single)(spec) for spec in spectra
+            )
+        except ImportError:
+            print("Warning: joblib not available, running in serial mode")
+            results = [_fit_single(spec) for spec in spectra]
+    else:
+        results = [_fit_single(spec) for spec in spectra]
+    
+    return results
