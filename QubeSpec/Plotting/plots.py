@@ -8,7 +8,7 @@ data, including emission lines (OIII, H-alpha, H-beta, NII, SII, OI) and
 kinematic maps from IFU data.
 
 Created on Thu Aug 17 10:11:38 2017
-Modernized: 2024
+Modernized: 2025
 
 @author: jscholtz
 """
