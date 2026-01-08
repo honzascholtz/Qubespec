@@ -723,17 +723,21 @@ class Cube:
         '''
         self.masking_threshold = threshold
         self.channel_mask = spe_ma
-        sky_clipped =  self.flux.mask.copy()
         median_error = np.nanmedian(self.error_cube)
         std_error = np.nanmedian(self.error_cube)
         limit = threshold*std_error+median_error
-        sky_clipped[self.error_cube>limit] = True
+        self.sky_clipped = self.flux.mask.copy()
+        self.sky_clipped[self.error_cube>limit] = True
 
-        sky_clipped_1D = self.flux.mask.copy()[:,10,10].copy()
-        sky_clipped_1D[:] = False
-        sky_clipped_1D[spe_ma] = True
-        self.sky_clipped_1D = sky_clipped_1D
-        self.sky_clipped = sky_clipped
+        if len(self.obs_wave)<1000:
+            self.sky_clipped[self.obs_wave<1.] = False
+            print('Masking below 1 micron for PRISM data')
+
+
+        self.sky_clipped_1D = self.flux.mask.copy()[:,10,10].copy()
+        self.sky_clipped_1D[:] = False
+        self.sky_clipped_1D[spe_ma] = True
+
         self.Sky_stack_mask = self.flux.mask.copy()
 
 
