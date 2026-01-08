@@ -1235,3 +1235,286 @@ def overide_axes_labels(fig: Figure, ax: Axes, lims,
             newax.yaxis.label.set_color('white')
             plt.setp(newax.get_yticklabels(), color="white")
             plt.setp(newax.get_xticklabels(), color="white")
+
+
+def add_lines_paper(ax, wave1d, spec1d, redshift, show_labels=True, twodim=False,
+    fontsize=18, subset_name={}, dz=None, extra=False):
+
+    import matplotlib
+    emlines = {
+        'Ly$\\alpha$'   : ( 1215.,  +0.06,  0.9),
+        'NIV'   : ( 1488.,  -0.05,  0.9),
+        'CIII]'   : ( 1908.734,  -0.0,  0.9),
+         #'SiIV': [1400., 0, 0.9],
+        'CIV' : ( 1550., -0.05, 0.9),
+        'HeII' : (1640., -0.05, 0.9),
+        '[OIII]' : (1663., +0.05, 0.9),
+        'NIII]' : (1752., +0.05, 0.9),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.9),
+        'H$\\gamma$'          : ( 4341.647,  0.0, 0.9),
+        '[OII]'   : ( 3727.,  -0.0,  0.9),
+        '[NeIII]' : ( np.array([3869., 3968.]), -0.05, 0.9),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.9),
+        'H$\\gamma$'         : ( 4340.471	, -0.04, 0.7),
+        r'[OIII]$\lambda$4363'         : ( 4363.471	, 0.04, 0.7),
+    }
+    n_lines = len(emlines.items())
+    cmap = matplotlib.colormaps['nipy_spectral']
+    norm = matplotlib.colors.Normalize(vmin= -0.5, vmax=n_lines-0.8)
+    
+    for i,(line,lineprop) in enumerate(emlines.items()):
+        waves, offset, y_position = lineprop
+        waves = np.atleast_1d(waves)
+        waves *= (1+redshift)/1.e4
+        wave = np.nanmean(waves)
+        if not 1.001*wave1d[0]<wave<wave1d[-1]*0.999: continue
+        if subset_name and line not in subset_name: continue
+        color = cmap(norm(float(i)))
+        where_line = np.argmin(np.abs(wave1d-wave))
+        where_line = slice(where_line-5, where_line+6, 1)
+        #data_at_line = (
+        #    np.min(spec1d[where_line]) if pre_dash
+        #    else np.max(spec1d[where_line])
+        #)
+        va = 'center'
+        y_position = y_position*ax.get_ylim()[1]
+        if y_position<0.05: va='bottom'
+        if y_position>0.90: va='top'
+        
+        dwave = 0.
+        if twodim:
+            for w in waves:
+                ax.axvline(w, 0., 0.33, color='w', lw=1.5, alpha=1.0, ls='--')
+                ax.axvline(w, 0.65, 1.0, color='w', lw=1.5, alpha=1.0, ls='--')
+        else:
+            for w in waves:
+                ax.axvline(w, color=color, lw=1.5, alpha=1.0, ls='--', zorder=0)
+            if dz:
+                wmin, wmax = np.min(waves), np.max(waves)
+                wmin = wmin*(1.-dz/(1+redshift))
+                wmax = wmax*(1.+dz/(1+redshift))
+                ax.axvspan(wmin, wmax, facecolor=color, edgecolor='none', alpha=0.2, zorder=0)
+        if show_labels:
+            if ((wave+dwave+offset)< ax.get_xlim()[1]) & ((wave+dwave+offset)> ax.get_xlim()[0]):
+                ax.text(
+                    wave+dwave+offset, y_position, line,
+                    color=color, va=va, ha='center',
+                    fontsize=fontsize,
+                    rotation='vertical',
+                    bbox=dict(boxstyle='Round,pad=0.01', facecolor='white',
+                            alpha=1.0, edgecolor='none'),
+                    zorder=5,
+                    )
+                
+def add_lines_paper_r1000(ax, wave1d, spec1d, redshift, show_labels=True, twodim=False,
+    fontsize=18, subset_name={}, dz=None, extra=False):
+
+    import matplotlib
+    emlines = {
+        'Ly$\\alpha$'   : ( 1215.,  +0.0,  0.8),
+        #'NV'   : ( 1240.,  0.05,  0.9),
+        'CIII]'   : ( 1907.734,  -0.0,  0.8),
+         #'SiIV': [1400., 0, 0.9],
+        'CIV' : ( 1550., -0.0, 0.8),
+        'HeII' : (1640., -0.0, 0.8),
+        '[OIII]' : (1663., +0., 0.8),
+        #'NIII]' : (1752., +0.05, 0.9),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.8),
+        'H$\\gamma$'          : ( 4341.647,  0.0, 0.8),
+        '[OII]'   : ( 3727.,  -0.0,  0.8),
+        '[NeIII]' : ( np.array([3869., 3968.]), -0.0, 0.8),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.8),
+        'H$\\gamma$'         : ( 4340.471	, -0.0, 0.8),
+        r'[OIII]$\lambda$4363'         : ( 4353.471	, 0.04, 0.7),
+         'H$\\beta$'         : ( 4862.683, -0.00, 0.8),
+        r'[OIII]$\lambda$5008'         : ( 5008.24, 0.0, 0.6),
+        'H$\\alpha$'         : ( 6564.61, -0.00, 0.8),
+    }
+    n_lines = len(emlines.items())
+    cmap = matplotlib.colormaps['nipy_spectral']
+    norm = matplotlib.colors.Normalize(vmin= -0.5, vmax=n_lines-0.8)
+    
+    for i,(line,lineprop) in enumerate(emlines.items()):
+        waves, offset, y_position = lineprop
+        waves = np.atleast_1d(waves)
+        waves *= (1+redshift)/1.e4
+        wave = np.nanmean(waves)
+        if not 1.001*wave1d[0]<wave<wave1d[-1]*0.999: continue
+        if subset_name and line not in subset_name: continue
+        color = cmap(norm(float(i)))
+        where_line = np.argmin(np.abs(wave1d-wave))
+        where_line = slice(where_line-5, where_line+6, 1)
+        #data_at_line = (
+        #    np.min(spec1d[where_line]) if pre_dash
+        #    else np.max(spec1d[where_line])
+        #)
+        va = 'center'
+        y_position = y_position*ax.get_ylim()[1]
+        if y_position<0.05: va='bottom'
+        if y_position>0.90: va='top'
+        
+        dwave = 0.
+        if twodim:
+            for w in waves:
+                ax.axvline(w, 0., 0.33, color='w', lw=1.5, alpha=1.0, ls='--')
+                ax.axvline(w, 0.65, 1.0, color='w', lw=1.5, alpha=1.0, ls='--')
+        else:
+            for w in waves:
+                ax.axvline(w, color=color, lw=1.5, alpha=1.0, ls='--', zorder=0)
+            if dz:
+                wmin, wmax = np.min(waves), np.max(waves)
+                wmin = wmin*(1.-dz/(1+redshift))
+                wmax = wmax*(1.+dz/(1+redshift))
+                ax.axvspan(wmin, wmax, facecolor=color, edgecolor='none', alpha=0.2, zorder=0)
+        if show_labels:
+            if ((wave+dwave+offset)< ax.get_xlim()[1]) & ((wave+dwave+offset)> ax.get_xlim()[0]):
+                ax.text(
+                    wave+dwave+offset, y_position, line,
+                    color=color, va=va, ha='center',
+                    fontsize=fontsize,
+                    rotation='vertical',
+                    bbox=dict(boxstyle='Round,pad=0.01', facecolor='white',
+                            alpha=1.0, edgecolor='none'),
+                    zorder=5,
+                    )
+                
+def add_lines_paper_r1000_mul(axes, wave1d, spec1d, redshift, show_labels=True, twodim=False,
+    fontsize=18, subset_name={}, dz=None, extra=False):
+
+    import matplotlib
+    emlines = {
+        'Ly$\\alpha$'   : ( 1215.,  +0.0,  0.8),
+        #'NV'   : ( 1240.,  0.05,  0.9),
+        'CIII]'   : ( 1907.734,  -0.0,  0.8),
+         #'SiIV': [1400., 0, 0.9],
+        'CIV' : ( 1550., -0.0, 0.8),
+        'HeII' : (1640., -0.0, 0.8),
+        '[OIII]' : (1663., +0., 0.8),
+        #'NIII]' : (1752., +0.05, 0.9),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.8),
+        'H$\\gamma$'          : ( 4341.647,  0.0, 0.8),
+        '[OII]'   : ( 3727.,  -0.0,  0.8),
+        '[NeIII]' : ( np.array([3869., 3968.]), -0.0, 0.8),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.8),
+        'H$\\gamma$'         : ( 4340.471	, -0.0, 0.8),
+        r'[OIII]$\lambda$4363'         : ( 4353.471	, 0.04, 0.7),
+         'H$\\beta$'         : ( 4862.683, -0.00, 0.8),
+        r'[OIII]$\lambda$5008'         : ( 5008.24, 0.0, 0.6),
+        'H$\\alpha$'         : ( 6564.61, -0.00, 0.8),
+    }
+    n_lines = len(emlines.items())
+    cmap = matplotlib.colormaps['nipy_spectral']
+    norm = matplotlib.colors.Normalize(vmin= -0.5, vmax=n_lines-0.8)
+    
+    for i,(line,lineprop) in enumerate(emlines.items()):
+        waves, offset, y_position = lineprop
+        waves = np.atleast_1d(waves)
+        waves *= (1+redshift)/1.e4
+        wave = np.nanmean(waves)
+        if not 1.001*wave1d[0]<wave<wave1d[-1]*0.999: continue
+        if subset_name and line not in subset_name: continue
+        color = cmap(norm(float(i)))
+        where_line = np.argmin(np.abs(wave1d-wave))
+        where_line = slice(where_line-5, where_line+6, 1)
+        #data_at_line = (
+        #    np.min(spec1d[where_line]) if pre_dash
+        #    else np.max(spec1d[where_line])
+        #)
+        va = 'center'
+        for ax in axes:
+            y_position = y_position*ax.get_ylim()[1]
+            if y_position<0.05: va='bottom'
+            if y_position>0.80: va='top'
+            
+            dwave = 0.
+        
+            if twodim:
+                for w in waves:
+                    ax.axvline(w, 0., 0.33, color='w', lw=1.5, alpha=1.0, ls='--')
+                    ax.axvline(w, 0.65, 1.0, color='w', lw=1.5, alpha=1.0, ls='--')
+            else:
+                for w in waves:
+                    ax.axvline(w, color=color, lw=1.5, alpha=1.0, ls='--', zorder=0)
+                if dz:
+                    wmin, wmax = np.min(waves), np.max(waves)
+                    wmin = wmin*(1.-dz/(1+redshift))
+                    wmax = wmax*(1.+dz/(1+redshift))
+                    ax.axvspan(wmin, wmax, facecolor=color, edgecolor='none', alpha=0.2, zorder=0)
+            if show_labels:
+                if ((wave+dwave+offset)< ax.get_xlim()[1]) & ((wave+dwave+offset)> ax.get_xlim()[0]):
+                    ax.text(
+                        wave+dwave+offset, y_position, line,
+                        color=color, va=va, ha='center',
+                        fontsize=fontsize,
+                        rotation='vertical',
+                        bbox=dict(boxstyle='Round,pad=0.01', facecolor='white',
+                                alpha=1.0, edgecolor='none'),
+                        zorder=5,
+                        )
+                
+def add_lines_paper_baxes(ax, wave1d, spec1d, redshift, show_labels=True, twodim=False,
+    fontsize=18, subset_name={}, dz=None, extra=False):
+
+    import matplotlib
+    emlines = {
+        'Ly$\\alpha$'   : ( 1215.,  +0.06,  0.9),
+        #'NV'   : ( 1240.,  0.05,  0.9),
+        'CIII]'   : ( 1908.734,  -0.0,  0.9),
+         #'SiIV': [1400., 0, 0.9],
+        'CIV' : ( 1550., -0.05, 0.9),
+        'HeII' : (1640., -0.05, 0.9),
+        '[OIII]' : (1663., +0.05, 0.9),
+        #'NIII]' : (1752., +0.05, 0.9),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.9),
+        'H$\\gamma$'          : ( 4341.647,  0.0, 0.9),
+        '[OII]'   : ( 3727.,  -0.0,  0.9),
+        '[NeIII]' : ( np.array([3869., 3968.]), -0.05, 0.9),
+        'H$\\delta$'         : ( 4102.860, -0.00, 0.9),
+    }
+    n_lines = len(emlines.items())
+    cmap = matplotlib.colormaps['nipy_spectral']
+    norm = matplotlib.colors.Normalize(vmin= -0.5, vmax=n_lines-0.8)
+    
+    for i,(line,lineprop) in enumerate(emlines.items()):
+        waves, offset, y_position = lineprop
+        waves = np.atleast_1d(waves)
+        waves *= (1+redshift)/1.e4
+        wave = np.nanmean(waves)
+        if not 1.001*wave1d[0]<wave<wave1d[-1]*0.999: continue
+        if subset_name and line not in subset_name: continue
+        color = cmap(norm(float(i)))
+        where_line = np.argmin(np.abs(wave1d-wave))
+        where_line = slice(where_line-5, where_line+6, 1)
+        #data_at_line = (
+        #    np.min(spec1d[where_line]) if pre_dash
+        #    else np.max(spec1d[where_line])
+        #)
+        va = 'center'
+        y_position = y_position*ax.get_ylim()[0][1]
+        if y_position<0.05: va='bottom'
+        if y_position>0.90: va='top'
+        
+        dwave = 0.
+        if twodim:
+            for w in waves:
+                ax.axvline(w, 0., 0.33, color='w', lw=1.5, alpha=1.0, ls='--')
+                ax.axvline(w, 0.65, 1.0, color='w', lw=1.5, alpha=1.0, ls='--')
+        else:
+            for w in waves:
+                ax.axvline(w, color=color, lw=1.5, alpha=1.0, ls='--', zorder=0)
+            if dz:
+                wmin, wmax = np.min(waves), np.max(waves)
+                wmin = wmin*(1.-dz/(1+redshift))
+                wmax = wmax*(1.+dz/(1+redshift))
+                ax.axvspan(wmin, wmax, facecolor=color, edgecolor='none', alpha=0.2, zorder=0)
+        if show_labels:
+            if ((wave+dwave+offset)< ax.get_xlim()[1][1]) & ((wave+dwave+offset)> ax.get_xlim()[0][0]):
+                ax.text(
+                    wave+dwave+offset, y_position, line,
+                    color=color, va=va, ha='center',
+                    fontsize=fontsize,
+                    rotation='vertical',
+                    bbox=dict(boxstyle='Round,pad=0.01', facecolor='white',
+                            alpha=1.0, edgecolor='none'),
+                    zorder=5,
+                    )
