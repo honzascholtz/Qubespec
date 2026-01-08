@@ -5,7 +5,7 @@ from scipy.signal import medfilt
 import tqdm
 from astropy.io import fits
 
-def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0):
+def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0, save=False):
     '''
     Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -62,11 +62,21 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
 
     Sky_smooth = medfilt(Sky, smooth)
     self.flux_old = self.flux.copy()
-    for ix in range(shapes[0]):
-        for iy in range(shapes[1]):
-            self.flux[:,ix,iy] = self.flux[:,ix,iy] - Sky_smooth
 
+    self.flux -= Sky_smooth[:,np.newaxis,np.newaxis]
+    
     self.background = Sky_smooth
+
+    if save==True:
+        primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=self.header)
+        hdus = [primary_hdu]
+        hdus.append(fits.ImageHDU(self.flux.data, name='flux_bkg_sub',header=self.header))
+        hdus.append(fits.ImageHDU(self.error_cube, name='error', header=self.header))
+        hdus.append(fits.ImageHDU(self.background.data, name='background',header=self.header))
+        
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(self.savepath+'/'+self.ID+'_BKG_1D.fits', overwrite=True)
     
 
     if plot==1:
@@ -75,7 +85,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
         plt.plot(self.obs_wave, np.ma.array(data= Sky_smooth , mask=self.sky_clipped_1D), drawstyle='steps-mid')
         plt.ylabel('Flux')
         plt.xlabel('Observed wavelength')
-        plt.savefig(self.savepath+'Diagnostics/Background_spextrum.pdf')
+        plt.savefig(self.savepath+'Diagnostics/Background_spectrum.pdf')
 
 
 def background_subtraction(self, box_size=(21,21), filter_size=(5,5), sigma_clip=5,\

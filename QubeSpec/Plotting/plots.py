@@ -249,10 +249,17 @@ def _compute_shifted_wavelength(rest_wavelength: float, z: float,
         wave_obs += velocity / SPEED_OF_LIGHT_KMS * wave_obs
     return wave_obs
 
+    ax.set_ylim(-0.1*np.nanmax(y_tot[flt]), np.nanmax(y_tot[flt])*1.1)
+    ax.tick_params(direction='in')
+    if mode=='restframe':
+        ax.set_xlim(4700,5050 )
+    elif mode=='observedframe':
+        ax.set_xlim(4700*(1+z)/1e4,5050*(1+z)/1e4)
+    else:
+        raise ValueError('mode must be restframe or observedframe')
 
-# =============================================================================
-# OIII Region Plotting
-# =============================================================================
+    OIIIr = 5008.24*(1+z)/1e4
+    OIIIb = 4960.3*(1+z)/1e4
 
 def plotting_OIII(res, ax: Axes, errors: bool = False, 
                   template: Union[int, str] = 0,

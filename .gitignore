@@ -3,6 +3,7 @@
 /QubeSpec.egg-info/
 /QubeSpec/__pycache__/
 /QubeSpec/Models/FeII_templates/Preconvolved_FeII.txt
+/QubeSpec/FeII_templates
 /.ipynb_checkpoints
 /.DS_store
 /QubeSpec/.DS_Store
@@ -24,3 +25,5 @@ QubeSpec.zip
 dist/*.gz
 dist/.DS_Store
 QubeSpec/Dust/__pycache__/*
+Tutorial/.DS_Store
+QubeSpec/activities.csv

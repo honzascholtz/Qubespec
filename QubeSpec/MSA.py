@@ -52,7 +52,7 @@ def load_data(path, extr='5pix', dirty=False):
     if extr == '5pix':
         _data_name = 'DATA'
         _err_name = 'ERR'
-        _dirty_name = 'DIRTY'
+        _dirty_name = 'DIRTY_DATA'
     elif extr == '3pix':
         _data_name = 'EXTR3'
         _err_name = 'EXTR3ERR'
@@ -143,8 +143,8 @@ class R1000:
                 else:
                     self.band_custom = None
 
-            
-            self.Full_path_custom = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
+            if self.band_custom is not None:
+                self.Full_path_custom = self.path + self.band_custom +'/'+ self.ID + '_' + self.band_custom +self.version+self.add+'_1D.fits'
 
         else:
             self.band_custom= None
@@ -300,8 +300,10 @@ class R1000:
 
         for key in self.Fitting.labels:
             self.Fitting.chains[key] = np.random.choice(self.Fitting.chains[key], N, replace=False)
-        self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
-                   
+        try:
+            self.Fitting.like_chains = np.random.choice(self.Fitting.like_chains, N, replace=False)
+        except AttributeError:
+            pass
 
 class R100:  
     def __init__(self, path='', z=0, ID='', version ='4.0', add='', full_path=None):

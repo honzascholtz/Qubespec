@@ -37,9 +37,9 @@ setup(name='QubeSpec',
         'scipy>=1.9.1',
         'multiprocess',
         'spectres',
-        'photoutils',
+        'photutils',
         'sep'],
-      python_requires='>=3.8.0',
+      #python_requires='>=3.8.0',
       #entry_points={
       #  'console_scripts': [
       #      'inzimar = inzimar.inzimar:main',

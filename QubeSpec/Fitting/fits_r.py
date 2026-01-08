@@ -18,6 +18,9 @@ import corner
 from astropy.modeling.powerlaws import PowerLaw1D
 nan= float('nan')
 
+from typing import Dict, List, Tuple, Optional, Union
+
+
 pi= np.pi
 e= np.e
 
@@ -80,7 +83,7 @@ class Fitting:
         
     """
        
-    def __init__(self, wave='', flux='', error='', z='', N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
+    def __init__(self, wave=np.array([]), flux=np.array([]), error=np.array([]), z=1, N=5000,ncpu=1, progress=True,sampler='emcee', priors= {'z':[0, 'normal_hat', 0,0.003,0,0]}):
         priors_update = priors.copy()
         priors= {'z':[0, 'normal_hat', 0,0.003,0.01,0.01],\
                 'cont':[0,'loguniform',-4,1],\
@@ -112,9 +115,11 @@ class Fitting:
         self.priors = priors # storing priors
         self.progress = progress # progress bar?
         self.z = z  # redshift
-        self.wave = wave # wavelength 
-        self.fluxs = flux # flux density
-        self.error = error # errors
+        self.waves = wave.copy() # wavelength 
+        self.wave = wave.copy() # wavelength 
+        self.fluxs = flux.copy() # flux density
+        self.errors = error.copy() # errors
+        self.error = error.copy() # errors
         self.ncpu= ncpu # number of cpus to use in the fit 
         self.sampler = sampler
 
@@ -149,14 +154,14 @@ class Fitting:
         
         self.fluxs[np.isnan(self.fluxs)] = 0
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
-         
-        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
-        sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
-        
+        self.waves = self.waves[np.invert(self.fluxs.mask)]
+
+        self.fit_loc = np.where((self.waves>(6564.52-170)*(1+self.z)/1e4)&(self.waves<(6564.52+170)*(1+self.z)/1e4))[0]
+        sel=  np.where(((self.waves<(6564.52+20)*(1+self.z)/1e4))& (self.waves>(6564.52-20)*(1+self.z)/1e4))[0]
+
         self.flux_zoom = self.flux[sel]
-        self.wave_zoom = self.wave[sel]
-        
+        self.wave_zoom = self.waves[sel]
+
         peak = np.ma.max(self.flux_zoom)
         nwalkers=64
 
@@ -230,7 +235,8 @@ class Fitting:
             self.chi2, self.BIC = np.nan, np.nan
         
         self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
+        self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
 
     def fitting_Halpha(self, model='gal'):
         """ Method to fit Halpha+[NII +[SII]]
@@ -273,9 +279,9 @@ class Fitting:
             
         self.fluxs[np.isnan(self.fluxs)] = 0
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
          
-        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+170)*(1+self.z)/1e4))[0]
+        self.fit_loc = np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+200)*(1+self.z)/1e4))[0]
         sel=  np.where(((self.wave<(6564.52+20)*(1+self.z)/1e4))& (self.wave>(6564.52-20)*(1+self.z)/1e4))[0]
         
         self.flux_zoom = self.flux[sel]
@@ -439,7 +445,8 @@ class Fitting:
         self.chi2 = np.nansum(((self.flux_fitloc-self.fitted_model(self.wave_fitloc, *self.props['popt']))**2)/self.error_fitloc**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
         
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
+        self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
         
     # =============================================================================
     # Primary function to fit [OIII] with and without outflows. 
@@ -482,7 +489,7 @@ class Fitting:
                 self.priors['zBLR'][5] = self.z+1000/3e5*(1+self.z)
 
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
         if (expand_prism==1) | (expand_prism==True):
@@ -698,7 +705,7 @@ class Fitting:
         else:
             raise ValueError('Sampler value not understood. Should be emcee or leastsq')
         
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
         self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
 
         self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
@@ -744,7 +751,7 @@ class Fitting:
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.waves = self.wave.copy()
-        self.wave = self.wave[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
         
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
         #self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6300-50)*(1+self.z)/1e4)&(self.wave<(6300+50)*(1+self.z)/1e4))[0])
@@ -1030,7 +1037,8 @@ class Fitting:
             raise ValueError('Sampler value not understood. Should be emcee or leastsq')
 
 
-        self.yeval = self.fitted_model(self.wave, *self.props['popt'])
+        self.yeval = self.fitted_model(self.waves, *self.props['popt'])
+        self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
         
         self.chi2 = np.nansum(((self.flux_fitloc-self.yeval[self.fit_loc])/self.error_fitloc)**2)
         self.BIC = self.chi2+ len(self.props['popt'])*np.log(len(self.flux_fitloc))
@@ -1076,12 +1084,12 @@ class Fitting:
         self.error[self.error==0] = 10000*np.nanmedian(self.error)
             
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
-        self.waves = self.wave[np.invert(self.fluxs.mask)]
-        self.errors = self.error[np.invert(self.fluxs.mask)]
+        self.wave = self.waves[np.invert(self.fluxs.mask)]
+        self.error = self.errors[np.invert(self.fluxs.mask)]
 
         self.flux_fitloc = self.flux.copy()
-        self.wave_fitloc = self.waves.copy()
-        self.error_fitloc = self.errors.copy()
+        self.wave_fitloc = self.wave.copy()
+        self.error_fitloc = self.error.copy()
 
         if odd==True:
             if len(self.flux_fitloc) % 2 == 0:
@@ -1110,18 +1118,16 @@ class Fitting:
             raise Exception('Logprior function returned nan or -inf on initial conditions. You should double check that your priors\
                             boundries are sensible')
                 
-        pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
-        pos[:,0] = np.random.normal(self.z,zscale, nwalkers)
-
-        self.pos = pos
+        self.pos = np.random.normal(pos_l, abs(pos_l*0.1), (nwalkers, len(pos_l)))
+        self.pos[:,0] = np.random.normal(self.z,zscale, nwalkers)
 
         if self.sampler =='emcee':
-            nwalkers, ndim = pos.shape
+            nwalkers, ndim = self.pos.shape
         
             if self.ncpu==1:
                 sampler = emcee.EnsembleSampler(
                     nwalkers, ndim, self.log_probability_general, args=()) 
-                sampler.run_mcmc(pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
+                sampler.run_mcmc(self.pos, self.N, progress=self.progress,skip_initial_state_check=skip_check)
             
             elif self.ncpu>1:
                 from multiprocess import Pool
@@ -1129,7 +1135,7 @@ class Fitting:
                     sampler = emcee.EnsembleSampler(
                         nwalkers, ndim, self.log_probability_general, args=(), pool=pool) 
                 
-                    sampler.run_mcmc(pos, self.N, progress=self.progress)
+                    sampler.run_mcmc(self.pos, self.N, progress=self.progress)
 
             self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)
             self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
@@ -1276,6 +1282,20 @@ class Fitting:
         self.yeval = self.Model.calculate_values(self.waves)
         self.comps = self.Model.lines
 
+    def bic_calc(self, obs_wave):
+        """ Calculate BIC for a given observed wavelength array
+        """
+        yeval_obs = self.fitted_model(obs_wave, *self.props['popt'])
+        
+        use = (self.wave_fitloc>=np.min(obs_wave)) & (self.wave_fitloc<=np.max(obs_wave))
+
+        flux_setup = self.flux_fitloc[use]
+        error_setup = self.error_fitloc[use]
+
+        chi2 = np.nansum(((flux_setup-yeval_obs)/error_setup)**2)
+        BIC = chi2+ len(self.props['popt'])*np.log(len(flux_setup))
+        return BIC
+
 
     def save(self, file_path):
         import pickle
@@ -1300,6 +1320,7 @@ class Fitting:
         except:
             lp[np.isnan(lp)] = -np.inf
 
+        #evalm = self.fitted_model(self.wave_fitloc,*theta)
         try:
             evalm = self.fitted_model(self.wave_fitloc,*theta)
         except:
