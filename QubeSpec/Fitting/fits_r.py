@@ -111,6 +111,19 @@ class Fitting:
         for name in list(priors_update.keys()):
             priors[name] = priors_update[name]
 
+        # Validate inputs
+        if len(wave) > 0 and len(flux) > 0 and len(wave) != len(flux):
+            raise ValueError("Wave and flux arrays must have the same length")
+        
+        if len(error) > 0 and len(flux) > 0 and len(error) != len(flux):
+            raise ValueError("Error array must have same length as flux")
+        
+        if sampler not in ['emcee', 'leastsq']:
+            raise ValueError("Sampler must be 'emcee' or 'leastsq'")
+        
+        if z <= 0:
+            raise ValueError("Redshift must be positive")
+
         self.N = N # Number of points in the chains
         self.priors = priors # storing priors
         self.progress = progress # progress bar?
@@ -122,6 +135,8 @@ class Fitting:
         self.error = error.copy() # errors
         self.ncpu= ncpu # number of cpus to use in the fit 
         self.sampler = sampler
+
+        
 
     def _setup_(self, wv= None):  
                 
@@ -146,8 +161,21 @@ class Fitting:
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
         self.wave = self.waves[np.invert(self.fluxs.mask)]
 
-        if isinstance(self.error, np.ma.MaskedArray) == True:
-            self.error = self.error.data
+
+        # Handle masked arrays properly
+        if isinstance(self.fluxs, np.ma.MaskedArray):
+            # Replace NaN with 0
+            self.fluxs.data[np.isnan(self.fluxs.data)] = 0
+            # Extract unmasked data
+            mask = np.invert(self.fluxs.mask)
+            self.flux = self.fluxs.data[mask]
+            self.wave = self.waves[mask]
+        else:
+            # Handle regular arrays
+            self.flux = self.fluxs.copy()
+            self.wave = self.waves.copy()
+            
+
         self.error[~np.isfinite(self.error)] = 10000*np.nanmedian(self.error)
         self.error[self.error==0] = 10000*np.nanmedian(self.error)
 
@@ -210,6 +238,11 @@ class Fitting:
         
         self.yeval = self.fitted_model(self.waves, *self.props['popt'])
         self.yeval_fitloc = self.fitted_model(self.wave_fitloc, *self.props['popt'])
+
+        # Calculate reduced chi-squared
+        n_data = len(self.flux_fitloc)
+        n_params = len(self.props['popt'])
+        self.reduced_chi2 = self.chi2 / (n_data - n_params)
         
     def _logprior_test(self):
         if (self.log_prior_fce(self.pos_l, self.pr_code)==-np.inf) | (self.log_prior_fce(self.pos_l, self.pr_code)== np.nan):
@@ -223,9 +256,12 @@ class Fitting:
             self.pos = np.random.normal(self.pos_l, abs(self.pos_l*0.1), (self.nwalkers, len(self.pos_l)))
             self.pos[:,0] = np.random.normal(self.z,0.001, self.nwalkers)
 
-            if name =='zBLR':
-                    self.pos[:,i] = np.random.normal(self.z,0.001, self.nwalkers)
+        # Special handling for redshift parameters (tighter)
+        z_indices = [i for i, name in enumerate(self.labels) if name in ['z', 'zBLR']]
+        for i in z_indices:
+            self.pos[:, i] = np.random.normal(self.z, 0.001, self.nwalkers)
         
+
     def fitting_Halpha(self, model='gal'):
         """ Method to fit Halpha+[NII +[SII]]
         
@@ -264,7 +300,9 @@ class Fitting:
             self.labels=['z', 'cont','cont_grad', 'Hal_peak','BLR_Hal_peak', 'NII_peak', 'Nar_fwhm', 'BLR_fwhm', 'zBLR', 'SIIr_peak', 'SIIb_peak']
             
             self.fitted_model = H_models.Halpha_wBLR
-            self.pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6])
+            self.pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, 
+                                   self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],
+                                   self.priors['zBLR'][0],peak/6, peak/6])
             self.res = {'name': 'Halpha_wth_BLR'}
         
         elif self.model=='BLR':
@@ -272,8 +310,15 @@ class Fitting:
                          'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
             
             self.fitted_model = H_models.Halpha_BLR_outflow
-            self.pos_l = np.array([self.z,cont,0.001, peak/2, peak/4, peak/4, self.priors['Nar_fwhm'][0], self.priors['BLR_fwhm'][0],self.priors['zBLR'][0],peak/6, peak/6,\
-                              peak/6, peak/6, 700, -100])
+            self.pos_l = np.array([self.z,cont,0.001,
+                                    peak/2, peak/4, peak/4, 
+                                   self.priors['Nar_fwhm'][0], 
+                                   self.priors['BLR_fwhm'][0],
+                                   self.priors['zBLR'][0],
+                                   peak/6, peak/6,
+                                   peak/6, peak/6, 
+                                   self.priors['outflow_fwhm'][0],
+                                   self.priors['outflow_vel'][0]])
            
             self.res = {'name': 'Halpha_wth_BLR'}
         
@@ -281,13 +326,21 @@ class Fitting:
             self.fitted_model = H_models.Halpha
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak']
             
-            self.pos_l = np.array([self.z,cont,0.01, peak/1.3, peak/10,self.priors['Nar_fwhm'][0],peak/6, peak/6 ])
+            self.pos_l = np.array([self.z,cont,0.01,
+                                    peak/1.3, peak/10,
+                                    self.priors['Nar_fwhm'][0],
+                                    peak/6, peak/6 ])
             self.res = {'name': 'Halpha_wth_BLR'}
                  
         elif self.model=='outflow':
             self.fitted_model = H_models.Halpha_outflow
             self.labels=['z', 'cont','cont_grad', 'Hal_peak', 'NII_peak', 'Nar_fwhm', 'SIIr_peak', 'SIIb_peak', 'Hal_out_peak', 'NII_out_peak', 'outflow_fwhm', 'outflow_vel']
-            self.pos_l = np.array([self.z,cont,0.01, peak/1.3, peak/10,self.priors['Nar_fwhm'][0],peak/6, peak/6, peak/6, peak/6, self.priors['outflow_fwhm'][0], self.priors['outflow_vel'][0]])
+            self.pos_l = np.array([self.z,cont,
+                                   0.01, peak/1.3, peak/10,
+                                   self.priors['Nar_fwhm'][0],
+                                   peak/6, peak/6, peak/6, peak/6, 
+                                   self.priors['outflow_fwhm'][0],
+                                    self.priors['outflow_vel'][0]])
             self.res = {'name': 'Halpha_wth_out'}   
         else:
             raise Exception('self.model variable not understood. Available model keywords: BLR, BLR_simple, outflow, gal')
@@ -358,7 +411,12 @@ class Fitting:
             self.fitted_model = O_models.OIII_outflow
             
             cont_init = abs(np.median(self.flux[self.fit_loc]))
-            self.pos_l = np.array([self.z,cont_init,0.001, peak/2, peak/6, self.priors['Nar_fwhm'][0], self.priors['outflow_fwhm'][0],self.priors['outflow_vel'][0], peak_beta, peak_beta/3])
+            self.pos_l = np.array([self.z,cont_init,0.001,
+                                    peak/2, peak/6, 
+                                    self.priors['Nar_fwhm'][0],
+                                    self.priors['outflow_fwhm'][0],
+                                    self.priors['outflow_vel'][0],
+                                    peak_beta, peak_beta/3])
             self.res = {'name': 'OIII_outflow_simple'}
         
         elif (self.model== 'gal_simple') | (self.model== 'gal'):
@@ -379,8 +437,12 @@ class Fitting:
                 self.fitted_model = self.fitted_model.OIII_gal_BLR_Fe
 
                 self.res = {'name': 'OIII_BLR_simple_fe'}
-                self.pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, self.priors['Nar_fwhm'][0], peak_beta, self.z, peak_beta/2, self.priors['BLR_fwhm'][0],\
-                                np.median(self.flux[self.fit_loc]), self.priors['Fe_fwhm'][0]])
+                self.pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001,
+                                        peak/2, self.priors['Nar_fwhm'][0],
+                                          peak_beta, self.z, peak_beta/2,
+                                            self.priors['BLR_fwhm'][0],
+                                            np.median(self.flux[self.fit_loc]), 
+                                            self.priors['Fe_fwhm'][0]])
 
             else:
                 self.pos_l = np.array([self.z,np.median(self.flux[self.fit_loc]),0.001, peak/2, self.priors['Nar_fwhm'][0], peak_beta, self.z, peak_beta/2, self.priors['BLR_fwhm'][0]])
@@ -766,3 +828,228 @@ class Fitting:
         #print(do)
         #print(up)
         return self.bounds
+    
+    def plot_fit(
+        self,
+        figsize: Tuple[float, float] = (12, 6),
+        residuals: bool = True,
+        **kwargs
+    ):
+        """
+        Plot the fit results.
+        
+        Parameters
+        ----------
+        figsize : tuple, optional
+            Figure size (width, height)
+        residuals : bool, optional
+            Show residual panel
+        **kwargs
+            Additional arguments passed to plt.plot()
+            
+        Returns
+        -------
+        fig : matplotlib figure
+        axes : matplotlib axes
+        """
+        if self.props is None or self.yeval is None:
+            raise RuntimeError("No fit results available to plot")
+        
+        # Create figure
+        if residuals:
+            fig, (ax1, ax2) = plt.subplots(
+                2, 1, figsize=figsize, 
+                gridspec_kw={'height_ratios': [3, 1]},
+                sharex=True
+            )
+        else:
+            fig, ax1 = plt.subplots(1, 1, figsize=figsize)
+            ax2 = None
+        
+        # Plot data
+        ax1.plot(
+            self.waves, self.fluxs, 'k-', alpha=0.5,
+            label='Data', **kwargs
+        )
+        
+        # Plot fit
+        ax1.plot(
+            self.waves, self.yeval, 'r-', lw=2,
+            label='Best fit', **kwargs
+        )
+        
+        ax1.set_ylabel('Flux')
+        ax1.legend(loc='best')
+        ax1.grid(alpha=0.3)
+        
+        # Add model info
+        title = f"Model: {self.props.get('name', 'Unknown')}"
+        if self.chi2 is not None:
+            title += f" | χ²={self.chi2:.1f}"
+        if self.reduced_chi2 is not None:
+            title += f" | χ²_red={self.reduced_chi2:.2f}"
+        if self.BIC is not None:
+            title += f" | BIC={self.BIC:.1f}"
+        ax1.set_title(title)
+        
+        # Plot residuals
+        if residuals and ax2 is not None:
+            residual_vals = (self.fluxs - self.yeval) / self.errors
+            ax2.plot(self.waves, residual_vals, 'k-', alpha=0.5)
+            ax2.axhline(0, color='r', ls='--', lw=1)
+            ax2.axhline(3, color='gray', ls=':', lw=1, alpha=0.5)
+            ax2.axhline(-3, color='gray', ls=':', lw=1, alpha=0.5)
+            ax2.set_ylabel('Residuals (σ)')
+            ax2.set_xlabel('Wavelength (μm)')
+            ax2.grid(alpha=0.3)
+        elif not residuals:
+            ax1.set_xlabel('Wavelength (μm)')
+        
+        plt.tight_layout()
+        return fig, (ax1, ax2) if residuals else (ax1,)
+    
+    def export_results(self, filename: str, format: str = 'json') -> None:
+        """
+        Export fit results to file.
+        
+        Parameters
+        ----------
+        filename : str
+            Output filename
+        format : str, optional
+            Output format: 'json', 'csv', or 'fits'
+        """
+        if self.props is None:
+            raise RuntimeError("No fit results to export")
+        
+        if format == 'json':
+            import json
+            export_dict = {
+                'model_name': self.props.get('name', 'Unknown'),
+                'redshift': self.z,
+                'chi2': float(self.chi2) if self.chi2 is not None else None,
+                'reduced_chi2': float(self.reduced_chi2) if self.reduced_chi2 is not None else None,
+                'BIC': float(self.BIC) if self.BIC is not None else None,
+                'parameters': {}
+            }
+            
+            for label in self.labels:
+                if label in self.props:
+                    val, err_low, err_high = self.props[label]
+                    export_dict['parameters'][label] = {
+                        'value': float(val),
+                        'err_low': float(err_low),
+                        'err_high': float(err_high)
+                    }
+            
+            with open(filename, 'w') as f:
+                json.dump(export_dict, f, indent=2)
+        
+        elif format == 'csv':
+            import csv
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Parameter', 'Value', 'Error_Low', 'Error_High'])
+                
+                for label in self.labels:
+                    if label in self.props:
+                        val, err_low, err_high = self.props[label]
+                        writer.writerow([label, val, err_low, err_high])
+                
+                # Add statistics
+                writer.writerow([])
+                writer.writerow(['Statistic', 'Value', '', ''])
+                writer.writerow(['chi2', self.chi2, '', ''])
+                writer.writerow(['reduced_chi2', self.reduced_chi2, '', ''])
+                writer.writerow(['BIC', self.BIC, '', ''])
+        
+        elif format == 'fits':
+            try:
+                from astropy.io import fits
+                from astropy.table import Table
+                
+                # Create table with parameters
+                param_table = Table()
+                param_table['parameter'] = self.labels
+                values = [self.props[l][0] for l in self.labels]
+                err_low = [self.props[l][1] for l in self.labels]
+                err_high = [self.props[l][2] for l in self.labels]
+                
+                param_table['value'] = values
+                param_table['err_low'] = err_low
+                param_table['err_high'] = err_high
+                
+                # Create HDU list
+                primary = fits.PrimaryHDU()
+                primary.header['MODEL'] = self.props.get('name', 'Unknown')
+                primary.header['REDSHIFT'] = self.z
+                primary.header['CHI2'] = self.chi2
+                primary.header['REDCHI2'] = self.reduced_chi2
+                primary.header['BIC'] = self.BIC
+                
+                table_hdu = fits.BinTableHDU(param_table)
+                
+                # Add spectrum data
+                spec_data = np.column_stack([
+                    self.waves, self.fluxs, self.errors, self.yeval
+                ])
+                spec_hdu = fits.ImageHDU(spec_data)
+                spec_hdu.header['EXTNAME'] = 'SPECTRUM'
+                
+                hdul = fits.HDUList([primary, table_hdu, spec_hdu])
+                hdul.writeto(filename, overwrite=True)
+                
+            except ImportError:
+                raise ImportError(
+                    "astropy required for FITS export. "
+                    "Install with: pip install astropy"
+                )
+        
+        else:
+            raise ValueError(
+                f"Unknown format '{format}'. "
+                "Available: 'json', 'csv', 'fits'"
+            )
+    
+    def __repr__(self) -> str:
+        """String representation of Fitting object."""
+        if self.props is None:
+            status = "No fit performed"
+        else:
+            status = f"Fit complete: {self.props.get('name', 'Unknown')}"
+        
+        return (
+            f"Fitting(z={self.z:.4f}, "
+            f"n_data={len(self.waves)}, "
+            f"status='{status}')"
+        )
+    
+    def __str__(self) -> str:
+        """Human-readable string representation."""
+        if self.props is None:
+            return "Fitting object (no fit performed yet)"
+        return self.summary()
+
+    def summary(self) -> str:
+        """Generate summary of fit results."""
+        if self.props is None:
+            return "No fit results available"
+        
+        lines = [
+            "=" * 60,
+            f"Model: {self.props.get('name', 'Unknown')}",
+            f"Chi-squared: {self.chi2:.2f}",
+            f"Reduced chi-squared: {self.reduced_chi2:.2f}",
+            f"BIC: {self.BIC:.2f}",
+            "=" * 60,
+            "Parameters:",
+            "-" * 60
+        ]
+        
+        for label in self.labels:
+            if label in self.props:
+                val, err_low, err_high = self.props[label]
+                lines.append(f"{label:20s}: {val:10.4e} +{err_high:.4e} -{err_low:.4e}")
+        
+        lines.append("=" * 60)
+        return "\n".join(lines)
