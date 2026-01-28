@@ -180,7 +180,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
-    f = plt.figure( figsize=(10,10))
+    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2, figsize=(12,12))
 
     IFU_header = Cube.header
 
@@ -196,11 +196,7 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
 
     lim_sc = lim*arc_per_pix
 
-    ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
-    ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
-    ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
-    ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
-
+    
     flx = ax1.imshow(map_oiii[1,:,:],vmax=map_oiii[1,y,x], origin='lower', extent= lim_sc)
     ax1.set_title('Flux map')
     divider = make_axes_locatable(ax1)
@@ -214,21 +210,28 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
     vel = ax2.imshow(map_oiii_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
     ax2.set_title('v50')
     divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cax = divider.append_axes('right', size='5%', pad=0.02)
     f.colorbar(vel, cax=cax, orientation='vertical')
 
 
     fw = ax3.imshow(map_oiii_w80[0,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
     ax3.set_title('W80 map')
     divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cax = divider.append_axes('right', size='5%', pad=0.02)
     f.colorbar(fw, cax=cax, orientation='vertical')
 
     snr = ax4.imshow(map_oiii[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
     ax4.set_title('SNR map')
     divider = make_axes_locatable(ax4)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cax = divider.append_axes('right', size='5%', pad=0.02)
     f.colorbar(snr, cax=cax, orientation='vertical')
+
+    ax1.set_ylabel('[arcsec]', fontsize=12)
+    ax3.set_ylabel('[arcsec]', fontsize=12)
+
+    ax3.set_xlabel('[arcsec]', fontsize=12)
+    ax4.set_xlabel('[arcsec]', fontsize=12)
+
 
     f.savefig(Cube.savepath+'Diagnostics/OIII_maps.pdf')
 
@@ -260,6 +263,8 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
                             oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel])
 
     hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps'+add+'.fits', overwrite=True)
+
+    return f, (ax1,ax2,ax3,ax4)
 
 def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, add=''):
     """ 
@@ -1898,8 +1903,8 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
             failed_fits+=1
             continue
 
-        Result_cube_data[use,i,j] = Fits.fluxs.data.copy()
         try:
+            Result_cube_data[use,i,j] = Fits.fluxs.data.copy()
             Result_cube_error[use,i,j] = Fits.error.data.copy()
         except:
             lds=0
@@ -2001,8 +2006,6 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                         info[key]['flux_map'][6,i,j] = flux_rms.copy()
                         info[key]['upper_map'][i,j] = flux_rms.copy()
 
-    plt.figure()
-    plt.imshow(info['Hbeta']['upper_map'])          
 # =============================================================================
 #         Plotting maps
 # =============================================================================

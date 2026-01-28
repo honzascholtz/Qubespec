@@ -72,7 +72,6 @@ def logprior_general(theta, priors):
 @numba.njit
 def logprior_general_test(theta, priors, labels):
     for t,p,lb in zip( theta, priors, labels):
-        print(p)
         if p[0] ==0:
             results = -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((t-p[1])/p[2])**2
         elif p[0]==1:
@@ -91,5 +90,7 @@ def logprior_general_test(theta, priors, labels):
                 results= -np.log(p[2]) - 0.5*np.log(2*np.pi) - 0.5 * ((np.log10(t)-p[1])/p[2])**2
             else:
                 results = -np.inf
-    
-        print(lb, t, results)
+            
+        print(f'label {lb}, value = {t}, results = {results}, prior = {p}')
+
+
