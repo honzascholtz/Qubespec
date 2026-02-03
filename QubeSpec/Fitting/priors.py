@@ -91,6 +91,6 @@ def logprior_general_test(theta, priors, labels):
             else:
                 results = -np.inf
             
-        print(f'label {lb}, value = {t}, results = {results}, prior = {p}')
+        print(f'label',lb, f'value = ', t, 'results =', results, 'prior = ',p)
 
 
