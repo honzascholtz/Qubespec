@@ -222,7 +222,9 @@ class Fitting:
             raise ValueError(f'Initial guess is outside of the higher bounds in {print(self.labels[use])}')
         
         from scipy.optimize import curve_fit
-        popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= self.pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
+        popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, \
+                               p0= self.pos_l, sigma=self.error_fitloc,\
+                             bounds = self.bounds_est())
         errs = np.sqrt(np.diag(pcov))
 
         self.props = {'name': model_name}
@@ -254,7 +256,7 @@ class Fitting:
         for i, name in enumerate(self.labels):
             self.pos_l[i] = self.pos_l[i] if self.priors[name][0]==0 else self.priors[name][0]                
             self.pos = np.random.normal(self.pos_l, abs(self.pos_l*0.1), (self.nwalkers, len(self.pos_l)))
-            self.pos[:,0] = np.random.normal(self.z,0.001, self.nwalkers)
+            #self.pos[:,0] = np.random.normal(self.z,0.001, self.nwalkers)
 
         # Special handling for redshift parameters (tighter)
         z_indices = [i for i, name in enumerate(self.labels) if name in ['z', 'zBLR']]
