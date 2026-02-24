@@ -1,23 +1,52 @@
-from astropy.io import fits
-import numpy as np
-import pickle
+import glob
+
 import tqdm
-import matplotlib.pyplot as plt
+import os
+import multiprocess as mp
+from multiprocess import Pool
+import numpy as np
 from astropy.table import Table
-from matplotlib.backends.backend_pdf import PdfPages
-from brokenaxes import brokenaxes
+import time
+import warnings
+import matplotlib.pyplot as plt 
 
+from ..Fitting import Fitting
+
+import pickle
+
+import numba
 from .. import Utils as sp
-from .. import Plotting as emplot
-from .. import Fitting as emfit
-
-from ..Models import Halpha_OIII_models as HaO_models
 
 
-def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=12, flux_max=0, width_upper=300,add='',):
-    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
-        Afterwards it saves all of it as .fits file. 
+import time
+
+
+class Halpha_OIII:
+    def Spaxel_fitting_batch(self, Cube,add='',Ncores=(mp.cpu_count() - 2),skip_batches=0,chunk_size = 500, sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                        'cont':[0,'loguniform',-4,1],\
+                                                                                        'cont_grad':[0,'normal',0,0.3], \
+                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_peak':[0,'loguniform',-4,1],\
+                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                        'zBLR':[0, 'normal', 0,0.003],\
+                                                                                            'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'NII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                            'outflow_vel':[-50,'normal', 0,300],\
+                                                                                            'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                            'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                            'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                            'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+                                        
+                                        
+        """ Function to use to fit Spaxels. 
 
         Parameters
         ----------
@@ -25,2015 +54,1089 @@ def Map_creation_OIII(Cube,SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,1
         Cube : QubeSpec.Cube class instance
             Cube class from the main part of the QubeSpec. 
 
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
 
-        fwhmrange : list
-            list of the two values to use as vmin and vmax in imshow of FWHM range
+        add : str - optional
+            add string to the name of the file to load and 
 
-        velrange : list
-            list of the two values to use as vmin and vmax in imshow of velocity range
-        
-        width_upper : float
-            FWHM value used in the flux upper limit calculation.
-        
-        dbic : float
-            delta bic to decide which model to use. 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
             
-        """
-    z0 = Cube.z
-    failed_fits=0
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII'+add+'.txt', "rb") as fp:
-        results= pickle.load(fp)
+        """                              
+                                    
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
 
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-    map_oiii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+        print('import of the unwrap cube - done')
 
-    map_oiii_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+        self.priors = priors
+        self.models = models
+        self.sampler = sampler
 
-    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
+        if Ncores<1:
+            Ncores=1
 
-    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
+        # Split into chunks
+        chunks = [Unwrapped_cube[i:i+chunk_size] for i in range(0, len(Unwrapped_cube), chunk_size)]
+        print(f"Fitting {len(Unwrapped_cube)} spaxels in {len(chunks)} batches of {chunk_size}")
 
+        for batch_idx, chunk in enumerate(chunks):
+            print(f"Fitting batch {batch_idx+1}/{len(chunks)}...")
 
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-
-    Result_cube_narrow = np.zeros_like(Cube.flux.data)
-    Result_cube_broad = np.zeros_like(Cube.flux.data)
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-    f,ax= plt.subplots(1)
-
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_OIII_fit_detection_only'+add+'.pdf')
-
-
-    for row in tqdm.tqdm(range(len(results))):
-        if len(results[row])==3:
-            i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
+            if batch_idx < skip_batches:
+                print(f"Skipping batch {batch_idx+1}/{len(chunks)}...")
                 continue
 
-        else:
-            i,j, Fits_sig, Fits_out= results[row]
-
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-            if (Fits_sig.BIC-Fits_out.BIC) >dbic:
-                Fits = Fits_out
-            else:
-                Fits = Fits_sig
-                
-        if 'outflow_fwhm' in list(Fits.props.keys()):
-            flag= 'outflow'
-        else:
-            flag='single'
-           
         
-        try:
-            Result_cube_data[:,i,j] = Fits.fluxs.data
-            Result_cube_error[:,i,j] = Fits.error.data
-            Result_cube[:,i,j] = Fits.yeval
-        except:
-            lds=0
+            progress = kwargs.get('progress', True)
+            progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(
+                        self.fit_spaxel, chunk),
+                    total=len(chunk)))
+
         
+            savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha_OIII{add}_batch{batch_idx}.txt'
 
-        z = Fits.props['popt'][0]
-        SNR = sp.SNR_calc_obj(Fits, 'OIII')
-        flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
-
-        map_oiii[0,i,j]= SNR
-
-        if SNR>SNR_cut:
-            map_oiii[1,i,j] = flux_oiii.copy()
-            map_oiii[2,i,j] = p16_oiii.copy()
-            map_oiii[3,i,j] = p84_oiii.copy()
-
-
-            kins_par = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
-
-            map_oiii_w80[:,i,j] = kins_par['w80']
-            map_oiii_v10[:,i,j] = kins_par['v10']
-            map_oiii_v90[:,i,j] = kins_par['v90']
-            map_oiii_v50[:,i,j] = kins_par['v50']
-            map_oiii_vel[:,i,j] = kins_par['vel_peak']
-
-            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
-            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
-            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-            Result_cube_narrow[:,i,j] = 0
-
-            if flag=='outflow':
-                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
-                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
-                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-
-            p = ax.get_ylim()[1]
-
-            ax.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
-        else:
-            map_oiii[2,i,j] = p16_oiii.copy()
-            map_oiii[3,i,j] = p84_oiii.copy()
+            with open(savepath, "wb") as fp:
+                pickle.dump( cube_res,fp)
             
+            print(f"Batch {batch_idx+1} saved to {savepath}")
 
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+    
+    def merge_spaxel_batches(self,Cube, add=''):
+    
+        batch_files = sorted(glob.glob(Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha_OIII{add}_batch*.txt'))
         
-        if SNR>SNR_cut:
+        if len(batch_files) == 0:
+            raise FileNotFoundError("No batch files found")
+        
+        print(f"Found {len(batch_files)} batch files, merging...")
+        
+        cube_res = []
+        for f in batch_files:
+            with open(f, 'rb') as fp:
+                cube_res += pickle.load(fp)
+        
+        savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha_OIII{add}.txt'
+        with open(savepath, 'wb') as fp:
+            pickle.dump(cube_res, fp)
+        
+        print(f"Merged {len(cube_res)} spaxels into {savepath}")
+
+    def Spaxel_fitting(self, Cube,add='',Ncores=(mp.cpu_count() - 2),sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                        'cont':[0,'loguniform',-4,1],\
+                                                                                        'cont_grad':[0,'normal',0,0.3], \
+                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_peak':[0,'loguniform',-4,1],\
+                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                        'zBLR':[0, 'normal', 0,0.003],\
+                                                                                            'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'NII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                            'outflow_vel':[-50,'normal', 0,300],\
+                                                                                            'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                            'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                            'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                            'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+                                        
+                                        
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+            
+        """                              
+                                    
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+
+        print('import of the unwrap cube - done')
+
+        self.priors = priors
+        self.models = models
+        self.sampler = sampler
+
+        if Ncores<1:
+            Ncores=1
+        
+        progress = kwargs.get('progress', True)
+        progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+        with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    self.fit_spaxel, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
+
+    
+
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+    
+    def fit_spaxel(self, lst, progress=False):
+
+        i,j,flx_spax_m, error, wave, z = lst
+
+        if self.models=='Single':
             try:
-                emplot.plotting_OIII(Fits, ax)
-            except:
-                print(Fits.props)
-                break
-            ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
-            plt.tight_layout()
-            Spax.savefig()
-            ax.clear()
-
-    Spax.close()
-
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-    x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
-    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2, figsize=(12,12))
-
-    IFU_header = Cube.header
-
-    deg_per_pix = IFU_header['CDELT2']
-    arc_per_pix = deg_per_pix*3600
-
-
-    Offsets_low = -Cube.center_data[1:3][::-1]
-    Offsets_hig = Cube.dim[0:2] - Cube.center_data[1:3][::-1]
-
-    lim = np.array([ Offsets_low[0], Offsets_hig[0],
-                        Offsets_low[1], Offsets_hig[1] ])
-
-    lim_sc = lim*arc_per_pix
-
-    
-    flx = ax1.imshow(map_oiii[1,:,:],vmax=map_oiii[1,y,x], origin='lower', extent= lim_sc)
-    ax1.set_title('Flux map')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(flx, cax=cax, orientation='vertical')
-
-    #lims =
-    #emplot.overide_axes_labels(f, axes[0,0], lims)
-
-
-    vel = ax2.imshow(map_oiii_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0], vmax=velrange[1], extent= lim_sc)
-    ax2.set_title('v50')
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.02)
-    f.colorbar(vel, cax=cax, orientation='vertical')
-
-
-    fw = ax3.imshow(map_oiii_w80[0,:,:],vmin=fwhmrange[0], vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('W80 map')
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.02)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    snr = ax4.imshow(map_oiii[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
-    ax4.set_title('SNR map')
-    divider = make_axes_locatable(ax4)
-    cax = divider.append_axes('right', size='5%', pad=0.02)
-    f.colorbar(snr, cax=cax, orientation='vertical')
-
-    ax1.set_ylabel('[arcsec]', fontsize=12)
-    ax3.set_ylabel('[arcsec]', fontsize=12)
-
-    ax3.set_xlabel('[arcsec]', fontsize=12)
-    ax4.set_xlabel('[arcsec]', fontsize=12)
-
-
-    f.savefig(Cube.savepath+'Diagnostics/OIII_maps.pdf')
-
-    hdr = Cube.header.copy()
-
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
-
-    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
-    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
-    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
-    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
-
-
-    oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
-    oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
-    oiii_v10 = fits.ImageHDU(map_oiii_v10, name='OIII_v10')
-    oiii_v90 = fits.ImageHDU(map_oiii_v90, name='OIII_v90')
-    oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
-    oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
-
-    outflow_fwhm = fits.ImageHDU(map_outflow_fwhm, name='outflow_fwhm')
-    outflow_vel = fits.ImageHDU(map_outflow_vel, name='outflow_vel')
-
-    Nar_vel = fits.ImageHDU(map_narrow_vel, name='narrow_vel')
-    Nar_fwhm = fits.ImageHDU(map_narrow_fwhm, name='narrow_fwhm')
-
-
-    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,hdu_resid,\
-                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50 ,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel])
-
-    hdulist.writeto(Cube.savepath+Cube.ID+'_OIII_fits_maps'+add+'.fits', overwrite=True)
-
-    return f, (ax1,ax2,ax3,ax4)
-
-def Map_creation_Halpha(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, add=''):
-    """ 
-     Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
-        Afterwards it saves all of it as .fits file. 
-
-        Parameters
-        ----------
-    
-        Cube : QubeSpec.Cube class instance
-            Cube class from the main part of the QubeSpec. 
-
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
-
-        fwhmrange : list
-            list of the two values to use as vmin and vmax in imshow of FWHM range
-
-        velrange : list
-            list of the two values to use as vmin and vmax in imshow of velocity range
-        
-        width_upper : float
-            FWHM value used in the flux upper limit calculation.
-        
-        dbic : float
-            delta bic to decide which model to use. 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
-            
-    """
-    z0 = Cube.z
-
-    wvo3 = 6563*(1+z0)/1e4
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha'+add+'.txt', "rb") as fp:
-        results= pickle.load(fp)
-
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-    map_hal = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hal_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-
-    map_nii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_siir = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_siib = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_nii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-    gf,ax= plt.subplots(1)
-
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_fit_detection_only'+add+'.pdf')
-
-    failed_fits = 0
-    for row in tqdm.tqdm(range(len(results))):
-        if len(results[row])==3:
-            i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-        else:
-            i,j, Fits_sig, Fits_out= results[row]
-
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-            if (Fits_sig.BIC-Fits_out.BIC) >dbic:
-                Fits = Fits_out
-            else:
-                Fits = Fits_sig
-        
-        if 'outflow_fwhm' in list(Fits.props.keys()):
-            flag= 'outflow'
-        else:
-            flag='single'
-
-        Result_cube_data[:,i,j] = Fits.fluxs.data
-        try:
-            Result_cube_error[:,i,j] = Fits.error.data
-        except:
-            lds=0
-        Result_cube[:,i,j] = Fits.yeval
-
-        res_spx = Fits.props
-        flx_spax_m = Fits.fluxs
-        error = Fits.error
-        z = res_spx['popt'][0]
-        SNR = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn')
-        map_hal[0,i,j] = SNR
-        if SNR>SNR_cut:
-            map_hal[0,i,j] = SNR
-            map_hal[1:,i,j] = sp.flux_calc_mcmc(Fits, 'Hat',Cube.flux_norm)
-
-            kins_par = sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
-
-            map_hal_w80[:,i,j] = kins_par['w80']
-            map_hal_v10[:,i,j] = kins_par['v10']
-            map_hal_v90[:,i,j] = kins_par['v90']
-            map_hal_v50[:,i,j] = kins_par['v50']
-            map_hal_vel[:,i,j] = kins_par['vel_peak']
-
-            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
-            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
-            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-            if flag=='outflow':
-                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
-                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
-                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-        else:
-            flux_hal, p16_hal, p84_hal = sp.flux_calc_mcmc(Fits, 'Hat',Cube.flux_norm)
-            map_hal[2,i,j] = p16_hal.copy()
-            map_hal[3,i,j] = p84_hal.copy()
-
-
-        SNR_n2 = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
-        map_nii[0,i,j] = SNR_n2
-        if SNR_n2>SNR_cut:
-            map_nii[1:,i,j] = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
-        else:
-            flux_nii, p16_nii, p84_nii = sp.flux_calc_mcmc(Fits, 'NIIt',Cube.flux_norm)
-            map_nii[2,i,j] = p16_nii.copy()
-            map_nii[3,i,j] = p84_nii.copy()
-
-        emplot.plotting_Halpha(Fits, ax, errors=True)
-        ax.set_title('x = '+str(j)+', y='+ str(i) + ', SNR = ' +str(np.round(SNR,2)))
-
-        if res_spx['Hal_peak'][0]<3*error[0]:
-            ax.set_ylim(-error[0], 5*error[0])
-        if (res_spx['SIIr_peak'][0]>res_spx['Hal_peak'][0]) & (res_spx['SIIb_peak'][0]>res_spx['Hal_peak'][0]):
-            ax.set_ylim(-error[0], 5*error[0])
-        Spax.savefig()
-        ax.clear()
-    plt.close(gf)
-    Spax.close()
-
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-    x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
-    f = plt.figure( figsize=(10,10))
-
-    IFU_header = Cube.header
-
-    deg_per_pix = IFU_header['CDELT2']
-    arc_per_pix = deg_per_pix*3600
-
-
-    Offsets_low = -Cube.center_data[1:3][::-1]
-    Offsets_hig = Cube.dim[0:2] - Cube.center_data[1:3][::-1]
-
-    lim = np.array([ Offsets_low[0], Offsets_hig[0],
-                        Offsets_low[1], Offsets_hig[1] ])
-
-    lim_sc = lim*arc_per_pix
-
-    ax1 = f.add_axes([0.1, 0.55, 0.38,0.38])
-    ax2 = f.add_axes([0.1, 0.1, 0.38,0.38])
-    ax3 = f.add_axes([0.55, 0.1, 0.38,0.38])
-    ax4 = f.add_axes([0.55, 0.55, 0.38,0.38])
-
-    if flux_max==0:
-        flx_max = map_hal[1,y,x]
-    else:
-        flx_max = flux_max
-
-    print(lim_sc)
-    flx = ax1.imshow(map_hal[1,:,:],vmax=flx_max, origin='lower', extent= lim_sc)
-    ax1.set_title('Halpha Flux map')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(flx, cax=cax, orientation='vertical')
-    cax.set_ylabel('Flux (arbitrary units)')
-    ax1.set_xlabel('RA offset (arcsecond)')
-    ax1.set_ylabel('Dec offset (arcsecond)')
-
-    #lims =
-    #emplot.overide_axes_labels(f, axes[0,0], lims)
-
-
-    vel = ax2.imshow(map_hal_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
-    ax2.set_title('Velocity offset map')
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(vel, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('Velocity (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-
-    fw = ax3.imshow(map_hal_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('FWHM map')
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('FWHM (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    snr = ax4.imshow(map_hal[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
-    ax4.set_title('SNR map')
-    divider = make_axes_locatable(ax4)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(snr, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('SNR')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    fnii,axnii = plt.subplots(1)
-    axnii.set_title('[NII] map')
-    fw= axnii.imshow(map_nii[1,:,:], vmax=flx_max ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    fnii.colorbar(fw, cax=cax, orientation='vertical')
-
-    f.savefig(Cube.savepath+'Diagnostics/Halpha_maps.pdf')
-
-
-    hdr = Cube.header.copy()
-
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
-
-    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
-    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
-    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
-    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
-
-    hal_hdu = fits.ImageHDU(map_hal, name='Hal')
-    hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
-    hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
-    hal_v90 = fits.ImageHDU(map_hal_v90, name='Hal_v90')
-    hal_v50 = fits.ImageHDU(map_hal_v50, name='Hal_v50')
-    hal_vel = fits.ImageHDU(map_hal_vel, name='Hal_vel')
-
-    nii_hdu = fits.ImageHDU(map_nii, name='Hal')
-
-    hdulist = fits.HDUList([primary_hdu,hdu_data, hdu_err, hdu_yeval,hdu_resid,\
-                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu ])
-
-    hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_fits_maps'+add+'.fits', overwrite=True)
-
-    return f
-
-
-def Map_creation_Halpha_OIII(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100],dbic=10, flux_max=0, width_upper=300,add=''):
-    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps etc.,
-        Afterwards it saves all of it as .fits file. 
-
-        Parameters
-        ----------
-    
-        Cube : QubeSpec.Cube class instance
-            Cube class from the main part of the QubeSpec. 
-
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
-
-        fwhmrange : list
-            list of the two values to use as vmin and vmax in imshow of FWHM range
-
-        velrange : list
-            list of the two values to use as vmin and vmax in imshow of velocity range
-        
-        width_upper : float
-            FWHM value used in the flux upper limit calculation.
-        
-        dbic : float
-            delta bic to decide which model to use. 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
-            
-    """
-    z0 = Cube.z
-    failed_fits=0
-    wv_hal = 6564.52*(1+z0)/1e4
-    wv_oiii = 5008.24*(1+z0)/1e4
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "rb") as fp:
-        results= pickle.load(fp)
-
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-
-    map_oiii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_oiii_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hal = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hal_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hb = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_nii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_siir = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_siib = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_nar = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hal_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_nii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    Result_cube_narrow = np.zeros_like(Cube.flux.data)
-    Result_cube_broad = np.zeros_like(Cube.flux.data)
-
-    from ..Models import Halpha_OIII_models as HO
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only'+add+'.pdf')
-
-    from ..Models import Halpha_OIII_models as HO_models
-    for row in tqdm.tqdm(range(len(results))):
-        
-        if len(results[row])==3:
-            i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-        else:
-            i,j, Fits_sig, Fits_out= results[row]
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-            if (Fits_sig.BIC-Fits_out.BIC) >dbic:
-                Fits = Fits_out
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
                 
-            else:
-                Fits = Fits_sig
+                cube_res  = [i,j, Fits_sig]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
                 
+        elif self.models=='BLR':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha_OIII(model='BLR' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR_simple':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+
+        elif self.models=='outflow_both':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_out.fitting_Halpha_OIII(model='outflow' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
         
-        if 'outflow_fwhm' in list(Fits.props.keys()):
-            flag= 'outflow'
-        else:
-            flag='single'
-
-
-        Result_cube_data[:,i,j] = Fits.fluxs.data
-        try:
-            Result_cube_error[:,i,j] = Fits.error.data
-        except:
-            lds=0
-        Result_cube[:,i,j] = Fits.yeval
-
-        z = Fits.props['popt'][0]
-        res_spx = Fits.props
-        chains = Fits.chains
-        flx_spax_m = Fits.fluxs
-        error = Fits.error
-        lists= Fits.props.keys()
-    
-
-# =============================================================================
-#             Halpha
-# =============================================================================
-        #print(sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn'))
-        flux_hal, p16_hal,p84_hal = sp.flux_calc_mcmc(Fits, 'Hat', Cube.flux_norm)
-        SNR_hal = flux_hal/p16_hal
-        map_hal[0,i,j]= SNR_hal
-
-        #SNR_hal = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn')
-        #SNR_oiii = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'OIII')
-        #SNR_nii = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
-
-        if SNR_hal>SNR_cut:
-            map_hal[1,i,j] = flux_hal
-            map_hal[2,i,j] = p16_hal
-            map_hal[3,i,j] = p84_hal
-
-            kins_par= sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
-
-            map_hal_w80[:,i,j] = kins_par['w80']
-            map_hal_v10[:,i,j] = kins_par['v10']
-            map_hal_v90[:,i,j] = kins_par['v90']
-            map_hal_v50[:,i,j] = kins_par['v50']
-            map_hal_vel[:,i,j] = kins_par['vel_peak']
-
-            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
-            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
-            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-            ptp = [Fits.props['z'][0], Fits.props['cont'][0], Fits.props['cont_grad'][0],\
-                   Fits.props['Hal_peak'][0], Fits.props['NII_peak'][0], Fits.props['Nar_fwhm'][0],\
-                     Fits.props['SIIr_peak'][0],Fits.props['SIIb_peak'][0], Fits.props['OIII_peak'][0],\
-                         Fits.props['Hbeta_peak'][0] ]
-
-            Result_cube_narrow[:,i,j] = HO.Halpha_OIII(Cube.obs_wave, *ptp)
-
-            if flag=='outflow':
-                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
-                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
-                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-                zout =  Fits.props['z'][0]+ Fits.props['outflow_vel'][0]/3e5*(1+Fits.props['z'][0])
-                ptp = [zout, 0, 0,\
-                   Fits.props['Hal_out_peak'][0], Fits.props['NII_out_peak'][0], Fits.props['outflow_fwhm'][0],\
-                     0,0, Fits.props['OIII_out_peak'][0],\
-                         Fits.props['Hbeta_out_peak'][0] ]
-
-                Result_cube_broad[:,i,j] = HO.Halpha_OIII(Cube.obs_wave, *ptp)
-
-
-
-        else:     
-            map_hal[2,i,j] = p16_hal.copy()
-            map_hal[3,i,j] = p84_hal.copy()
-
-# =============================================================================
-#             Plotting
-# =============================================================================
-        f = plt.figure(figsize=(10,4))
-        baxes = brokenaxes(xlims=((4800,5050),(6500,6800)),  hspace=.01)
-        emplot.plotting_Halpha_OIII(Fits,  baxes)
-
-        #if res_spx['Hal_peak'][0]<3*error[0]:
-        #    baxes.set_ylim(-error[0], 5*error[0])
-        #if (res_spx['SIIr_peak'][0]>res_spx['Hal_peak'][0]) & (res_spx['SIIb_peak'][0]>res_spx['Hal_peak'][0]):
-        #    baxes.set_ylim(-error[0], 5*error[0])
-
-        SNRs = np.array([SNR_hal])
-
-# =============================================================================
-#             NII
-# =============================================================================
-        #SNR = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
-        flux_NII, p16_NII,p84_NII = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
-        SNR_nii = flux_NII/p16_NII
-        map_nii[0,i,j]= SNR_nii
-        if SNR_nii>SNR_cut:
-            map_nii[1,i,j] = flux_NII
-            map_nii[2,i,j] = p16_NII
-            map_nii[3,i,j] = p84_NII
-
-        else:
-            map_nii[2,i,j] = p16_NII.copy()
-            map_nii[3,i,j] = p84_NII.copy()
-# =============================================================================
-#             OIII
-# =============================================================================
-        flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
-        SNR_oiii = flux_oiii/p16_oiii
-        map_oiii[0,i,j]= SNR_oiii
-
-        if SNR_oiii>SNR_cut:
-            map_oiii[1,i,j] = flux_oiii
-            map_oiii[2,i,j] = p16_oiii
-            map_oiii[3,i,j] = p84_oiii
-
-            kins_par = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
-
-            map_oiii_w80[:,i,j] = kins_par['w80']
-            map_oiii_v10[:,i,j] = kins_par['v10']
-            map_oiii_v90[:,i,j] = kins_par['v90']
-            map_oiii_v50[:,i,j] = kins_par['v50']
-            map_oiii_vel[:,i,j] = kins_par['vel_peak']
-
-            flux_oiiin, p16_oiiin,p84_oiiin = sp.flux_calc_mcmc(Fits, 'OIIIn', Cube.flux_norm)
-            map_oiii_nar[1,i,j],map_oiii_nar[2,i,j],map_oiii_nar[3,i,j] = flux_oiiin, p16_oiiin,p84_oiiin
-
-            if (map_narrow_fwhm[0,i,j]==np.nan):
-                map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
-                map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
-                map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-            if (flag=='outflow') & (map_outflow_fwhm[0,i,j]==np.nan):
-                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
-                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
-                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-            if (flag=='outflow'):
-                flux_oiiiw, p16_oiiiw,p84_oiiiw = sp.flux_calc_mcmc(Fits, 'OIIIw', Cube.flux_norm)
-                map_oiii_out[1,i,j],map_oiii_out[2,i,j],map_oiii_out[3,i,j] = flux_oiiiw, p16_oiiiw,p84_oiiiw
-
-            p = baxes.get_ylim()[0][1]
-            baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
-        else:
-            map_oiii[2,i,j] = p16_oiii.copy()
-            map_oiii[3,i,j] = p84_oiii.copy()
-
-# =============================================================================
-#             Hbeta
-# =============================================================================
-        flux_hb, p16_hb,p84_hb = sp.flux_calc_mcmc(Fits, 'Hbeta', Cube.flux_norm)
-        SNR_hb = flux_hb/ p16_hb
-        map_hb[0,i,j]= SNR_hb
-        if SNR_hb>SNR_cut:
-            map_hb[1,i,j] = flux_hb
-            map_hb[2,i,j] = p16_hb
-            map_hb[3,i,j] = p84_hb
-
-        else:
-            map_hb[2,i,j] = p16_hb.copy()
-            map_hb[3,i,j] = p84_hb.copy()
-# =============================================================================
-#           SII
-# =============================================================================
-        fluxr, p16r,p84r = sp.flux_calc_mcmc(Fits, 'SIIr', Cube.flux_norm)
-        fluxb, p16b,p84b = sp.flux_calc_mcmc(Fits, 'SIIb', Cube.flux_norm)
-
-        SNR_SII = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'SII')
-
-        if SNR_SII>SNR_cut:
-            map_siir[0,i,j] = SNR_SII.copy()
-            map_siib[0,i,j] = SNR_SII.copy()
-
-            map_siir[1,i,j] = fluxr
-            map_siir[2,i,j] = p16r
-            map_siir[3,i,j] = p84r
-
-            map_siib[1,i,j] = fluxb
-            map_siib[2,i,j] = p16b
-            map_siib[3,i,j] = p84b
-
-        else:
-            map_siir[2,i,j] = p16r
-            map_siib[2,i,j] = p16b
-            map_siir[3,i,j] = p84r
-            map_siib[3,i,j] = p84b
-
-        baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = '+ str(np.round([SNR_hal, SNR_oiii, SNR_nii, SNR_SII],1)))
-        baxes.set_xlabel('Restframe wavelength (ang)')
-        baxes.set_ylabel(r'$10^{-16}$ ergs/s/cm2/mic')
-        wv0 = 5008.24*(1+z0)
-        wv0 = wv0/(1+z)
-        baxes.vlines(wv0, 0,10, linestyle='dashed', color='k')
-        Spax.savefig()
-        plt.close(f)
-
-    print('Failed fits', failed_fits)
-    Spax.close()
-
-# =============================================================================
-#         Plotting maps
-# =============================================================================
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
-    IFU_header = Cube.header
-    deg_per_pix = IFU_header['CDELT2']
-    arc_per_pix = deg_per_pix*3600
-
-    Offsets_low = -Cube.center_data[1:3][::-1]
-    Offsets_hig = Cube.dim[0:2] - Cube.center_data[1:3][::-1]
-
-    lim = np.array([ Offsets_low[0], Offsets_hig[0],
-                        Offsets_low[1], Offsets_hig[1] ])
-
-    lim_sc = lim*arc_per_pix
-
-    if flux_max==0:
-        flx_max = map_hal[1,y,x]
-    else:
-        flx_max = flux_max
+        elif self.models=='BLR_both':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_out.fitting_Halpha_OIII(model='BLR' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+                
+        return cube_res
 
     
-    print(lim_sc)
-
-# =============================================================================
-#         Plotting Stuff
-# =============================================================================
-    f,axes = plt.subplots(6,3, figsize=(10,20))
-    ax1 = axes[0,0]
-    # =============================================================================
-    # Halpha SNR
-    snr = ax1.imshow(map_hal[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
-    ax1.set_title('Hal SNR map')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(snr, cax=cax, orientation='vertical')
-    ax1.set_xlabel('RA offset (arcsecond)')
-    ax1.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Halpha flux
-    ax1 = axes[0,1]
-    flx = ax1.imshow(map_hal[1,:,:],vmax=flx_max, origin='lower', extent= lim_sc)
-    ax1.set_title('Halpha Flux map')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(flx, cax=cax, orientation='vertical')
-    cax.set_ylabel('Flux (arbitrary units)')
-    ax1.set_xlabel('RA offset (arcsecond)')
-    ax1.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Halpha  velocity
-    ax2 = axes[0,2]
-    vel = ax2.imshow(map_hal_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
-    ax2.set_title('Hal Velocity offset map')
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(vel, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('Velocity (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Halpha fwhm
-    ax3 = axes[1,2]
-    fw = ax3.imshow(map_hal_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('Hal FWHM map')
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('W80 (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [NII] SNR
-    axes[1,0].set_title('[NII] SNR')
-    fw= axes[1,0].imshow(map_nii[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[1,0])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[1,0].set_xlabel('RA offset (arcsecond)')
-    axes[1,0].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [NII] flux
-    axes[1,1].set_title('[NII] map')
-    fw= axes[1,1].imshow(map_nii[1,:,:] ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[1,1])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[1,1].set_xlabel('RA offset (arcsecond)')
-    axes[1,1].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Hbeta] SNR
-    axes[2,0].set_title('Hbeta SNR')
-    fw= axes[2,0].imshow(map_hb[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[2,0])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[2,0].set_xlabel('RA offset (arcsecond)')
-    axes[2,0].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Hbeta flux
-    axes[2,1].set_title('Hbeta map')
-    fw= axes[2,1].imshow(map_hb[1,:,:] ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[2,1])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[2,1].set_xlabel('RA offset (arcsecond)')
-    axes[2,1].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [OIII] SNR
-    axes[3,0].set_title('[OIII] SNR')
-    fw= axes[3,0].imshow(map_oiii[0,:,:],vmin=3, vmax=20,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[3,0])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[3,0].set_xlabel('RA offset (arcsecond)')
-    axes[3,0].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [OIII] flux
-    axes[3,1].set_title('[OIII] map')
-    fw= axes[3,1].imshow(map_oiii[1,:,:] ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[3,1])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[3,1].set_xlabel('RA offset (arcsecond)')
-    axes[3,1].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # OIII  velocity
-    ax2 = axes[2,2]
-    vel = ax2.imshow(map_oiii_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
-    ax2.set_title('OIII Velocity offset map')
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(vel, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('Velocity (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # OIII fwhm
-    ax3 = axes[3,2]
-    fw = ax3.imshow(map_oiii_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('OIII W80 map')
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('FWHM (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # SII SNR
-    ax3 = axes[5,0]
-    ax3.set_title('[SII] SNR')
-    fw = ax3.imshow(map_siir[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    # =============================================================================
-    # SII Ratio
-    ax3 = axes[5,1]
-    ax3.set_title('[SII]r/[SII]b')
-    fw = ax3.imshow(map_siir[1,:,:]/map_siib[1,:,:] ,vmin=0.3, vmax=1.5, origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    f.savefig(Cube.savepath+'Diagnostics/Halpha_OIII_maps.pdf')
-
-    plt.tight_layout()
-
-    Cube.map_hal = map_hal
-
-    hdr = Cube.header.copy()
-
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
-
-    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
-    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
-    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
-    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
-
-    hdu_nar = fits.ImageHDU(Result_cube_narrow, name='yeval_nar')
-    hdu_bro = fits.ImageHDU(Result_cube_broad, name='yeval_bro')
-
-    hal_hdu = fits.ImageHDU(map_hal, name='Hal')
-    hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
-    hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
-    hal_v90 = fits.ImageHDU(map_hal_v90, name='Hal_v90')
-    hal_v50 = fits.ImageHDU(map_hal_v50, name='Hal_v50')
-    hal_vel = fits.ImageHDU(map_hal_vel, name='Hal_vel')
-
-    nii_hdu = fits.ImageHDU(map_nii, name='NII')
-
-    oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
-    oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
-    oiii_v10 = fits.ImageHDU(map_oiii_v10, name='OIII_v10')
-    oiii_v90 = fits.ImageHDU(map_oiii_v90, name='OIII_v90')
-    oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
-    oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
-
-    oiii_nar = fits.ImageHDU(map_oiii_nar, name='OIII_nar')
-    oiii_out = fits.ImageHDU(map_oiii_out, name='OIII_out')
-
-    outflow_fwhm = fits.ImageHDU(map_outflow_fwhm, name='outflow_fwhm')
-    outflow_vel = fits.ImageHDU(map_outflow_vel, name='outflow_vel')
-
-    Nar_vel = fits.ImageHDU(map_narrow_vel, name='narrow_vel')
-    Nar_fwhm = fits.ImageHDU(map_narrow_fwhm, name='narrow_fwhm')
-
-    hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
-
-    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval, hdu_nar, hdu_bro, hdu_resid,\
-                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50, oiii_nar, oiii_out,\
-                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel ])
-    
-   
-    hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_OIII_fits_maps'+add+'.fits', overwrite=True)
-
-    return f
-
-def Map_creation_Halpha_OIII_SNR(Cube, SNR_cut = 3 , fwhmrange = [100,500], velrange=[-100,100], flux_max=0, width_upper=300,add=''):
-    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps etc.,
-        Afterwards it saves all of it as .fits file. 
-
-        Parameters
-        ----------
-    
-        Cube : QubeSpec.Cube class instance
-            Cube class from the main part of the QubeSpec. 
-
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
-
-        fwhmrange : list
-            list of the two values to use as vmin and vmax in imshow of FWHM range
-
-        velrange : list
-            list of the two values to use as vmin and vmax in imshow of velocity range
-        
-        width_upper : float
-            FWHM value used in the flux upper limit calculation.
-        
-        dbic : float
-            delta bic to decide which model to use. 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
+    def Spaxel_toptup(self, Cube, to_fit ,add='',models='Single',sampler='emcee', Ncores=(mp.cpu_count() - 2),priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-4,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'NII_peak':[0,'loguniform',-4,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+        import pickle
+        self.models = models
+        self.priors = priors
+        start_time = time.time()
+        self.sampler=sampler
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "rb") as fp:
+            Cube_res= pickle.load(fp)
             
-    """
-    z0 = Cube.z
-    failed_fits=0
-    wv_hal = 6564.52*(1+z0)/1e4
-    wv_oiii = 5008.24*(1+z0)/1e4
+        print('import of the unwrap cube - done')
+        yss = [res[0] for res in Cube_res]
+        xss = [res[1] for res in Cube_res]   
+        for j, to_fit_sig in enumerate(to_fit):
+            print(to_fit_sig)
+            use = np.where((np.array(xss)==to_fit_sig[0])& (np.array(yss)==to_fit_sig[1]))[0]
+            if len(use)>0:
+                use=use[0]
+                if len(Cube_res[use])==3:
+                    y,x, res = Cube_res[use]
+                if len(Cube_res[use])==4:
+                    y,x, res,res2 = Cube_res[use]
+                
+                lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
+                
+                Cube_res[use] = self.fit_spaxel(lst, progress=True)
+                Fits_sig = Cube_res[use][2]
+                f,ax = plt.subplots(1, figsize=(10,5))
+                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
 
-    from ..Models import Halpha_OIII_models as HO
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "rb") as fp:
-        results= pickle.load(fp)
-
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-
-    map_oiii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_oiii_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_oiii_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hal = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hal_w80 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v10 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v90 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_v50 = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_hb = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_nii = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_siir = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_siib = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_outflow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_outflow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_fwhm = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_narrow_vel = np.full((3,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    map_oiii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hal_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_hb_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-    map_nii_out = np.full((4,Cube.dim[0], Cube.dim[1]), np.nan)
-
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-
-    Result_cube_narrow = np.zeros_like(Cube.flux.data)
-    Result_cube_broad = np.zeros_like(Cube.flux.data)
-
-    Spax = PdfPages(Cube.savepath+Cube.ID+'_Spaxel_Halpha_OIII_fit_detection_only'+add+'.pdf')
-
-    from ..Models import Halpha_OIII_models as HO_models
-    for row in tqdm.tqdm(range(len(results))):
+                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
+       
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha_OIII'+add+'.txt', "wb") as fp:
+            pickle.dump( Cube_res,fp)  
         
-        if len(results[row])==3:
-            i,j, Fits= results[row]
-            if str(type(Fits)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-        else:
-            i,j, Fits_sig, Fits_out= results[row]
-            if str(type(Fits_sig)) != "<class 'QubeSpec.Fitting.fits_r.Fitting'>":
-                failed_fits+=1
-                continue
-
-            Fits = Fits_out
-        
-        if 'outflow_fwhm' in list(Fits.props.keys()):
-            flag= 'outflow'
-        else:
-            flag='single'
-
-
-        Result_cube_data[:,i,j] = Fits.fluxs.data
-        try:
-            Result_cube_error[:,i,j] = Fits.error.data
-        except:
-            lds=0
-        Result_cube[:,i,j] = Fits.yeval
-
-        z = Fits.props['popt'][0]
-        res_spx = Fits.props
-        chains = Fits.chains
-        flx_spax_m = Fits.fluxs
-        error = Fits.error
-        lists= Fits.props.keys()
-    
-
-# =============================================================================
-#             Halpha
-# =============================================================================
-        #print(sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn'))
-        flux_hal, p16_hal,p84_hal = sp.flux_calc_mcmc(Fits, 'Hat', Cube.flux_norm)
-        SNR_hal = flux_hal/p16_hal
-        map_hal[0,i,j]= SNR_hal
-
-        #SNR_hal = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'Hn')
-        #SNR_oiii = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'OIII')
-        #SNR_nii = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
-
-        if SNR_hal>SNR_cut:
-            map_hal[1,i,j] = flux_hal
-            map_hal[2,i,j] = p16_hal
-            map_hal[3,i,j] = p84_hal
-
-            kins_par= sp.W80_Halpha_calc( Fits, z=Cube.z, N=100)
-
-            map_hal_w80[:,i,j] = kins_par['w80']
-            map_hal_v10[:,i,j] = kins_par['v10']
-            map_hal_v90[:,i,j] = kins_par['v90']
-            map_hal_v50[:,i,j] = kins_par['v50']
-            map_hal_vel[:,i,j] = kins_par['vel_peak']
-
-            map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
-            map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-            map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
-            map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-            ptp = [Fits.props['z'][0], Fits.props['cont'][0], Fits.props['cont_grad'][0],\
-                   Fits.props['Hal_peak'][0], Fits.props['NII_peak'][0], Fits.props['Nar_fwhm'][0],\
-                     Fits.props['SIIr_peak'][0],Fits.props['SIIb_peak'][0], Fits.props['OIII_peak'][0],\
-                         Fits.props['Hbeta_peak'][0] ]
-
-            Result_cube_narrow[:,i,j] = HO.Halpha_OIII(Cube.obs_wave, *ptp)
-
-            flux_brd = sp.flux_calc_mcmc(Fits, 'Haw', Cube.flux_norm)
-            if flux_brd[0]/flux_brd[1]>3:
-                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
-                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
-                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-
-        else:     
-            map_hal[2,i,j] = p16_hal.copy()
-            map_hal[3,i,j] = p84_hal.copy()
-
-# =============================================================================
-#             Plotting
-# =============================================================================
-        f = plt.figure(figsize=(10,4))
-        baxes = brokenaxes(xlims=((4800,5050),(6500,6800)),  hspace=.01)
-        emplot.plotting_Halpha_OIII(Fits,  baxes)
-
-        #if res_spx['Hal_peak'][0]<3*error[0]:
-        #    baxes.set_ylim(-error[0], 5*error[0])
-        #if (res_spx['SIIr_peak'][0]>res_spx['Hal_peak'][0]) & (res_spx['SIIb_peak'][0]>res_spx['Hal_peak'][0]):
-        #    baxes.set_ylim(-error[0], 5*error[0])
-
-        SNRs = np.array([SNR_hal])
-
-# =============================================================================
-#             NII
-# =============================================================================
-        #SNR = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'NII')
-        flux_NII, p16_NII,p84_NII = sp.flux_calc_mcmc(Fits, 'NIIt', Cube.flux_norm)
-        SNR_nii = flux_NII/p16_NII
-        map_nii[0,i,j]= SNR_nii
-        if SNR_nii>SNR_cut:
-            map_nii[1,i,j] = flux_NII
-            map_nii[2,i,j] = p16_NII
-            map_nii[3,i,j] = p84_NII
-
-        else:
-            map_nii[2,i,j] = p16_NII.copy()
-            map_nii[3,i,j] = p84_NII.copy()
-# =============================================================================
-#             OIII
-# =============================================================================
-        flux_oiii, p16_oiii,p84_oiii = sp.flux_calc_mcmc(Fits, 'OIIIt', Cube.flux_norm)
-        SNR_oiii = flux_oiii/p16_oiii
-        map_oiii[0,i,j]= SNR_oiii
-
-        if SNR_oiii>SNR_cut:
-            map_oiii[1,i,j] = flux_oiii
-            map_oiii[2,i,j] = p16_oiii
-            map_oiii[3,i,j] = p84_oiii
-
-            kins_par = sp.W80_OIII_calc( Fits, z=Cube.z, N=100)
-
-            map_oiii_w80[:,i,j] = kins_par['w80']
-            map_oiii_v10[:,i,j] = kins_par['v10']
-            map_oiii_v90[:,i,j] = kins_par['v90']
-            map_oiii_v50[:,i,j] = kins_par['v50']
-            map_oiii_vel[:,i,j] = kins_par['vel_peak']
-
-            if (map_narrow_fwhm[0,i,j]==np.nan):
-                map_narrow_fwhm[:,i,j] = np.percentile(Fits.chains['Nar_fwhm'], (16,50,84) )
-                map_narrow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_narrow_vel[:,i,j] = np.percentile((Fits.chains['z']-z0)/(1+z0)*3e5, (16,50,84) )
-                map_narrow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-            flux_brd = sp.flux_calc_mcmc(Fits, 'OIIIw', Cube.flux_norm)
-            if (flux_brd[0]/flux_brd[1]>3) & (map_outflow_fwhm[0,i,j]==np.nan): #if (flag=='outflow') & (map_outflow_fwhm[0,i,j]==np.nan):
-                map_outflow_fwhm[:,i,j] = np.percentile(Fits.chains['outflow_fwhm'], (16,50,84) )
-                map_outflow_fwhm[1:,i,j] = abs(map_narrow_fwhm[1:,i,j]-map_narrow_fwhm[0,i,j])
-
-                map_outflow_vel[:,i,j] = np.percentile(Fits.chains['outflow_vel'], (16,50,84) )
-                map_outflow_vel[1:,i,j] = abs(map_narrow_vel[1:,i,j]-map_narrow_vel[0,i,j])
-
-            p = baxes.get_ylim()[0][1]
-            baxes.text(4810, p*0.9 , 'OIII W80 = '+str(np.round(kins_par['w80'][0],2)) )
-        else:
-            map_oiii[2,i,j] = p16_oiii.copy()
-            map_oiii[3,i,j] = p84_oiii.copy()
-
-# =============================================================================
-#             Hbeta
-# =============================================================================
-        flux_hb, p16_hb,p84_hb = sp.flux_calc_mcmc(Fits, 'Hbeta', Cube.flux_norm)
-        SNR_hb = flux_hb/ p16_hb
-        map_hb[0,i,j]= SNR_hb
-        if SNR_hb>SNR_cut:
-            map_hb[1,i,j] = flux_hb
-            map_hb[2,i,j] = p16_hb
-            map_hb[3,i,j] = p84_hb
-
-        else:
-            map_hb[2,i,j] = p16_hb.copy()
-            map_hb[3,i,j] = p84_hb.copy()
-# =============================================================================
-#           SII
-# =============================================================================
-        fluxr, p16r,p84r = sp.flux_calc_mcmc(Fits, 'SIIr', Cube.flux_norm)
-        fluxb, p16b,p84b = sp.flux_calc_mcmc(Fits, 'SIIb', Cube.flux_norm)
-
-        SNR_SII = sp.SNR_calc(Cube.obs_wave, flx_spax_m, error, res_spx, 'SII')
-
-        if SNR_SII>SNR_cut:
-            map_siir[0,i,j] = SNR_SII.copy()
-            map_siib[0,i,j] = SNR_SII.copy()
-
-            map_siir[1,i,j] = fluxr
-            map_siir[2,i,j] = p16r
-            map_siir[3,i,j] = p84r
-
-            map_siib[1,i,j] = fluxb
-            map_siib[2,i,j] = p16b
-            map_siib[3,i,j] = p84b
-
-        else:
-            map_siir[2,i,j] = p16r
-            map_siib[2,i,j] = p16b
-            map_siir[3,i,j] = p84r
-            map_siib[3,i,j] = p84b
-
-        baxes.set_title('xy='+str(j)+' '+ str(i) + ', SNR = '+ str(np.round([SNR_hal, SNR_oiii, SNR_nii, SNR_SII],1)))
-        baxes.set_xlabel('Restframe wavelength (ang)')
-        baxes.set_ylabel(r'$10^{-16}$ ergs/s/cm2/mic')
-        wv0 = 5008.24*(1+z0)
-        wv0 = wv0/(1+z)
-        baxes.vlines(wv0, 0,10, linestyle='dashed', color='k')
-        Spax.savefig()
-        plt.close(f)
-
-    print('Failed fits', failed_fits)
-    Spax.close()
-
-# =============================================================================
-#         Plotting maps
-# =============================================================================
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
-    x = int(Cube.center_data[1]); y= int(Cube.center_data[2])
-    IFU_header = Cube.header
-    deg_per_pix = IFU_header['CDELT2']
-    arc_per_pix = deg_per_pix*3600
-
-    Offsets_low = -Cube.center_data[1:3][::-1]
-    Offsets_hig = Cube.dim[0:2] - Cube.center_data[1:3][::-1]
-
-    lim = np.array([ Offsets_low[0], Offsets_hig[0],
-                        Offsets_low[1], Offsets_hig[1] ])
-
-    lim_sc = lim*arc_per_pix
-
-    if flux_max==0:
-        flx_max = map_hal[1,y,x]
-    else:
-        flx_max = flux_max
-
-    
-    print(lim_sc)
-
-# =============================================================================
-#         Plotting Stuff
-# =============================================================================
-    f,axes = plt.subplots(6,3, figsize=(10,20))
-    ax1 = axes[0,0]
-    # =============================================================================
-    # Halpha SNR
-    snr = ax1.imshow(map_hal[0,:,:],vmin=3, vmax=20, origin='lower', extent= lim_sc)
-    ax1.set_title('Hal SNR map')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(snr, cax=cax, orientation='vertical')
-    ax1.set_xlabel('RA offset (arcsecond)')
-    ax1.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Halpha flux
-    ax1 = axes[0,1]
-    flx = ax1.imshow(map_hal[1,:,:],vmax=flx_max, origin='lower', extent= lim_sc)
-    ax1.set_title('Halpha Flux map')
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(flx, cax=cax, orientation='vertical')
-    cax.set_ylabel('Flux (arbitrary units)')
-    ax1.set_xlabel('RA offset (arcsecond)')
-    ax1.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Halpha  velocity
-    ax2 = axes[0,2]
-    vel = ax2.imshow(map_hal_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
-    ax2.set_title('Hal Velocity offset map')
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(vel, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('Velocity (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Halpha fwhm
-    ax3 = axes[1,2]
-    fw = ax3.imshow(map_hal_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('Hal FWHM map')
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('W80 (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [NII] SNR
-    axes[1,0].set_title('[NII] SNR')
-    fw= axes[1,0].imshow(map_nii[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[1,0])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[1,0].set_xlabel('RA offset (arcsecond)')
-    axes[1,0].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [NII] flux
-    axes[1,1].set_title('[NII] map')
-    fw= axes[1,1].imshow(map_nii[1,:,:] ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[1,1])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[1,1].set_xlabel('RA offset (arcsecond)')
-    axes[1,1].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Hbeta] SNR
-    axes[2,0].set_title('Hbeta SNR')
-    fw= axes[2,0].imshow(map_hb[0,:,:],vmin=3, vmax=10,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[2,0])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[2,0].set_xlabel('RA offset (arcsecond)')
-    axes[2,0].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # Hbeta flux
-    axes[2,1].set_title('Hbeta map')
-    fw= axes[2,1].imshow(map_hb[1,:,:] ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[2,1])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[2,1].set_xlabel('RA offset (arcsecond)')
-    axes[2,1].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [OIII] SNR
-    axes[3,0].set_title('[OIII] SNR')
-    fw= axes[3,0].imshow(map_oiii[0,:,:],vmin=3, vmax=20,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[3,0])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[3,0].set_xlabel('RA offset (arcsecond)')
-    axes[3,0].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # [OIII] flux
-    axes[3,1].set_title('[OIII] map')
-    fw= axes[3,1].imshow(map_oiii[1,:,:] ,origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(axes[3,1])
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-    axes[3,1].set_xlabel('RA offset (arcsecond)')
-    axes[3,1].set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # OIII  velocity
-    ax2 = axes[2,2]
-    vel = ax2.imshow(map_oiii_vel[0,:,:], cmap='coolwarm', origin='lower', vmin=velrange[0],vmax=velrange[1], extent= lim_sc)
-    ax2.set_title('OIII Velocity offset map')
-    divider = make_axes_locatable(ax2)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(vel, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('Velocity (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # OIII fwhm
-    ax3 = axes[3,2]
-    fw = ax3.imshow(map_oiii_w80[0,:,:],vmin=fwhmrange[0],vmax=fwhmrange[1], origin='lower', extent= lim_sc)
-    ax3.set_title('OIII W80 map')
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    cax.set_ylabel('FWHM (km/s)')
-    ax2.set_xlabel('RA offset (arcsecond)')
-    ax2.set_ylabel('Dec offset (arcsecond)')
-
-    # =============================================================================
-    # SII SNR
-    ax3 = axes[5,0]
-    ax3.set_title('[SII] SNR')
-    fw = ax3.imshow(map_siir[0,:,:],vmin=3, vmax=10, origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    # =============================================================================
-    # SII Ratio
-    ax3 = axes[5,1]
-    ax3.set_title('[SII]r/[SII]b')
-    fw = ax3.imshow(map_siir[1,:,:]/map_siib[1,:,:] ,vmin=0.3, vmax=1.5, origin='lower', extent= lim_sc)
-    divider = make_axes_locatable(ax3)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
-    f.colorbar(fw, cax=cax, orientation='vertical')
-
-    f.savefig(Cube.savepath+'Diagnostics/Halpha_OIII_maps.pdf')
-
-
-
-    plt.tight_layout()
-
-    Cube.map_hal = map_hal
-
-    hdr = Cube.header.copy()
-
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=hdr)
-
-    hdu_data=fits.ImageHDU(Result_cube_data, name='flux')
-    hdu_err = fits.ImageHDU(Result_cube_error, name='error')
-    hdu_yeval = fits.ImageHDU(Result_cube, name='yeval')
-    hdu_resid = fits.ImageHDU(Result_cube_data-Result_cube, name='residuals')
-    hdu_nar = fits.ImageHDU(Result_cube_narrow, name='yeval_nar')
-    hdu_bro = fits.ImageHDU(Result_cube_broad, name='yeval_bro')
-    hal_hdu = fits.ImageHDU(map_hal, name='Hal')
-    hal_w80 = fits.ImageHDU(map_hal_w80, name='Hal_w80')
-    hal_v10 = fits.ImageHDU(map_hal_v10, name='Hal_v10')
-    hal_v90 = fits.ImageHDU(map_hal_v90, name='Hal_v90')
-    hal_v50 = fits.ImageHDU(map_hal_v50, name='Hal_v50')
-    hal_vel = fits.ImageHDU(map_hal_vel, name='Hal_vel')
-
-    nii_hdu = fits.ImageHDU(map_nii, name='NII')
-
-    oiii_hdu = fits.ImageHDU(map_oiii, name='OIII')
-    oiii_w80 = fits.ImageHDU(map_oiii_w80, name='OIII_w80')
-    oiii_v10 = fits.ImageHDU(map_oiii_v10, name='OIII_v10')
-    oiii_v90 = fits.ImageHDU(map_oiii_v90, name='OIII_v90')
-    oiii_v50 = fits.ImageHDU(map_oiii_v50, name='OIII_v50')
-    oiii_vel = fits.ImageHDU(map_oiii_vel, name='OIII_vel')
-
-    outflow_fwhm = fits.ImageHDU(map_outflow_fwhm, name='outflow_fwhm')
-    outflow_vel = fits.ImageHDU(map_outflow_vel, name='outflow_vel')
-
-    Nar_vel = fits.ImageHDU(map_narrow_vel, name='narrow_vel')
-    Nar_fwhm = fits.ImageHDU(map_narrow_fwhm, name='narrow_fwhm')
-
-    hb_hdu = fits.ImageHDU(map_hb, name='Hbeta')
-
-    hdulist = fits.HDUList([primary_hdu,hdu_data,hdu_err, hdu_yeval, hdu_resid,\
-                            oiii_hdu,oiii_w80, oiii_v10, oiii_v90, oiii_vel, oiii_v50,\
-                            hal_hdu,hal_w80, hal_v10, hal_v90, hal_vel, hal_v50, nii_hdu, hb_hdu,Nar_vel, Nar_fwhm, outflow_fwhm,outflow_vel ])
-    
-   
-    hdulist.writeto(Cube.savepath+Cube.ID+'_Halpha_OIII_fits_maps_snr'+add+'.fits', overwrite=True)
-
-    return f
-
-def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
-                            brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)), use=np.array([]) ):
-    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
-        Afterwards it saves all of it as .fits file. 
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+
+class OIII:
+    def __init__(self):
+        self.status = 'ok'
+
+    def Spaxel_fitting(self, Cube,models='Single',add='',template=0,sampler='emcee', Ncores=(mp.cpu_count() - 1), priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                        'cont':[0,'loguniform',-4,1],\
+                                                                                        'cont_grad':[0,'normal',0,0.3], \
+                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                        'zBLR':[0, 'normal', 0,0.003],\
+                                                                                            'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                            'outflow_vel':[-50,'normal', 0,300],\
+                                                                                            'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                            'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'BLR_Hbeta_peak':[0,'loguniform', -4,1]}, **kwargs):
+
+        """ Function to use to fit Spaxels. 
 
         Parameters
         ----------
     
         Cube : QubeSpec.Cube class instance
             Cube class from the main part of the QubeSpec. 
-        
-        info : dict
-            dictionary containing information on what to extract. 
 
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
-        
-        brokenaxes_xlims: list
-            list of wavelength ranges to use for broken axes when plotting
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
 
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
             
         """
-    z0 = Cube.z
-    failed_fits=0
-    
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
-        results= pickle.load(fp)
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
 
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-    
-    info_keys = list(info.keys())
+        print('import of the unwrap cube - done')
 
-    if len(use) ==0:
-        use = np.arange(Result_cube.shape[0])
-    
-    for key in info_keys:
-        if key=='params':
-            info[key] = {'extract':info[key]}
-            for param in info[key]['extract']:
-                info[key][param] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+        self.priors = priors
+        self.template = template
+        self.models = models
+        self.sampler = sampler
 
-        else:
-            map_flx = np.zeros((6,Cube.dim[0], Cube.dim[1]))
-            map_flx[:,:,:] = np.nan
+        if Ncores<1:
+            Ncores=1
+        
+        progress = kwargs.get('progress', True)
+        progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+        with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    self.fit_spaxel, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
                 
-            info[key]['flux_map'] = map_flx
+
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_OIII'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def Spaxel_fitting_batch(self, Cube, add='', Ncores=(mp.cpu_count() - 2), skip_batches=0, chunk_size=500, sampler='emcee', models='Single', template=0, priors={'z':[0, 'normal', 0,0.003],\
+                                                                                        'cont':[0,'loguniform',-4,1],\
+                                                                                        'cont_grad':[0,'normal',0,0.3],\
+                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                        'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -4,1]}, **kwargs):
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube = pickle.load(fp)
+
+        print('import of the unwrap cube - done')
+
+        self.priors = priors
+        self.template = template
+        self.models = models
+        self.sampler = sampler
+
+        if Ncores < 1:
+            Ncores = 1
+
+        chunks = [Unwrapped_cube[i:i+chunk_size] for i in range(0, len(Unwrapped_cube), chunk_size)]
+        print(f"Fitting {len(Unwrapped_cube)} spaxels in {len(chunks)} batches of {chunk_size}")
+
+        for batch_idx, chunk in enumerate(chunks):
+
+            if batch_idx < skip_batches:
+                print(f"Skipping batch {batch_idx+1}/{len(chunks)}...")
+                continue
+
+            print(f"Fitting batch {batch_idx+1}/{len(chunks)}...")
+
+            progress = kwargs.get('progress', True)
+            progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(self.fit_spaxel, chunk),
+                    total=len(chunk)))
+
+            savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_OIII{add}_batch{batch_idx}.txt'
+            with open(savepath, "wb") as fp:
+                pickle.dump(cube_res, fp)
+
+            print(f"Batch {batch_idx+1} saved to {savepath}")
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def merge_spaxel_batches(self, Cube, add=''):
+        batch_files = sorted(glob.glob(Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_OIII{add}_batch*.txt'))
+
+        if len(batch_files) == 0:
+            raise FileNotFoundError("No batch files found")
+
+        print(f"Found {len(batch_files)} batch files, merging...")
+
+        cube_res = []
+        for f in batch_files:
+            with open(f, 'rb') as fp:
+                cube_res += pickle.load(fp)
+
+        savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_OIII{add}.txt'
+        with open(savepath, 'wb') as fp:
+            pickle.dump(cube_res, fp)
+
+        print(f"Merged {len(cube_res)} spaxels into {savepath}")
+
+    def fit_spaxel(self, lst, progress=False):
+
+        i,j,flx_spax_m, error, wave, z = lst
+
+        if self.models=='Single':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_OIII(model='BLR' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR_simple':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+
+        elif self.models=='outflow_both':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_OIII(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_out.fitting_OIII(model='outflow' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+        
+        elif self.models=='BLR_both':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_OIII(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_out.fitting_OIII(model='BLR' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+                
+        return cube_res
+
+    def Spaxel_toptup(self, Cube, to_fit ,add='', sampler='emcee', Ncores=(mp.cpu_count() - 2),models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-4,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'NII_peak':[0,'loguniform',-4,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
+            Cube_res= pickle.load(fp)
             
-            if 'kin' in list(info[key]):
-                info[key]['W80'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
-                info[key]['peak_vel'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+        print('import of the unwrap cube - done')
+        
+        for j, to_fit_sig in enumerate(to_fit):
+            print(to_fit_sig)
+            for i, row in enumerate(Cube_res):
+                if len(row)==3:
+                    y,x, res = row
+                if len(row)==4:
+                    y,x, res,res2 = row
+                if to_fit_sig[0]==x and to_fit_sig[1]==y:
+                    lst = [x,y, res.fluxs, res.error, res.wave, Cube.z]
 
-                info[key]['v10'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
-                info[key]['v90'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
 
+                    Fits_sig = Cube_res[i][2]
+                    f,ax = plt.subplots(1, figsize=(10,5))
+                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
 
-    BIC_map = np.zeros((Cube.dim[0], Cube.dim[1]))
-    BIC_map[:,:] = np.nan
+                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
 
-    chi2_map = np.zeros((Cube.dim[0], Cube.dim[1]))
-    chi2_map[:,:] = np.nan
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-    for row in tqdm.tqdm(range(len(results))):
+                    break
+        
+                
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
+            pickle.dump( Cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+  
+class Halpha:
+    def __init__(self):
+        self.status = 'ok'
 
-        try:
-            i,j, Fits = results[row]
-        except:
-            ls=0
-        if str(type(Fits)) == "<class 'dict'>":
-            failed_fits+=1
-            continue
-
-        Result_cube_data[use,i,j] = Fits.fluxs.data.copy()
-        try:
-            Result_cube_error[use,i,j] = Fits.error.data.copy()
-        except:
-            lds=0
-        Result_cube[use,i,j] = Fits.yeval
-        try:
-            chi2_map[i,j], BIC_map[i,j] = Fits.chi2, Fits.BIC
-        except:
-            chi2_map[i,j], BIC_map[i,j] = 0,0
-
-        for key in info_keys:
-            if key=='params':
-                for param in info[key]['extract']:
-                    info[key][param][:,i,j] = np.percentile(Fits.chains[param], (16,50,84))
-            
-            else:
-                if 'kin' not in key:
-                    if 'lsf' in list(info[key].keys()):
-                        lsf = info[key]['lsf']
-                    else:
-                        lsf = 0
-                    SNR= sp.SNR_calc(Cube.obs_wave[use], Fits.fluxs, Fits.error, Fits.props, 'general',\
-                                        wv_cent = info[key]['wv'],\
-                                        peak_name = key+'_peak', \
-                                            fwhm_name = info[key]['fwhm'], lsf=lsf)
-                    
-                    info[key]['flux_map'][0,i,j] = SNR
-
-                    flux, p16,p84,std = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
-                                                            wv_cent = info[key]['wv'],\
-                                                            peak_name = key+'_peak', \
-                                                                fwhm_name = info[key]['fwhm'], lsf=lsf,std=1)
-                    
-                    info[key]['flux_map'][4,i,j] = flux/p16
-                    
-                    if SNR>SNR_cut:
-                        
-                        info[key]['flux_map'][1,i,j] = flux
-                        info[key]['flux_map'][2,i,j] = p16
-                        info[key]['flux_map'][3,i,j] = p84
-                        info[key]['flux_map'][5,i,j] = std
-
-                        if 'kin' in list(info[key]):
-                            kins_par = sp.vel_kin_percentiles(Fits, peak_names=info[key]['kin']['peaks'], \
-                                                                                fwhm_names=info[key]['kin']['fwhms'],\
-                                                                                vel_names=info[key]['kin']['vels'],\
-                                                                                rest_wave=info[key]['wv'],\
-                                                                                N=100,z=Cube.z)
-                    
-                            info[key]['W80'][:,i,j] = kins_par['w80']
-                            info[key]['peak_vel'][:,i,j] = kins_par['vel_peak']
-
-                            info[key]['v10'][:,i,j] = kins_par['v10']
-                            info[key]['v90'][:,i,j] = kins_par['v90']
-                            
-                    else:
-                        flux, p16,p84,std = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
-                                                            wv_cent = info[key]['wv'],\
-                                                            peak_name = key+'_peak', \
-                                                                fwhm_name = info[key]['fwhm'],std=1)
-                        #upper_lim = sp.upper_limit(Fits, 'general', Cube.flux_norm,\
-                        info[key]['flux_map'][2,i,j] = p16
-                        info[key]['flux_map'][3,i,j] = p84
-                        info[key]['flux_map'][5,i,j] = std
-                        #info[key]['flux_map'][1,i,j] = -flux
-                        #info[key]['flux_map'][1,i,j] = flux
-
-
-# =============================================================================
-#         Plotting maps
-# =============================================================================
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
-    hdus = [primary_hdu]
-    hdus.append(fits.ImageHDU(Result_cube_data, name='flux'))
-    hdus.append(fits.ImageHDU(Result_cube_error, name='error'))
-    hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
-    hdus.append(fits.ImageHDU(Result_cube_data-Result_cube, name='residuals'))
-
-
-    for key in info_keys:
-        if key=='params':
-            for param in info[key]['extract']:
-                hdus.append(fits.ImageHDU(info[key][param], name=param))
-            
-        else: 
-            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
-            
-            if 'kin' in list(info[key]):
-                hdus.append(fits.ImageHDU(info[key]['peak_vel'], name=key+'_peakvel'))
-                hdus.append(fits.ImageHDU(info[key]['W80'], name=key+'_W80'))
-                hdus.append(fits.ImageHDU(info[key]['v10'], name=key+'_v10'))
-                hdus.append(fits.ImageHDU(info[key]['v90'], name=key+'_v90'))
-
-
-    hdus.append(fits.ImageHDU(chi2_map, name='chi2'))
-    hdus.append(fits.ImageHDU(BIC_map, name='BIC'))
-    hdulist = fits.HDUList(hdus)
-    hdulist.writeto(Cube.savepath+Cube.ID+'_general_fits_maps'+add+'.fits', overwrite=True)
-    return hdus
-
-
-def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
-                            brokenaxes_xlims= ((2.820,3.45),(3.75,4.05),(5,5.3)), use=np.array([]) ):
-    """ Function to post process fits. The function will load the fits results and determine which model is more likely,
-        based on BIC. It will then calculate the W80 of the emission lines, V50 etc and create flux maps, velocity maps eyc.,
-        Afterwards it saves all of it as .fits file. 
+    def Spaxel_fitting(self, Cube,models='Single',sampler='emcee', add='',Ncores=(mp.cpu_count() - 1),priors={'cont':[0,-4,1],\
+                                                        'cont_grad':[0,-0.01,0.01], \
+                                                        'Hal_peak':[0,-4,1],\
+                                                        'BLR_peak':[0,-4,1],\
+                                                        'NII_peak':[0,-4,1],\
+                                                        'Nar_fwhm':[300,100,900],\
+                                                        'BLR_fwhm':[4000,2000,9000],\
+                                                        'zBLR':[-200,-900,600],\
+                                                        'SIIr_peak':[0,-4,1],\
+                                                        'SIIb_peak':[0,-4,1],\
+                                                        'Hal_out_peak':[0,-4,1],\
+                                                        'NII_out_peak':[0,-4,1],\
+                                                        'outflow_fwhm':[600,300,1500],\
+                                                        'outflow_vel':[-50, -300,300]}, **kwargs):
+        
+        """ Function to use to fit Spaxels. 
 
         Parameters
         ----------
     
         Cube : QubeSpec.Cube class instance
             Cube class from the main part of the QubeSpec. 
-        
-        info : dict
-            dictionary containing information on what to extract. 
 
-        SNR_cut : float
-            SNR cutoff to detect emission lines 
-        
-        add : str
-            additional string to use to load the results and save maps/pdf
-        
-        brokenaxes_xlims: list
-            list of wavelength ranges to use for broken axes when plotting
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
 
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
             
         """
-    z0 = Cube.z
-    failed_fits=0
-    
-    # =============================================================================
-    #         Importing all the data necessary to post process
-    # =============================================================================
-    with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
-        results= pickle.load(fp)
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
 
-    # =============================================================================
-    #         Setting up the maps
-    # =============================================================================
-    Result_cube = np.zeros_like(Cube.flux.data)
-    Result_cube_data = Cube.flux.data
-    Result_cube_error = Cube.error_cube.data
-    
-    info_keys = list(info.keys())
+        print('import of the unwrap cube - done')
 
-    if len(use) ==0:
-        use = np.arange(Result_cube.shape[0])
-    
-    for key in info_keys:
-        if key=='params':
-            info[key] = {'extract':info[key]}
-            for param in info[key]['extract']:
-                info[key][param] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+        self.priors = priors
+        self.models = models
+        self.sampler = sampler
 
-        else:
-            map_flx = np.zeros((7,Cube.dim[0], Cube.dim[1]))
-            map_flx[:,:,:] = np.nan
+        if Ncores<1:
+            Ncores=1
+        
+        progress = kwargs.get('progress', True)
+        progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+        with Pool(Ncores) as pool:
+            cube_res = list(progress(
+                pool.imap(
+                    self.fit_spaxel, Unwrapped_cube),
+                total=len(Unwrapped_cube)))
+
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_Halpha'+add+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def Spaxel_fitting_batch(self, Cube, add='', Ncores=(mp.cpu_count() - 2), skip_batches=0, chunk_size=500, sampler='emcee', models='Single', priors={'cont':[0,-4,1],\
+                                                        'cont_grad':[0,-0.01,0.01], \
+                                                        'Hal_peak':[0,-4,1],\
+                                                        'BLR_peak':[0,-4,1],\
+                                                        'NII_peak':[0,-4,1],\
+                                                        'Nar_fwhm':[300,100,900],\
+                                                        'BLR_fwhm':[4000,2000,9000],\
+                                                        'zBLR':[-200,-900,600],\
+                                                        'SIIr_peak':[0,-4,1],\
+                                                        'SIIb_peak':[0,-4,1],\
+                                                        'Hal_out_peak':[0,-4,1],\
+                                                        'NII_out_peak':[0,-4,1],\
+                                                        'outflow_fwhm':[600,300,1500],\
+                                                        'outflow_vel':[-50, -300,300]}, **kwargs):
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube = pickle.load(fp)
+
+        print('import of the unwrap cube - done')
+
+        self.priors = priors
+        self.models = models
+        self.sampler = sampler
+
+        if Ncores < 1:
+            Ncores = 1
+
+        chunks = [Unwrapped_cube[i:i+chunk_size] for i in range(0, len(Unwrapped_cube), chunk_size)]
+        print(f"Fitting {len(Unwrapped_cube)} spaxels in {len(chunks)} batches of {chunk_size}")
+
+        for batch_idx, chunk in enumerate(chunks):
+
+            if batch_idx < skip_batches:
+                print(f"Skipping batch {batch_idx+1}/{len(chunks)}...")
+                continue
+
+            print(f"Fitting batch {batch_idx+1}/{len(chunks)}...")
+
+            progress = kwargs.get('progress', True)
+            progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(self.fit_spaxel, chunk),
+                    total=len(chunk)))
+
+            savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha{add}_batch{batch_idx}.txt'
+            with open(savepath, "wb") as fp:
+                pickle.dump(cube_res, fp)
+
+            print(f"Batch {batch_idx+1} saved to {savepath}")
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def merge_spaxel_batches(self, Cube, add=''):
+        batch_files = sorted(glob.glob(Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha{add}_batch*.txt'))
+
+        if len(batch_files) == 0:
+            raise FileNotFoundError("No batch files found")
+
+        print(f"Found {len(batch_files)} batch files, merging...")
+
+        cube_res = []
+        for f in batch_files:
+            with open(f, 'rb') as fp:
+                cube_res += pickle.load(fp)
+
+        savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha{add}.txt'
+        with open(savepath, 'wb') as fp:
+            pickle.dump(cube_res, fp)
+
+        print(f"Merged {len(cube_res)} spaxels into {savepath}")
+
+    
+    def fit_spaxel(self, lst, progress=False):
+
+        i,j,flx_spax_m, error, wave, z = lst
+
+        if self.models=='Single':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha(model='gal' )
+                Fits_sig.fitted_model = 0
                 
-            info[key]['flux_map'] = map_flx
+                cube_res  = [i,j, Fits_sig]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha(model='BLR' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
+                
+        elif self.models=='BLR_simple':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                cube_res  = [i,j, Fits_sig]
+                
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}]
 
-            upper_test = np.zeros((Cube.dim[0], Cube.dim[1]))
-            info[key]['upper_map'] = upper_test.copy()
+        elif self.models=='outflow_both':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha(model='gal' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_out.fitting_Halpha(model='outflow' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+        
+        elif self.models=='BLR_both':
+            try:
+                Fits_sig = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_sig.fitting_Halpha(model='BLR_simple' )
+                Fits_sig.fitted_model = 0
+                
+                Fits_out = Fitting(wave, flx_spax_m, error, z,N=10000,progress=progress, priors=self.priors, sampler=self.sampler)
+                Fits_out.fitting_Halpha(model='BLR' )
+                Fits_out.fitted_model = 0
+                
+                cube_res  = [i,j,Fits_sig, Fits_out ]
+            except Exception as _exc_:
+                print(_exc_)
+                cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+                print('Failed fit')
+                
+        return cube_res
+    
+    def Spaxel_toptup(self, Cube, to_fit ,add='', Ncores=(mp.cpu_count() - 2),sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                       'cont':[0,'loguniform',-4,1],\
+                                                                                       'cont_grad':[0,'normal',0,0.3], \
+                                                                                       'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                       'NII_peak':[0,'loguniform',-4,1],\
+                                                                                       'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                       'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                       'zBLR':[0, 'normal', 0,0.003],\
+                                                                                        'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                        'outflow_vel':[-50,'normal', 0,300],\
+                                                                                        'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                        'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                        'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                        'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                        'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                        'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw'+add+'.txt', "rb") as fp:
+            Cube_res= pickle.load(fp)
+        self.sampler= sampler
             
-            if 'kin' in list(info[key]):
-                info[key]['W80'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
-                info[key]['peak_vel'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+        print('import of the unwrap cube - done')
+        
+        for j, to_fit_sig in enumerate(to_fit):
+            print(to_fit_sig)
+            for i, row in enumerate(Cube_res):
+                if len(row)==3:
+                    y,x, res = row
+                if len(row)==4:
+                    y,x, res,res2 = row
+                if to_fit_sig[0]==x and to_fit_sig[1]==y:
+                    lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
 
-                info[key]['v10'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
-                info[key]['v90'] = np.full((3, Cube.dim[0], Cube.dim[1]),np.nan)
+                    Cube_res[i] = self.fit_spaxel(lst, progress=True)
 
+                    Fits_sig = Cube_res[i][2]
+                    f,ax = plt.subplots(1, figsize=(10,5))
+                    ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                    ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
 
-    BIC_map = np.zeros((Cube.dim[0], Cube.dim[1]))
-    BIC_map[:,:] = np.nan
+                    ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
 
-    chi2_map = np.zeros((Cube.dim[0], Cube.dim[1]))
-    chi2_map[:,:] = np.nan
-    # =============================================================================
-    #        Filling these maps
-    # =============================================================================
-    for row in tqdm.tqdm(range(len(results))):
+                    break
+        
+                
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "wb") as fp:
+            pickle.dump( Cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+       
+
+class general:
+    def __init__(self):
+        self.status = 'ok'
+
+    def Spaxel_fitting(self, Cube,fitted_model, labels, priors, logprior,sampler='emcee', nwalkers=64,use=np.array([]), N=10000, add='',add_save='',Ncores=(mp.cpu_count() - 2), **kwargs):
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        fitted_model : callable
+            Function to fit
+
+        labels : list
+            list of the name of the paramters in the same order as in the fitted_function
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+        
+        logprior: callable function
+            logprior evaluation function - use emfit.logprior_general or emfit.logprior_general_scipy
+        
+        nwalkers : int - optional
+            default 64 walkers for the MCMC
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+            
+        """
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        self.priors= priors
+        self.fitted_model = fitted_model
+        self.labels = labels
+        self.logprior = logprior
+        self.nwalkers = nwalkers
+        self.use = use
+        self.N = N  
+        self.sampler = sampler    
+        
+        if Ncores<1:
+            Ncores=1
+        
+        progress = kwargs.get('progress', True)
+        progress = tqdm.tqdm if progress else lambda x, total=0: x
+        debug = kwargs.get('debug', False)
+        if debug:
+            warnings.warn(
+                '\u001b[5;33mDebug mode - no multiprocessing!\033[0;0m',
+                UserWarning)
+            cube_res = list(progress(
+                self.fit_spaxel, Unwrapped_cube),
+                    total=len(Unwrapped_cube))
+        else:
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(
+                        self.fit_spaxel, Unwrapped_cube),
+                    total=len(Unwrapped_cube)))
+                
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+add_save+'.txt', "wb") as fp:
+            pickle.dump( cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def Spaxel_fitting_batch(self, Cube, fitted_model, labels, priors, logprior, sampler='emcee', nwalkers=64, use=np.array([]), N=10000, add='', add_save='', Ncores=(mp.cpu_count() - 2), skip_batches=0, chunk_size=500, **kwargs):
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube = pickle.load(fp)
+
+        print('import of the unwrap cube - done')
+
+        self.priors = priors
+        self.fitted_model = fitted_model
+        self.labels = labels
+        self.logprior = logprior
+        self.nwalkers = nwalkers
+        self.use = use
+        self.N = N
+        self.sampler = sampler
+
+        if Ncores < 1:
+            Ncores = 1
+
+        chunks = [Unwrapped_cube[i:i+chunk_size] for i in range(0, len(Unwrapped_cube), chunk_size)]
+        print(f"Fitting {len(Unwrapped_cube)} spaxels in {len(chunks)} batches of {chunk_size}")
+
+        for batch_idx, chunk in enumerate(chunks):
+
+            if batch_idx < skip_batches:
+                print(f"Skipping batch {batch_idx+1}/{len(chunks)}...")
+                continue
+
+            print(f"Fitting batch {batch_idx+1}/{len(chunks)}...")
+
+            progress = kwargs.get('progress', True)
+            progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(self.fit_spaxel, chunk),
+                    total=len(chunk)))
+
+            savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_general{add}{add_save}_batch{batch_idx}.txt'
+            with open(savepath, "wb") as fp:
+                pickle.dump(cube_res, fp)
+
+            print(f"Batch {batch_idx+1} saved to {savepath}")
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+
+    def merge_spaxel_batches(self, Cube, add='', add_save=''):
+        batch_files = sorted(glob.glob(Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_general{add}{add_save}_batch*.txt'))
+
+        if len(batch_files) == 0:
+            raise FileNotFoundError("No batch files found")
+
+        print(f"Found {len(batch_files)} batch files, merging...")
+
+        cube_res = []
+        for f in batch_files:
+            with open(f, 'rb') as fp:
+                cube_res += pickle.load(fp)
+
+        savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_general{add}{add_save}.txt'
+        with open(savepath, 'wb') as fp:
+            pickle.dump(cube_res, fp)
+
+        print(f"Merged {len(cube_res)} spaxels into {savepath}")
+
+    def Spaxel_topup(self, Cube, to_fit ,fitted_model, labels, priors, logprior, nwalkers=64,use=np.array([]), N=10000, add='',add_save='',Ncores=(mp.cpu_count() - 2), **kwargs):
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+'.txt', "rb") as fp:
+            Cube_res= pickle.load(fp)
+            
+        print('import of the unwrap cube - done')
+        
+        self.priors= priors
+        self.fitted_model = fitted_model
+        self.labels = labels
+        self.logprior = logprior
+        self.nwalkers = nwalkers
+        self.use = use
+        self.N = N     
+
+        yss = [res[0] for res in Cube_res]
+        xss = [res[1] for res in Cube_res]   
+        for j, to_fit_sig in enumerate(to_fit):
+            print(to_fit_sig)
+            use = np.where((np.array(xss)==to_fit_sig[0])& (np.array(yss)==to_fit_sig[1]))[0]
+            if len(use)>0:
+                use=use[0]
+                if len(Cube_res[use])==3:
+                    y,x, res = Cube_res[use]
+                lst = [y,x, res.fluxs, res.error, res.wave, Cube.z]
+                
+                Cube_res[use] = self.fit_spaxel(lst, progress=True)
+                Fits_sig = Cube_res[use][2]
+                f,ax = plt.subplots(1, figsize=(10,5))
+                ax.plot(Fits_sig.wave, Fits_sig.flux, drawstyle='steps-mid')
+                ax.plot(Fits_sig.wave, Fits_sig.yeval, 'r--')
+
+                ax.text(Fits_sig.wave[10], 0.9*max(Fits_sig.yeval), 'x='+str(x)+', y='+str(y) )
+                
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_spaxel_fit_raw_general'+add+add_save+'.txt', "wb") as fp:
+            pickle.dump( Cube_res,fp)  
+        
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+    
+    def fit_spaxel(self, lst, progress=False):
+
+        i,j,flx_spax_m, error, wave, z = lst
+        
+
+        if len(self.use)==0:
+            self.use = np.linspace(0, len(wave)-1, len(wave), dtype=int)
 
         try:
-            i,j, Fits = results[row]
-        except:
-            ls=0
-        if str(type(Fits)) == "<class 'dict'>":
-            failed_fits+=1
-            continue
+            Fits_sig = Fitting(wave[self.use], flx_spax_m[self.use], error[self.use], z,N=self.N,progress=progress, priors=self.priors, sampler=self.sampler)
+            Fits_sig.fitting_general(self.fitted_model, self.labels, self.logprior, nwalkers=self.nwalkers)
+            Fits_sig.fitted_model = 0
+        
+                
+            cube_res  = [i,j,Fits_sig ]
+        except Exception as _exc_:
+            print(_exc_)
+            cube_res = [i,j, {'Failed fit':0}, {'Failed fit':0}]
+            print('Failed fit')
+        
+        return cube_res
 
-        try:
-            Result_cube_data[use,i,j] = Fits.fluxs.data.copy()
-            Result_cube_error[use,i,j] = Fits.error.data.copy()
-        except:
-            lds=0
-        Result_cube[use,i,j] = Fits.yeval
-        try:
-            chi2_map[i,j], BIC_map[i,j] = Fits.chi2, Fits.BIC
-        except:
-            chi2_map[i,j], BIC_map[i,j] = 0,0
+def Spaxel_ppxf(Cube, ncpu=2):
+    import glob
+    import yaml
+    from yaml.loader import SafeLoader
 
-        for key in info_keys:
-            if key=='params':
-                for param in info[key]['extract']:
-                    info[key][param][:,i,j] = np.percentile(Fits.chains[param], (16,50,84))
-            
-            else:
-                if 'kin' not in key:
-                    if 'lsf' in list(info[key].keys()):
-                        lsf = info[key]['lsf']
-                    else:
-                        lsf = 0
-                    SNR= sp.SNR_calc(Cube.obs_wave[use], Fits.fluxs, Fits.error, Fits.props, 'general',\
-                                        wv_cent = info[key]['wv'],\
-                                        peak_name = key+'_peak', \
-                                            fwhm_name = info[key]['fwhm'], lsf=lsf)
-                    
-                    info[key]['flux_map'][0,i,j] = SNR
+    # Open the file and load the file
+    with open('/Users/jansen/My Drive/MyPython/Qubespec/QubeSpec/jadify_temp/r100_jades_deep_hst_v3.1.1_template.yaml') as f:
+        data = yaml.load(f, Loader=SafeLoader)
 
-                    flux, p16,p84,std = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
-                                                            wv_cent = info[key]['wv'],\
-                                                            peak_name = key+'_peak', \
-                                                                fwhm_name = info[key]['fwhm'], lsf=lsf,std=1)
-                    
-                    info[key]['flux_map'][4,i,j] = flux/p16
-                    '''
-                    res = Fits.props
-                    popt = Fits.props['popt']
-                    labels = list(Fits.chains.keys())    
-                    res_new = {'name': res['name']}
-                    for i in range(len(Fits.props['popt'])): 
-                        
-                        popt[i] = Fits.chains[labels[i+1]][j]
-                        res_new[labels[i+1]] = [popt[i], 0,0 ]
-                        if '_peak' in labels[i+1]:
-                            z = Fits.props['z'][0]
-                            err_peak = Fits.errors[sp.find_nearest(Fits.waves, info[key]['wv']*(1+z)/1e4)]
-                            popt[i] = err_peak
-                            res_new[labels[i+1]] = [err_peak, 0,0 ]
+    data['dirs']['data_dir'] = Cube.savepath+'PRISM_spaxel/'
+    data['dirs']['output_dir'] = Cube.savepath+'PRISM_spaxel/'
+    data['ppxf']['redshift_table'] = Cube.savepath+'PRISM_1D/redshift_1D.csv'
 
-                    res_new['popt'] = popt
-                    
-                    flux_rms = sp.flux_calc_general(info[key]['wv'],res, peak_name = key+'_peak', \
-                                                            fwhm_name = info[key]['fwhm'])  *Cube.flux_norm      
-                    info[key]['flux_map'][6,i,j] = flux_rms.copy()
-                    info[key]['upper_map'][i,j] = flux_rms.copy()
-                    '''
-                    info[key]['flux_map'][2,i,j] = p16
-                    info[key]['flux_map'][3,i,j] = p84
-                    info[key]['flux_map'][5,i,j] = std
-                    if SNR>SNR_cut:
-                        
-                        info[key]['flux_map'][1,i,j] = flux
-                        
-
-                        if 'kin' in list(info[key]):
-                            kins_par = sp.vel_kin_percentiles(Fits, peak_names=info[key]['kin']['peaks'], \
-                                                                                fwhm_names=info[key]['kin']['fwhms'],\
-                                                                                vel_names=info[key]['kin']['vels'],\
-                                                                                rest_wave=info[key]['wv'],\
-                                                                                N=100,z=Cube.z)
-                    
-                            info[key]['W80'][:,i,j] = kins_par['w80']
-                            info[key]['peak_vel'][:,i,j] = kins_par['vel_peak']
-
-                            info[key]['v10'][:,i,j] = kins_par['v10']
-                            info[key]['v90'][:,i,j] = kins_par['v90']
-                            
-                    else:
-                        
-                        res = Fits.props.copy()
-                        popt = Fits.props['popt'].copy()
-                        labels = list(Fits.chains.keys())    
-                        res_new = {'name': res['name']}
-                        for i in range(len(Fits.props['popt'])): 
-                            
-                            popt[i] = Fits.chains[labels[i+1]][j].copy()
-                            res_new[labels[i+1]] = [popt[i], 0,0 ]
-                            if '_peak' in labels[i+1]:
-                                z = Fits.props['z'][0].copy()
-                                err_peak = Fits.errors[sp.find_nearest(Fits.waves, info[key]['wv']*(1+z)/1e4)].copy()
-                                popt[i] = err_peak.copy()
-                                res_new[labels[i+1]] = [err_peak, 0,0 ]
-
-                        res_new['popt'] = popt.copy()
-                        
-                        flux_rms = sp.flux_calc_general(info[key]['wv'],res, peak_name = key+'_peak', \
-                                                                fwhm_name = info[key]['fwhm'])  *Cube.flux_norm 
-
-                        #print(flux_rms)     
-                        info[key]['flux_map'][6,i,j] = flux_rms.copy()
-                        info[key]['upper_map'][i,j] = flux_rms.copy()
-
-# =============================================================================
-#         Plotting maps
-# =============================================================================
-    primary_hdu = fits.PrimaryHDU(np.zeros((3,3,3)), header=Cube.header)
-    hdus = [primary_hdu]
-    hdus.append(fits.ImageHDU(Result_cube_data, name='flux'))
-    hdus.append(fits.ImageHDU(Result_cube_error, name='error'))
-    hdus.append(fits.ImageHDU(Result_cube, name='yeval'))
-    hdus.append(fits.ImageHDU(Result_cube_data-Result_cube, name='residuals'))
-
-
-    for key in info_keys:
-        if key=='params':
-            for param in info[key]['extract']:
-                hdus.append(fits.ImageHDU(info[key][param], name=param))
-            
-        else: 
-            hdus.append(fits.ImageHDU(info[key]['flux_map'], name=key))
-            
-            if 'kin' in list(info[key]):
-                hdus.append(fits.ImageHDU(info[key]['peak_vel'], name=key+'_peakvel'))
-                hdus.append(fits.ImageHDU(info[key]['W80'], name=key+'_W80'))
-                hdus.append(fits.ImageHDU(info[key]['v10'], name=key+'_v10'))
-                hdus.append(fits.ImageHDU(info[key]['v90'], name=key+'_v90'))
-
-
-    hdus.append(fits.ImageHDU(chi2_map, name='chi2'))
-    hdus.append(fits.ImageHDU(BIC_map, name='BIC'))
-    hdulist = fits.HDUList(hdus)
-    hdulist.writeto(Cube.savepath+Cube.ID+'_general_fits_maps_experiment'+add+'.fits', overwrite=True)
-    return hdus
+    with open(Cube.savepath+'/PRISM_spaxel/R100_1D_setup_test.yaml', 'w') as f:
+        data = yaml.dump(data, f, sort_keys=False, default_flow_style=True)
+    from . import jadify_temp as pth
+    PATH_TO_jadify = pth.__path__[0]+ '/'
+    filename = PATH_TO_jadify+ 'red_table_template.csv'
+    redshift_cat = Table.read(filename)
+    
+    files = glob.glob(Cube.savepath+'PRISM_spaxel/prism_clear/*.fits')
+    
+    IDs= np.array([], dtype=int)
+    for i, file in enumerate(files):
+        comp = file.split('/')
+        IDs = np.append( IDs, int(comp[-1][:6]))
+    redshift_cat_mod = Table()
+    redshift_cat_mod['ID'] = IDs
+    redshift_cat_mod['z_visinsp'] = np.ones_like(len(IDs))*Cube.z
+    redshift_cat_mod['z_phot'] = np.ones_like(len(IDs))*Cube.z
+    redshift_cat_mod['z_bagp'] = np.ones_like(len(IDs))*Cube.z
+    redshift_cat_mod['flag'] = np.zeros_like(IDs, dtype='<U6')
+    redshift_cat_mod['flag'][:] = redshift_cat['flag'][0]
+    redshift_cat_mod.write(Cube.savepath+'PRISM_spaxel/redshift_spaxel.csv',overwrite=True)
+    
+    import nirspecxf
+    config100 = nirspecxf.NIRSpecConfig(Cube.savepath+'PRISM_spaxel/R100_1D_setup_manual.yaml')
+    #xid = IDs[3]
+    #ns, _ = nirspecxf.process_object_id(id, config100)
+    nirspecxf.process_multi(ncpu, IDs, config100)
+    #for i, id in enumerate(IDs):
+    #    print(i)
+    #    ns, _ = nirspecxf.process_object_id(id, config100)
+    print('Fitting done, merging results')
+    nirspecxf.data_prods.merge_em_lines_tables(
+        Cube.savepath+'PRISM_spaxel/res/*R100_em_lines.fits',
+        Cube.savepath+'PRISM_spaxel/spaxel_R100_ppxf_emlines.fits')

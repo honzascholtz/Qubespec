@@ -102,8 +102,13 @@ def _extract_masked_data(fluxs, wv_rest: np.ndarray,
     fit_loc_sc : np.ndarray
         Indices within specified range
     """
-    flux = fluxs.data[~fluxs.mask]
-    wv_rst_sc = wv_rest[~fluxs.mask]
+
+    flux = fluxs[~fluxs.mask].copy()
+    try:
+        wv_rst_sc = wv_rest[~fluxs.mask]
+    except:
+        wv_rst_sc = wv_rest.copy()
+
     fit_loc_sc = np.where((wv_rst_sc > wave_range[0]) & (wv_rst_sc < wave_range[1]))[0]
     return flux, wv_rst_sc, fit_loc_sc
 
