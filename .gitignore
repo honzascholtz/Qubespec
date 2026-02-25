@@ -29,3 +29,4 @@ Tutorial/.DS_Store
 QubeSpec/activities.csv
 QubeSpec/Fitting/fits_r_new_memory_problem.py
 QubeSpec/Fitting/fits_r_old.py
+.vscode/settings.json
