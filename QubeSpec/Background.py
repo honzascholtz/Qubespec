@@ -5,7 +5,7 @@ from scipy.signal import medfilt
 import tqdm
 from astropy.io import fits
 
-def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0, save=False):
+def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=25, plot=0, save=False, scale=1):
     '''
     Background subtraction used when the NIRSPEC cube has still flux in the blank field.
 
@@ -60,7 +60,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
     Sky = np.ma.array(data = Sky.data, mask=mask_sky_1D)
     '''
 
-    Sky_smooth = medfilt(Sky, smooth)
+    Sky_smooth = medfilt(Sky, smooth)*scale
     self.flux_old = self.flux.copy()
 
     self.flux -= Sky_smooth[:,np.newaxis,np.newaxis]

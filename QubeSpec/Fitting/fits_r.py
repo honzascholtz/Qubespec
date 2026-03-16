@@ -159,6 +159,7 @@ class Fitting:
        
         self.fluxs[np.isnan(self.fluxs)] = 0
         self.flux = self.fluxs.data[np.invert(self.fluxs.mask)]
+        self.error = self.errors[np.invert(self.fluxs.mask)]
         self.wave = self.waves[np.invert(self.fluxs.mask)]
 
 
@@ -199,18 +200,18 @@ class Fitting:
             
     def _fit_emcee(self, model_name='custom'):
         nwalkers, ndim = self.pos.shape
-        self.sampler = emcee.EnsembleSampler(
+        sampler = emcee.EnsembleSampler(
             nwalkers, ndim, self.log_probability_general, args=())
     
-        self.sampler.run_mcmc(self.pos, self.N, progress=self.progress)
-        self.flat_samples = self.sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)      
+        sampler.run_mcmc(self.pos, self.N, progress=self.progress)
+        self.flat_samples = sampler.get_chain(discard=int(0.5*self.N), thin=15, flat=True)      
         
         self.chains = {'name': model_name}
         for i in range(len(self.labels)):
             self.chains[self.labels[i]] = self.flat_samples[:,i]
-            
+
         self.props = self.prop_calc()
-        self.like_chains = self.sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
+        self.like_chains = sampler.get_log_prob(discard=int(0.5*self.N),thin=15, flat=True)
 
     def _fit_curvefit(self, model_name='custom'):
 
@@ -222,7 +223,9 @@ class Fitting:
             raise ValueError(f'Initial guess is outside of the higher bounds in {print(self.labels[use])}')
         
         from scipy.optimize import curve_fit
-        popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, p0= self.pos_l, sigma=self.error_fitloc, bounds = self.bounds_est())
+        popt, pcov = curve_fit(self.fitted_model, self.wave_fitloc, self.flux_fitloc, \
+                               p0= self.pos_l, sigma=self.error_fitloc,\
+                             bounds = self.bounds_est(), maxfev=10000)
         errs = np.sqrt(np.diag(pcov))
 
         self.props = {'name': model_name}
@@ -254,7 +257,7 @@ class Fitting:
         for i, name in enumerate(self.labels):
             self.pos_l[i] = self.pos_l[i] if self.priors[name][0]==0 else self.priors[name][0]                
             self.pos = np.random.normal(self.pos_l, abs(self.pos_l*0.1), (self.nwalkers, len(self.pos_l)))
-            self.pos[:,0] = np.random.normal(self.z,0.001, self.nwalkers)
+            #self.pos[:,0] = np.random.normal(self.z,0.001, self.nwalkers)
 
         # Special handling for redshift parameters (tighter)
         z_indices = [i for i, name in enumerate(self.labels) if name in ['z', 'zBLR']]
@@ -517,7 +520,7 @@ class Fitting:
         self._setup_()
         self.fit_loc = np.where((self.wave>4700*(1+self.z)/1e4)&(self.wave<5100*(1+self.z)/1e4))[0]
         self.fit_loc = np.append(self.fit_loc, np.where((self.wave>(6564.52-170)*(1+self.z)/1e4)&(self.wave<(6564.52+200)*(1+self.z)/1e4))[0])
-
+        self.nwalkers=64
     
     # =============================================================================
     #     Finding the initial conditions

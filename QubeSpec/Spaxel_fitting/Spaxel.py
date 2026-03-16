@@ -1,3 +1,5 @@
+import glob
+
 import tqdm
 import os
 import multiprocess as mp
@@ -20,6 +22,118 @@ import time
 
 
 class Halpha_OIII:
+    def Spaxel_fitting_batch(self, Cube,add='',Ncores=(mp.cpu_count() - 2),skip_batches=0,chunk_size = 500, sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
+                                                                                        'cont':[0,'loguniform',-4,1],\
+                                                                                        'cont_grad':[0,'normal',0,0.3], \
+                                                                                        'Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'BLR_Hal_peak':[0,'loguniform',-4,1],\
+                                                                                        'NII_peak':[0,'loguniform',-4,1],\
+                                                                                        'Nar_fwhm':[300,'uniform',100,900],\
+                                                                                        'BLR_fwhm':[4000,'uniform', 2000,9000],\
+                                                                                        'zBLR':[0, 'normal', 0,0.003],\
+                                                                                            'SIIr_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIb_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hal_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'NII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'outflow_fwhm':[600,'uniform', 300,1500],\
+                                                                                            'outflow_vel':[-50,'normal', 0,300],\
+                                                                                            'OIII_peak':[0,'loguniform',-4,1],\
+                                                                                            'OIII_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_peak':[0,'loguniform',-4,1],\
+                                                                                            'Hbeta_out_peak':[0,'loguniform',-4,1],\
+                                                                                            'SIIr_peak':[0,'loguniform', -3,1],\
+                                                                                            'SIIb_peak':[0,'loguniform', -3,1],\
+                                                                                            'BLR_Hbeta_peak':[0,'loguniform', -3,1]}, **kwargs):
+                                        
+                                        
+        """ Function to use to fit Spaxels. 
+
+        Parameters
+        ----------
+    
+        Cube : QubeSpec.Cube class instance
+            Cube class from the main part of the QubeSpec. 
+
+        models : str
+            option - Single, BLR, BLR_simple, outflow_both, BLR_both
+
+        add : str - optional
+            add string to the name of the file to load and 
+
+        Ncores : int - optional
+            number of cpus to use to fit - default number of available cpu -1
+
+        priors: dict - optional
+            dictionary with all of the priors to update
+            
+        """                              
+                                    
+        import pickle
+        start_time = time.time()
+        with open(Cube.savepath+Cube.ID+'_'+Cube.band+'_Unwrapped_cube'+add+'.txt', "rb") as fp:
+            Unwrapped_cube= pickle.load(fp)
+
+        print('import of the unwrap cube - done')
+
+        self.priors = priors
+        self.models = models
+        self.sampler = sampler
+
+        if Ncores<1:
+            Ncores=1
+
+        # Split into chunks
+        chunks = [Unwrapped_cube[i:i+chunk_size] for i in range(0, len(Unwrapped_cube), chunk_size)]
+        print(f"Fitting {len(Unwrapped_cube)} spaxels in {len(chunks)} batches of {chunk_size}")
+
+        for batch_idx, chunk in enumerate(chunks):
+            print(f"Fitting batch {batch_idx+1}/{len(chunks)}...")
+
+            if batch_idx < skip_batches:
+                print(f"Skipping batch {batch_idx+1}/{len(chunks)}...")
+                continue
+
+        
+            progress = kwargs.get('progress', True)
+            progress = tqdm.tqdm if progress else lambda x, total=0: x
+
+            with Pool(Ncores) as pool:
+                cube_res = list(progress(
+                    pool.imap(
+                        self.fit_spaxel, chunk),
+                    total=len(chunk)))
+
+        
+            savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha_OIII{add}_batch{batch_idx}.txt'
+
+            with open(savepath, "wb") as fp:
+                pickle.dump( cube_res,fp)
+            
+            print(f"Batch {batch_idx+1} saved to {savepath}")
+
+
+        print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
+    
+    def merge_spaxel_batches(self,Cube, add=''):
+    
+        batch_files = sorted(glob.glob(Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha_OIII{add}_batch*.txt'))
+        
+        if len(batch_files) == 0:
+            raise FileNotFoundError("No batch files found")
+        
+        print(f"Found {len(batch_files)} batch files, merging...")
+        
+        cube_res = []
+        for f in batch_files:
+            with open(f, 'rb') as fp:
+                cube_res += pickle.load(fp)
+        
+        savepath = Cube.savepath + Cube.ID + '_' + Cube.band + f'_spaxel_fit_raw_Halpha_OIII{add}.txt'
+        with open(savepath, 'wb') as fp:
+            pickle.dump(cube_res, fp)
+        
+        print(f"Merged {len(cube_res)} spaxels into {savepath}")
+
     def Spaxel_fitting(self, Cube,add='',Ncores=(mp.cpu_count() - 2),sampler='emcee',models='Single',priors= {'z':[0, 'normal', 0,0.003],\
                                                                                         'cont':[0,'loguniform',-4,1],\
                                                                                         'cont_grad':[0,'normal',0,0.3], \
