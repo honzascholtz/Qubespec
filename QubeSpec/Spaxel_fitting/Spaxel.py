@@ -413,8 +413,8 @@ class OIII:
         print("--- Cube fitted in %s seconds ---" % (time.time() - start_time))
 
     def fit_spaxel(self, lst, progress=False):
-
         i,j,flx_spax_m, error, wave, z = lst
+        #print('Fitting spaxel', i,j)
 
         if self.models=='Single':
             try:

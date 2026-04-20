@@ -138,7 +138,7 @@ class Fitting:
 
         
 
-    def _setup_(self, wv= None):  
+    def _setup_(self, wv= None, expand = False):  
                 
         if self.priors['z'][0]==0:
             self.priors['z'][0]=self.z
@@ -181,8 +181,12 @@ class Fitting:
         self.error[self.error==0] = 10000*np.nanmedian(self.error)
 
         if wv is not None:
+            if expand:
+                dwv = 400
+            else:
+                dwv = 200
 
-            self.fit_loc = np.where((self.wave>(wv-170)*(1+self.z)/1e4)&(self.wave<(wv+200)*(1+self.z)/1e4))[0]
+            self.fit_loc = np.where((self.wave>(wv-dwv)*(1+self.z)/1e4)&(self.wave<(wv+dwv)*(1+self.z)/1e4))[0]
             sel=  np.where(((self.wave<(wv+20)*(1+self.z)/1e4))& (self.wave>(wv-20)*(1+self.z)/1e4))[0]
 
             self.flux_fitloc = self.flux[self.fit_loc]
@@ -265,7 +269,7 @@ class Fitting:
             self.pos[:, i] = np.random.normal(self.z, 0.001, self.nwalkers)
         
 
-    def fitting_Halpha(self, model='gal'):
+    def fitting_Halpha(self, model='gal', expand_prism=False):
         """ Method to fit Halpha+[NII +[SII]]
         
         Parameters
@@ -291,9 +295,10 @@ class Fitting:
         """
         self.model= model
         self.template = None
-        self._setup_(wv=6563)
+        self._setup_(wv=6563, expand=expand_prism)
         peak = abs(np.ma.max(self.flux_zoom))
         self.nwalkers=32
+
         
         cont = np.median(self.flux[self.fit_loc])
         if cont<0:

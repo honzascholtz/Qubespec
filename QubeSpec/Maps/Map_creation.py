@@ -1730,16 +1730,14 @@ def Map_creation_general(Cube,info, SNR_cut = 3 , width_upper=300,add='',\
                         lsf = info[key]['lsf']
                     else:
                         lsf = 0
+
                     SNR= sp.SNR_calc(Cube.obs_wave[use], Fits.fluxs, Fits.error, Fits.props, 'general',\
                                         wv_cent = info[key]['wv'],\
                                         peak_name = key+'_peak', \
                                             fwhm_name = info[key]['fwhm'], lsf=lsf)
                     
                     info[key]['flux_map'][0,i,j] = SNR
-
-                    flux, p16,p84,std = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm,\
-                                                            wv_cent = info[key]['wv'],\
-                                                            peak_name = key+'_peak', \
+                    flux, p16,p84,std = sp.flux_calc_mcmc(Fits, 'general', Cube.flux_norm, peak_name = key+'_peak', \
                                                                 fwhm_name = info[key]['fwhm'], lsf=lsf,std=1)
                     
                     info[key]['flux_map'][4,i,j] = flux/p16

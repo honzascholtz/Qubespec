@@ -1412,7 +1412,7 @@ def cal_sfr_kennicutt(ha_flux, err_ha_flux, redshift):
     from astropy.cosmology import Planck18 as cosmo 
 
     conversion_factor = 1.26e41 # solar mass/yr.erg/s
-    ha_lum = ha_flux * (4*np.pi*(cosmo.luminosity_distance(redshift).to(u.cm))**2).value
+    ha_lum = ha_flux * (4*np.pi*(cosmo.luminosity_distance(redshift).to(u.cm))**2).value # type: ignore
 
     sfr = ha_lum/conversion_factor
     err_sfr = sfr * (err_ha_flux/ha_flux)
