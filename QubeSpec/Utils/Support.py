@@ -1334,21 +1334,20 @@ def Image_center_fit(image, init_loc, plot_it = 0, mask=None):
     if mask is not None:
         image = np.ma.masked_array(image, mask=mask)
 
-    plt.figure()
-    plt.imshow(image, vmin=-rms, vmax=5*rms, cmap='gray')
     import scipy.optimize as opt
 
-    print(image[50,50])
-
-    print(image[init_loc[0],init_loc[1]])
+    print(image[int(init_loc[0]), int(init_loc[1])])
     # Setting the
-    initial_guess = (image[init_loc[0],init_loc[1]],  init_loc[1],init_loc[0],1,1,0,0)
+    start_peak = image[int(init_loc[0]), int(init_loc[1])]
+    if start_peak<0:
+        start_peak = rms*4
+    initial_guess = (start_peak,  init_loc[1],init_loc[0],1,1,0,0)
 
     print ('Initial guesses', initial_guess)
 
     
     dm = (x,y)
-    popt, pcov = opt.curve_fit(twoD_Gaussian, dm, image.ravel(),  p0=initial_guess, bounds=([-np.inf, -np.inf, -np.inf, 0.1,0.1, -np.inf, -np.inf],[np.inf, np.inf, np.inf, 5,5, np.inf, np.inf]))
+    popt, pcov = opt.curve_fit(twoD_Gaussian, dm, image.ravel(),  p0=initial_guess, bounds=([0, 0, 0, 0.1,0.1, -np.inf, -np.inf],[np.inf, np.inf, np.inf, 5,5, np.inf, np.inf]))
     popt_l = popt.copy()
     popt_l[0] = 1
     er = np.sqrt(np.diag(pcov))
@@ -1370,6 +1369,7 @@ def Image_center_fit(image, init_loc, plot_it = 0, mask=None):
         plt.ylim(popt[2]-10,popt[2]+10)
         
         plt.plot(popt[1],popt[2], 'ro')
+    return popt, pcov
 
 def plot_filters(ax,norm=1):
     # 090W, 115W,150W, 200W, 277W, 356W, 410M, 444W

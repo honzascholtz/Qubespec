@@ -204,6 +204,13 @@ class Cube:
                     self.wcs = wcs.WCS(hdulist[1].header)
                     self.header = hdulist[1].header
 
+            elif self.instrument=='FLAMES_ARGUS':
+                with fits.open(self.Cube_path, memmap=False) as hdulist:
+                    flux_temp = hdulist['PRIMARY'].data/norm*1e4
+                    self.error_cube = hdulist['ERR'].data/norm*1e4
+                    self.wcs = wcs.WCS(hdulist['PRIMARY'].header)
+                    self.header = hdulist['PRIMARY'].header
+
             elif self.instrument=='MIRI':
                 with fits.open(self.Cube_path, memmap=False) as hdulist:
                     flux_temp = hdulist['SCI'].data/norm * astropy.units.Unit(hdulist['SCI'].header['BUNIT'])
@@ -251,8 +258,10 @@ class Cube:
             except:
                 self.header['CDELT3'] = self.header['CD3_3']
 
+            
             self.obs_wave = self.header['CRVAL3'] + (np.arange(n_spixels) - (self.header['CRPIX3'] - 1.0))*self.header['CDELT3']
-
+            if self.instrument=='FLAMES_ARGUS':
+                self.obs_wave /= 1e3
             deg_per_pix_x = abs(self.header['CDELT1'])
             arc_per_pix_x = 1.*deg_per_pix_x*3600
             Xpix = self.header['NAXIS1']
@@ -538,7 +547,7 @@ class Cube:
         mask_catch[:,:,:] = True
         header  = self.header
         #arc = np.round(1./(header['CD2_2']*3600))
-        arc = np.round(1./(header['CDELT2']*3600))
+        arc = np.round(1./abs(header['CDELT2']*3600))
         print('Pixel scale:', arc)
         print ('radius ', arc*rad)
 
@@ -643,7 +652,7 @@ class Cube:
                
         self.D1_spectrum_var = np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2))
 
-        if self.instrument =='NIRSPEC_IFU':
+        if (self.instrument =='NIRSPEC_IFU') |(self.instrument =='FLAMES_ARGUS') | (self.instrument =='MIRI'):
             print('NIRSPEC mode of error calc')
             nspaxel= np.sum(np.logical_not(total_mask[150,:,:]))
 
@@ -2108,7 +2117,7 @@ class Cube:
                     if sp_binning=='Single':
                         Spax_mask_pick[:, i, j] = False
 
-                    if self.instrument=='NIRSPEC_IFU':
+                    if (self.instrument =='NIRSPEC_IFU') |(self.instrument =='FLAMES_ARGUS')| (self.instrument =='MIRI'):
                         total_mask = np.logical_or(Spax_mask_pick, self.sky_clipped)
                         flx_spax_t = np.ma.array(data=flux.data.copy(),mask=total_mask)
 
@@ -2196,7 +2205,7 @@ class Cube:
         # Loading mask of the sky lines an bad features in the spectrum
         mask_sky_1D = self.sky_clipped_1D.copy()
 
-        if self.instrument=='NIRSPEC_IFU':
+        if (self.instrument =='NIRSPEC_IFU') |(self.instrument =='FLAMES_ARGUS')| (self.instrument =='MIRI'):
             total_mask = np.logical_or( mask_catch, self.sky_clipped)
         else:
             total_mask = np.logical_or( mask_catch, self.flux.mask)
@@ -2206,7 +2215,7 @@ class Cube:
         D1_spectrum = np.ma.sum(flux, axis=(1,2))
         D1_spectrum = np.ma.array(data = D1_spectrum.data, mask=mask_sky_1D)
 
-        if self.instrument =='NIRSPEC_IFU':
+        if (self.instrument =='NIRSPEC_IFU') |(self.instrument =='FLAMES_ARGUS')| (self.instrument =='MIRI'):
             print('NIRSPEC mode of error calc')
             D1_spectrum_var_er = np.sqrt(np.ma.sum(np.ma.array(data=self.error_cube.data, mask= total_mask)**2, axis=(1,2)))
 
@@ -2277,6 +2286,17 @@ class Cube:
         x=1
 
     
+    def copy(self):
+        """Return an independent deep copy of this Cube.
+
+        Mirrors the .copy() convention used by numpy/pandas/dict/list etc:
+        the returned object is a fully separate instance, so mutating it
+        (e.g. its flux/error_cube arrays or header) does not affect the
+        original.
+        """
+        import copy
+        return copy.deepcopy(self)
+
     def save(self, file_path):
         import pickle
         """save class as self.name.txt"""
