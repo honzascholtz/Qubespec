@@ -1604,7 +1604,7 @@ def add_lines_paper_r1000_mul(axes, wave1d, spec1d, redshift, show_labels=True, 
         r'[OIII]$\lambda$4363'         : ( 4353.471	, 0.04, 0.7),
          'H$\\beta$'         : ( 4862.683, -0.00, 0.8),
         r'[OIII]$\lambda$5008'         : ( 5008.24, 0.0, 0.6),
-        'H$\\alpha$'         : ( 6564.61, -0.00, 0.8),
+        'H$\\alpha$'         : ( 6564.61, -0.00, 0.9),
     }
     n_lines = len(emlines.items())
     cmap = matplotlib.colormaps['nipy_spectral']

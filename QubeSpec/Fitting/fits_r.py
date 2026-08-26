@@ -45,8 +45,7 @@ from ..Models import Halpha_OIII_models as HO_models
 from ..Models import QSO_models as QSO_models
 from ..Models import Halpha_models as H_models
 from ..Models import Full_optical as FO_models
-from ..Models import Custom_model
-import numba
+from ..Models.Custom_model import general_model
 from .. import Utils as sp
 
 from .priors import * 
