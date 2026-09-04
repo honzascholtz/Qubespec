@@ -37,23 +37,24 @@ First lets initalize the Fitting class:
 The priors variable should be in a form of a dictionary like: 
 
 .. code:: ipython3
+
     priors = {}
 
-    priors[‘name of the variable’] = [ initial_value or 0, ‘shape of the prior’, parameters of the prior]
+    priors['name of the variable'] = [initial_value_or_0, 'shape of the prior', parameters_of_the_prior]
 
-‘name of the variable’ - I will give a full list of variable for each models below.
+``'name of the variable'`` - I will give a full list of variable for each models below.
 
-intial value - inital value for the fit - if you want the code to decide put 0
+initial value - initial value for the fit - if you want the code to decide put 0
 
-‘shape of the prior’ - ‘uniform’, ‘loguniform’ (uniform in logspace),
-‘normal’, ‘normal_hat’ (truncated normal distribution)
+``'shape of the prior'`` - ``'uniform'``, ``'loguniform'`` (uniform in logspace),
+``'normal'``, ``'normal_hat'`` (truncated normal distribution)
 
 
 once this is initialized, we can use some of the prewritten models or use a custom function fitting. Setting up a custom function fitting is a little bit more complex,
 but once understood, it is in no way complicated or long. In order fit a custom function you need to use the ``Fitting.fitting_general`` method of the ``Fitting`` class. 
 
 Fitting Custom Function
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Once we initialize the ``Fitting`` class we need to define couple of things:
 
@@ -129,13 +130,18 @@ Below I will show an example of such function that fits a spectrum from [OII] to
     priors['OIIIaur_peak']=[0.2,'loguniform', -3,1]
     
 
-Then we can initialize the ``Fitting`` class as variable ``optical`` and then run it in the following manner: 
+Then we can initialize the ``Fitting`` class as variable ``optical`` and then run it in the following manner:
 
 .. code:: ipython3
 
     if __name__ == '__main__':
-        optical = emfit.Fitting(obs_wave, flux, error, z, priors=priors, N=5000, ncpu=3) 
-        optical.fitting_general( Full_optical, labels)
+        optical = emfit.Fitting(obs_wave, flux, error, z, priors=priors, N=5000, ncpu=3)
+        optical.fitting_general( Full_optical, labels, logprior=emfit.logprior_general)
+
+.. warning::
+    Always pass ``logprior=emfit.logprior_general`` (or ``emfit.logprior_general_scipy``) explicitly to ``fitting_general``.
+    If you omit it, ``fitting_general`` will try to use a log-prior function of ``None`` and the fit will crash as soon
+    as it starts sampling.
 
 
 Getting useful info out of the fit:
@@ -179,11 +185,12 @@ Finally we can also save the results of the fitting like this:
 and then load the results as:
 
 .. code:: ipython3
+
     optical = emfit.Fitting()
     optical.load(path)
 
-Fitting 1D collpased spectrum from a cube. 
-----------------------------------------
+Fitting 1D collapsed spectrum from a cube
+------------------------------------------
 now lets load the Cube object from previous page.
 
 .. code:: ipython3
@@ -277,80 +284,127 @@ models - Single_only, Outflow_only, BLR, QSO_BKPL, BLR_simple
 
     Cube.D1_fit_results
 
-Fitting a custom model by passing a dictionary of components
-------------------------------------------------------------
+Fitting a custom model with ``general_model``
+----------------------------------------------
 
-Very highly experimental, still under development, use at your risk!
+.. note::
+    ``Fitting.fitting_general`` (above) already lets you fit any hand-written function. The
+    ``general_model`` class described here is a *builder* for that function: instead of writing out
+    every rest wavelength, tied kinematic, doublet ratio and continuum shape by hand (as in the
+    ``Full_optical`` example above), you describe the lines in a dictionary and ``general_model``
+    generates the ``model``/``labels`` pair for you.
+
+    An older, unrelated ``fitting_custom``/``model_inputs`` API used to be documented here. It has
+    been removed from the code (only a dead copy remains in ``Fitting/fits_r_old.py``, which is never
+    imported) - if you have old notebooks calling ``optical.fitting_custom(...)``, port them to
+    ``general_model`` below, or to ``fitting_general`` with a hand-written function as shown above.
+
+.. autoclass:: QubeSpec.Models.Custom_model.general_model
+
+``general_model`` lives in ``QubeSpec.Models.Custom_model`` and is built from two dictionaries:
+
+* ``components`` - one entry per emission line, plus an optional ``'continuum'`` entry describing
+  the continuum shape.
+* ``priors`` - the usual priors dictionary, but it only needs an entry for every parameter that
+  ``general_model`` decides is free (see ``gm.labels`` below) - you do not need to invent parameter
+  names yourself, ``general_model`` does that from the ``components`` dictionary.
+
+Each line entry in ``components`` is a dictionary with the following keys:
+
+* ``'wave'`` - rest-frame wavelength in Angstrom.
+* ``'z'`` - name of the redshift parameter this line's centroid uses. Lines that share the same
+  ``'z'`` string share one fitted redshift (e.g. tie a broad component to its own ``'zBLR'``).
+* ``'fwhm'`` - name of the FWHM parameter this line uses. Lines that share the same ``'fwhm'``
+  string share one fitted width.
+* ``'ratio_to'`` (optional) - name of another component this line's amplitude is tied to (for
+  fixed-ratio doublets such as [OIII]4959,5007 or [NII]6548,6584).
+* ``'ratio'`` (optional, required together with ``'ratio_to'``) - the fixed flux ratio versus that
+  other component.
+* ``'peak_name'`` (optional) - override for the free amplitude parameter's name. Defaults to
+  ``f'{component_name}_peak'``. Ignored if ``'ratio_to'`` is set, since the amplitude is then derived,
+  not fitted.
+
+The optional ``'continuum'`` entry configures the continuum instead of describing a line:
+
+* ``'type'`` - ``'power'`` (power-law continuum, the default), ``'linear'`` (``cont_grad*x + cont``),
+  or ``'none'`` (no continuum at all - ``cont``/``cont_grad`` are then dropped from the fit entirely).
+* ``'wave'`` (optional) - rest wavelength used as the power-law/linear pivot. Defaults to the
+  wavelength of the first line in ``components``.
+* ``'z'`` (optional) - name of the z-group used for that pivot. Defaults to the ``'z'`` of the first
+  line in ``components``.
+
+Below is a worked example fitting the rest-UV HeII1640 + [OIII]1660,1666 complex, with a narrow and a
+broad HeII component sharing the same doublet:
 
 .. code:: ipython3
 
-    dvmax = 1000/3e5*(1+Cube.z)
-    dvstd = 200/3e5*(1+Cube.z)
-    
-    model_inputs = {}
-    model_inputs["m_z"] = [Cube.z, ['normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]]
-    model_inputs["m_fwhm_nr"] = [400, ['uniform' , 100, 900]]
-    model_inputs["m_ContSlope"] = [0.001, ['normal', 0, 1]]
-    model_inputs["m_ContNorm"] = [0.1, ['loguniform', -3, 1]]
-    
-    #model_inputs["m_fwhm_br"] = [700, ['uniform', 400, 1200]]
-    
-    model_inputs["l_nr_Ha_peak"]= [1, ['loguniform', -3, 1]]
-    model_inputs["l_nr_Ha_wav"] = [0.656452255]
-    
-    model_inputs["l_nr_Hb_peak"]= [1, ['loguniform', -3, 1]]
-    model_inputs["l_nr_Hb_wav"] = [0.4861]
-    
-    model_inputs["l_nr_Hg_peak"]= [1, ['loguniform', -3, 1]]
-    model_inputs["l_nr_Hg_wav"] = [0.4341647191]
-    
-    model_inputs["l_nr_Hd_peak"]= [1, ['loguniform', -3, 1]]
-    model_inputs["l_nr_Hd_wav"] = [0.410285985]
-    
-    model_inputs["l_nr_HeI_peak"]= [1, ['loguniform', -3, 1]]
-    model_inputs["l_nr_HeI_wav"] = [0.388973]
-    
-    model_inputs["l_nr_OIIIc_peak"]= [1,['loguniform', -3, 1]]
-    model_inputs["l_nr_OIIIc_wav"] = [0.43640436]
-    
-    model_inputs["d_nr_NeIII_wav1"] = [0.386968]
-    model_inputs["d_nr_NeIII_wav2"] = [0.396868]
-    model_inputs["d_nr_NeIII_peak1"] = [1.0,['loguniform', -3, 1]]
-    model_inputs["d_nr_NeIII_ratio"] = [3.1055]
-    
-    model_inputs["d_nr_NII_wav1"] = [0.6585273]
-    model_inputs["d_nr_NII_wav2"] = [0.654986]
-    model_inputs["d_nr_NII_peak1"] = [0.1,['loguniform', -3, 1]]
-    model_inputs["d_nr_NII_ratio"] = [3]
-    
-    model_inputs["d_nr_OIII_wav1"] = [0.5008]
-    model_inputs["d_nr_OIII_wav2"] = [0.4960]
-    model_inputs["d_nr_OIII_peak1"] = [1,['loguniform', -3,1]]
-    model_inputs["d_nr_OIII_ratio"] = [2.99]
-    
-    model_inputs["d_nr_OII_wav1"] = [0.3727]
-    model_inputs["d_nr_OII_wav2"] = [0.3729]
-    model_inputs["d_nr_OII_peak1"] = [0.9,['loguniform', -3, 1]]
-    model_inputs["d_nr_OII_ratio"] = [1,['uniform',0.2, 4]]
-    
-    
+    from QubeSpec.Models.Custom_model import general_model
+
+    components = {
+        'HeII1640':       {'wave': 1640.420, 'z': 'z', 'fwhm': 'FWHM'},
+        'OIII1660':       {'wave': 1660.809, 'z': 'z', 'fwhm': 'FWHM', 'ratio_to': 'OIII1666', 'ratio': 1/3},
+        'OIII1666':       {'wave': 1666.150, 'z': 'z', 'fwhm': 'FWHM', 'peak_name': 'OIII1663_peak'},
+        'HeII1640_broad': {'wave': 1640.420, 'z': 'zBLR', 'fwhm': 'FWHM_broad', 'peak_name': 'HeII1640_peak_broad'},
+        'continuum':      {'type': 'power', 'wave': 1640.420, 'z': 'z'},
+    }
+
+    z = 6.4
+    dvmax = 1000/3e5*(1+z)
+    dvstd = 200/3e5*(1+z)
+
+    priors = {}
+    priors['z']    = [z, 'normal_hat', z, dvstd, z-dvmax, z+dvmax]
+    priors['zBLR'] = [z, 'normal_hat', z, dvstd, z-dvmax, z+dvmax]
+    priors['cont']      = [0.1, 'loguniform', -3, 1]
+    priors['cont_grad'] = [-2, 'normal', -2, 0.6]
+    priors['FWHM']       = [300,  'uniform', 200, 600]
+    priors['FWHM_broad'] = [2000, 'uniform', 600, 10000]
+    priors['HeII1640_peak']        = [1., 'loguniform', -3, 1]
+    priors['HeII1640_peak_broad']  = [0.3,'loguniform', -3, 1]
+    priors['OIII1663_peak']        = [1., 'loguniform', -3, 1]
+
+    gm = general_model(components, priors)
+    print(gm.labels)  # the parameter names general_model decided it needs
+
+``gm.labels`` is exactly the ``labels`` list that ``fitting_general`` expects, and ``gm.model`` is a
+bound method with the ``model(wave, *pars)`` signature it expects too - so fitting it is a one-liner
+on top of what you already know from ``fitting_general``:
+
+.. code:: ipython3
+
     if __name__ == '__main__':
-        optical_cus = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er,Cube.z, priors=priors, N=5000, ncpu=1) # Cube.obs_wave[use], Cube.D1_spectrum[use], Cube.D1_spectrum_er[use]
-        optical_cus.fitting_custom(model_inputs, model_name='test')
-    
+        optical = emfit.Fitting(Cube.obs_wave, Cube.D1_spectrum, Cube.D1_spectrum_er, z,
+                                 priors=gm.priors, N=5000, ncpu=1)
+        optical.fitting_general(gm.model, gm.labels, logprior=emfit.logprior_general)
+
+.. note::
+    We passed ``priors=gm.priors`` when constructing ``Fitting`` - this merges every prior
+    ``general_model`` needed (``gm.labels``) into the ``Fitting`` instance. If you already have a
+    ``Fitting`` instance and built ``gm`` afterwards, you can instead update it in place with
+    ``optical.priors.update(gm.priors)`` before calling ``fitting_general``.
+
+Once fitted, ``optical.chains``/``optical.props``/``optical.corner()`` work exactly as described
+above. To break the best fit down into its individual line profiles (e.g. for a diagnostic plot),
+call ``gm.model`` once more with the best-fit parameters - every call to ``gm.model`` refreshes
+``gm.profiles`` (a dictionary of component name to flux array), ``gm.lines`` (sum of all lines) and
+``gm.cont`` (the continuum alone) as a side effect:
 
 .. code:: ipython3
 
-    import corner
-    
-    fig = corner.corner(
-                IFU.sp.unwrap_chain(optical_cus.chains), 
-                labels = optical_cus.labels,
-                quantiles=[0.16, 0.5, 0.84],
-                show_titles=True,
-                title_kwargs={"fontsize": 12})
-    #fig.savefig('~/corner_full.pdf')
+    gm.model(optical.wave, *optical.props['popt'])  # repopulates gm.profiles/gm.lines/gm.cont
+
+    plt.plot(optical.wave, optical.yeval, 'r-', label='total model')
+    for name, flux in gm.profiles.items():
+        plt.plot(optical.wave, flux, '--', label=name)
+    plt.legend()
     plt.show()
 
-.. image:: Fitting_files/Fitting_27_1.png
+.. note::
+    ``gm.profiles``/``gm.lines``/``gm.cont`` always reflect the *last* parameter set ``gm.model`` was
+    called with. During the ``emcee`` run itself that will be whatever walker step ran last - always
+    call ``gm.model(wave, *optical.props['popt'])`` again afterwards if you want the breakdown for the
+    best-fit parameters specifically.
+
+``general_model`` is plain numpy under the hood (no compilation step), so there is no warm-up cost -
+it is fast enough to call once per ``emcee`` step out of the box.
 

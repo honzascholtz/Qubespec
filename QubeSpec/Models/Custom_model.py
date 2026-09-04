@@ -3,33 +3,29 @@ from astropy.modeling.powerlaws import PowerLaw1D
 
 class general_model:
     """
-    Generic gaussian-lines + power-law-continuum model, built from a
-    `components` dict instead of being hand-written per line set (c.f. HeII_model above).
+    Generic gaussian-lines + continuum model, built from a `components` dict instead of being
+    hand-written per line set.
 
+    ``general_model`` inspects ``components`` and works out the free parameters it needs
+    (``self.labels``), so you only have to supply a matching ``priors`` entry for each of them -
+    see the "Fitting a custom model with ``general_model``" section of the docs for the full
+    ``components``/``continuum`` dictionary format and a worked example.
+
+    Parameters
+    ----------
     components : dict
-        name -> {
-            'wave'      : rest-frame wavelength in Angstrom,
-            'z'         : name of the redshift parameter this line's centroid uses
-                          (components sharing the same 'z' string share one fitted redshift),
-            'fwhm'      : name of the FWHM parameter this line uses
-                          (components sharing the same 'fwhm' string share one fitted FWHM),
-            'ratio_to'  : (optional) name of another component this one's amplitude is tied to,
-            'ratio'     : (optional, required with 'ratio_to') fixed flux ratio vs that component,
-            'peak_name' : (optional) override for the free amplitude parameter's name,
-                          default is f'{name}_peak'. Ignored if 'ratio_to' is set.
-        }
-        An optional 'continuum' entry configures the continuum instead of being a line:
-        'continuum': {
-            'type' : {'power', 'linear', 'none'}, optional, default 'power',
-            'wave' : rest wavelength (Angstrom) used as the power-law/linear pivot,
-                     default is the wavelength of the first line component,
-            'z'    : name of the z-group used for that pivot,
-                     default is the 'z' of the first line component,
-        }
+        Maps a component name to a dict describing that emission line: ``'wave'`` (rest-frame
+        wavelength in Angstrom), ``'z'`` (name of the shared redshift parameter), ``'fwhm'``
+        (name of the shared FWHM parameter), and optionally ``'ratio_to'``/``'ratio'`` (to tie
+        this line's amplitude to another component's, e.g. for a fixed-ratio doublet) or
+        ``'peak_name'`` (to override the default ``f'{name}_peak'`` amplitude parameter name).
+        An optional ``'continuum'`` entry configures the continuum instead of describing a line
+        (keys ``'type'`` - ``'power'``/``'linear'``/``'none'``, plus optional ``'wave'``/``'z'``
+        pivot overrides).
     priors : dict
-        Full priors dict (same format as elsewhere: {'param': [init, dist, *dist_args]}).
-        Passed straight through and used as given - this class does not invent priors,
-        it only checks that every parameter in self.labels has an entry.
+        Full priors dict (same format as elsewhere: ``{'param': [init, dist, *dist_args]}``).
+        Passed straight through and used as given - this class does not invent priors, it only
+        checks that every parameter in ``self.labels`` has an entry.
     """
     def __init__(self, components, priors):
         components = dict(components)

@@ -129,7 +129,8 @@ class Fitting:
         self.z = z  # redshift
         self.waves = wave.copy() # wavelength 
         self.wave = wave.copy() # wavelength 
-        self.fluxs = flux.copy() # flux density
+        self.flux = np.ma.masked_invalid(flux.copy()) # flux density
+        self.fluxs = self.flux.copy()  # Mask invalid values (merges with any existing mask)
         self.errors = error.copy() # errors
         self.error = error.copy() # errors
         self.ncpu= ncpu # number of cpus to use in the fit 

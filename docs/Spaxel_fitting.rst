@@ -16,7 +16,9 @@ Now we are going to perform the spaxel-by-spaxel fitting. The whole process is s
 
 .. automethod:: QubeSpec.Cube.unwrap_cube
 
-
+.. note::
+    The ``instrument`` keyword is a leftover from an older version of the code and no longer does
+    anything - it is safe to pass or omit.
 
 .. code:: ipython3
 
@@ -60,7 +62,7 @@ Now we are going to perform the spaxel-by-spaxel fitting. The whole process is s
 
 
 2) Fitting spaxel-by-spaxel
-----------------------
+----------------------------
 
 In order to fit all of the spaxels we need to use the ``QubeSpec.Spaxel`` module. Similar to the fitting the 1D collapsed spectra,
 there are pre written functions/classes to allow fit the basic Halpha, [OIII] and Halpha+[OIII] and of course full custom functions. 
@@ -86,6 +88,7 @@ Below is the full description of the fitting function:
 And below is an example of how to trigger it: 
 
 .. code:: ipython3
+
     dvmax = 1000/3e5*(1+Cube.z)
     dvstd = 200/3e5*(1+Cube.z)
     priors={'z':[Cube.z,'normal_hat', Cube.z, dvstd, Cube.z-dvmax, Cube.z+dvmax]}
@@ -209,16 +212,30 @@ Below is the full description of the ``Spaxel_fitting`` function.
 
 .. automethod:: QubeSpec.Spaxel.general.Spaxel_fitting
 
-And here is the example to run it. Ass you can see we have supplied all of the same info as for fitting a 1D spectrum and the same variabls 
-as for pre written models. 
+And here is the example to run it. As you can see we have supplied all of the same info as for fitting a 1D spectrum and the same variables
+as for pre written models. ``fitted_model``, ``labels``, ``priors`` and ``logprior`` are positional here (unlike ``Fitting.fitting_general``,
+where ``logprior`` is a keyword) - passing ``emfit.logprior_general`` (jitted, fastest) or ``emfit.logprior_general_scipy`` both work.
 
 .. code:: ipython3
 
     Spaxel = False
-    if Spaxel==True: 
+    if Spaxel==True:
         if __name__ == '__main__':
             spx = IFU.Spaxel.general()
-            spx.Spaxel_fitting_general_MCMC_mp(Cube, Full_optical,labels, priors, emfit.logprior_general_scipy, add='', Ncores=QubeSpec_setup['ncpu'])
+            spx.Spaxel_fitting(Cube, Full_optical, labels, priors, emfit.logprior_general, add='', Ncores=QubeSpec_setup['ncpu'])
+
+This works exactly the same way with a ``general_model`` instance built as described in
+:ref:`Fitting a custom model with general_model <Fitting>` - just pass ``gm.model`` and ``gm.labels`` instead of a
+hand-written function, and merge ``gm.priors`` into your ``priors`` dictionary beforehand:
+
+.. code:: ipython3
+
+    Spaxel = False
+    if Spaxel==True:
+        if __name__ == '__main__':
+            priors.update(gm.priors)
+            spx = IFU.Spaxel.general()
+            spx.Spaxel_fitting(Cube, gm.model, gm.labels, priors, emfit.logprior_general, add='', Ncores=QubeSpec_setup['ncpu'])
 
 
 3) Map creation
@@ -260,21 +277,19 @@ The shape of the ``info`` dictionary should be as below:
     info['HeI'] = {'wv':3889, 'fwhm':'Nar_fwhm',}
     info['params'] = ['z','outflow_vel', 'outflow_fwhm']
 
-    fmaps = IFU.Maps.Map_creation_general(Cube, info, SNR_cut=4., add='_test' )
-
 Each entry contains another dictionary with:
 
 * ``'wv'`` - rest-frame wavelength of the emission line
-* ``'fwhm'`` - name of the FWHM variable associated with that particular emission line component 
+* ``'fwhm'`` - name of the FWHM variable associated with that particular emission line component
 * ``'kin'`` -  If you want to recover the kinematics of the line or multiple components of the same line. The ``'kin'`` should contain a dictionary with the name of the peaks, FWHMs and velocities to get the v10,w80,v90 and peak velocity
-* ``'params'`` - please put with a list of variables you would like to directly extract from the chains. 
+* ``'params'`` - please put with a list of variables you would like to directly extract from the chains.
 
+We can then run the post processing like this. Note that, unlike ``Map_creation_Halpha``/``Map_creation_OIII``/``Map_creation_Halpha_OIII``,
+``Map_creation_general`` does not take ``flux_max``, ``fwhmrange`` or ``velrange`` - only ``SNR_cut``, ``width_upper``, ``add`` and ``brokenaxes_xlims``:
 
+.. code:: ipython3
 
-We can then run the post processing suc this: 
-
-.. code:: ipython3  
-    fmaps = IFU.Maps.Map_creation_general(Cube, info,flux_max=1e-18, SNR_cut=4., width_upper=300,\
+    fmaps = IFU.Maps.Map_creation_general(Cube, info, SNR_cut=4., width_upper=300, add='_test',\
                 brokenaxes_xlims= ((1.75,2.1),(2.2,2.4), (3,3.2)) )
 
     plt.show()
@@ -283,18 +298,20 @@ Visually inspecting the fits
 -----------------------------------------
 
 Once we fit all of the spaxels, we can visually inspect the maps and each of the fits. We need to use the
- ``QubeSpec.Visulizations`` module which initialize a UI to fit. To initialize it we need to supply the path to the 
- fits file containing the Spaxel maps and list of three fits extentions we want to show. 
+``QubeSpec.Visualizations`` module, which initializes a UI to inspect the fits. This module is not imported
+automatically with ``import QubeSpec`` - you need to import it explicitly. To initialize it we need to supply
+the path to the fits file containing the Spaxel maps and a list of three fits extensions we want to show.
 
 .. code:: ipython3
+
     import numpy as np
-    import QubeSpec.Visulizations as viz
+    import QubeSpec.Visualizations as viz
 
     PATH='/Users/jansen/JADES/GA_NIFS/'
 
     Viz = viz.Visualize(PATH+'Results/GS551/GS551_R2700_general_fits_maps.fits',\
                          ['HAL','OIII','OIII_kin'])
-    
+
     Viz.showme()
 
 
@@ -302,11 +319,14 @@ Once we fit all of the spaxels, we can visually inspect the maps and each of the
 Something didnt fit right? lets refit it.
 -----------------------------------------
 
-There is a decent chat that not all (800?) fits are going to be perfect on the first try. Actually, it is quite likely. 
-Therefore, I have written few "topup" functions. These function have the same syntax as the e.g. ``QubeSpec.Spaxel.Halpha_OIII.Spaxel_fitting``
-but they also include variable ``to_fit`` with should contain a list of pair of coordinates to refit: 
+There is a decent chance that not all (800?) fits are going to be perfect on the first try. Actually, it is quite likely.
+Therefore, I have written few "topup" functions. These functions have the same syntax as the corresponding ``Spaxel_fitting``
+method but also take a ``to_fit`` argument, a list of ``[y, x]`` pixel coordinate pairs to refit. The method name depends on
+the class you are using: it is ``Spaxel_toptup`` (note the extra "t") on ``QubeSpec.Spaxel.Halpha``, ``QubeSpec.Spaxel.OIII``
+and ``QubeSpec.Spaxel.Halpha_OIII``, and ``Spaxel_topup`` (no extra "t") on ``QubeSpec.Spaxel.general``:
 
 .. code:: ipython3
-    spx.toptup(Cube, to_fit = [59,48], fitted_model = Full_optical, labels=labels, priors=priors, logprior= emfit.logprior_general_scipy)
 
-this will replace the fits with new ones. However, please remember to regenerate all of the maps. 
+    spx.Spaxel_topup(Cube, to_fit=[[59,48]], fitted_model=Full_optical, labels=labels, priors=priors, logprior=emfit.logprior_general)
+
+this will replace the fits with new ones. However, please remember to regenerate all of the maps.
