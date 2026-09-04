@@ -177,9 +177,14 @@ subtracted flux cube (Cube.flux)
     Cube.PSF_matching(PSF_match = QubeSpec_setup['PSF_match'],\
                         wv_ref= QubeSpec_setup['PSF_match_wv'])
 
+.. warning::
+    ``PSF_matching`` updates ``Cube.flux`` and ``Cube.error`` in place, but it does **not** update
+    ``Cube.error_cube``. Every downstream step that extracts an error spectrum (``D1_spectra_collapse``,
+    ``unwrap_cube``) reads ``Cube.error_cube``, so it will still be using the pre-PSF-matching error
+    cube. If your errors look off after PSF matching, this is why.
 
 Extracting your first spectrum
-----------------------
+-------------------------------
 
 In order to extract a specturm we first collpase the cube into a white
 light image using collpase_white function. Then we find the center of
@@ -335,3 +340,11 @@ After these steps, the ``Cube`` instance should have the following attributes:
 * ``Cube.save_path`` - path where we are saving stuff
 
 
+What's next
+------------
+
+With ``Cube.D1_spectrum``/``Cube.D1_spectrum_er`` extracted, you are ready to:
+
+* Fit the collapsed 1D spectrum with one of the pre-built line models, a hand-written function, or a
+  declarative ``general_model`` - see :ref:`1D fitting <Fitting>`.
+* Fit every spaxel in the cube and turn the results into flux/velocity/FWHM maps - see :ref:`Spaxel-by-Spaxel fitting <spaxel_fitting>`.

@@ -9,8 +9,22 @@ Authors: Jan Scholtz, Francesco D'Eugenio and Ignas Juodžbalis
 What can QubeSpec do?
 ---------------------
 
+QubeSpec takes you from a raw IFS data cube to science-ready emission-line maps:
 
-Fit IFS cubes with different models. 
+* **Load cubes** from JWST/NIRSpec IFU, JWST/MIRI, VLT/KMOS, VLT/SINFONI and VLT/FLAMES-ARGUS.
+* **Prepare the cube**: mask bad pixels/spikes, subtract the background (source-extractor based, or a
+  supplied mask), PSF-match all wavelength channels, and extract a 1D spectrum from an aperture.
+* **Fit a 1D spectrum** with the pre-built models for Halpha+[NII]+[SII], [OIII]+Hbeta (with optional
+  FeII template), Halpha+[OIII] jointly, or the full optical line list - each with narrow-only,
+  outflow, and single/broad-line-region (BLR) variants. You can also fit any function of your own
+  via ``fitting_general``, or describe a custom set of lines declaratively with
+  ``QubeSpec.Models.Custom_model.general_model`` (see :ref:`1D fitting <Fitting>`) instead of hand-writing one.
+* **Fit spaxel-by-spaxel** using the same models (or your own), in parallel across CPUs, then
+  post-process the results into flux/velocity/FWHM maps (see :ref:`spaxel_fitting`).
+* **Inspect the results** interactively with the ``QubeSpec.Visualizations`` viewer.
+
+Fitting uses ``emcee`` throughout, giving full posterior chains (and hence proper uncertainties) for
+every fitted quantity, not just a point estimate.
 
 
 Source and installation
@@ -18,15 +32,17 @@ Source and installation
 
 QubeSpec is `developed at GitHub <https://github.com/honzascholtz/Qubespec>`_, and should be downloaded or pulled from there. Then, from inside your working directory, run (works on `bash`, untested on `tcsh`)
 
-.. code::
-    conda create -n qubespec python=3.8 
-    conda activate qubespec 
+.. code:: bash
+
+    conda create -n qubespec python=3.10
+    conda activate qubespec
     pip3 install QubeSpec/.
 
 
 You should then be able to import QubeSpec in python as:
 
-.. code::
+.. code:: python
+
     import QubeSpec
 
 
@@ -51,7 +67,6 @@ Loads of people.
     :maxdepth: 1
     :hidden:
 
-    index.rst
     QubeSpec_tutorial.rst
     Fitting.rst
     Spaxel_fitting.rst

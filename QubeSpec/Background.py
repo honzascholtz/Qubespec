@@ -29,7 +29,7 @@ def background_sub_spec_depricated(self, center, rad=0.6, manual_mask=[],smooth=
     mask_catch[:,:,:] = True
     header  = self.header
     #arc = np.round(1./(header['CD2_2']*3600))
-    arc = np.round(1./(header['CDELT2']*3600))
+    arc = np.abs(np.round(1./(header['CDELT2']*3600)))
 
     if len(manual_mask)==0:
         # This choose spaxel within certain radius. Then sets it to False since we dont mask those pixels

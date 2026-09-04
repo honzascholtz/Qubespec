@@ -1,11 +1,15 @@
 astropy
 corner
 numpy
-photoutils
+matplotlib
+photutils
 emcee
 multiprocess
 scipy
 brokenaxes
 tqdm
 numba
+networkx
+pyneb
+ipython
 sphinx_rtd_theme
