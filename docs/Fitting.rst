@@ -299,9 +299,9 @@ Fitting a custom model with ``general_model``
     imported) - if you have old notebooks calling ``optical.fitting_custom(...)``, port them to
     ``general_model`` below, or to ``fitting_general`` with a hand-written function as shown above.
 
-.. autoclass:: QubeSpec.Models.Custom_model.general_model
+.. autoclass:: QubeSpec.Models.general_model.general_model
 
-``general_model`` lives in ``QubeSpec.Models.Custom_model`` and is built from two dictionaries:
+``general_model`` lives in ``QubeSpec.Models.general_model`` and is built from two dictionaries:
 
 * ``components`` - one entry per emission line, plus an optional ``'continuum'`` entry describing
   the continuum shape.
@@ -338,7 +338,7 @@ broad HeII component sharing the same doublet:
 
 .. code:: ipython3
 
-    from QubeSpec.Models.Custom_model import general_model
+    from QubeSpec.Models.general_model import general_model
 
     components = {
         'HeII1640':       {'wave': 1640.420, 'z': 'z', 'fwhm': 'FWHM'},

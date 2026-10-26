@@ -24,7 +24,7 @@ setup(name='QubeSpec',
       author_email='honzascholtz@gmail.com',
       license='Other/Proprietary License',
       packages=["QubeSpec", "QubeSpec.detection", "QubeSpec.Dust", "QubeSpec.Fitting", "QubeSpec.Maps", "QubeSpec.Models",
-                "QubeSpec.Plotting","QubeSpec.Spaxel_fitting", "QubeSpec.Utils", "QubeSpec.Visualizations" ],
+                "QubeSpec.Plotting","QubeSpec.Spaxel_fitting", "QubeSpec.Utils", "QubeSpec.Visualizations", "QubeSpec.Voronoi" ],
       install_requires=[
         'astropy>=5.2.0',
         'ipython>7.31.0',

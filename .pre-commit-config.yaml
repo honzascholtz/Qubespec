@@ -1,0 +1,11 @@
+# See https://pre-commit.com for more information
+# To use: pip install pre-commit && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        args: ["--rcfile=.pylintrc"]

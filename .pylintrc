@@ -1,0 +1,58 @@
+[MAIN]
+# Python code to analyze
+ignore=build,dist,.git,__pycache__,.ipynb_checkpoints,docs,Tutorial
+ignore-patterns=^\.#
+
+# Use multiple processes to speed up Pylint
+jobs=0
+
+# Return non-zero exit code if any error (E) or fatal (F) messages are detected.
+fail-on=E,F
+
+# Score threshold under which the program will exit with error (0 means score alone won't fail unless fail-on triggers).
+fail-under=0
+
+[MESSAGES CONTROL]
+# Disable overly pedantic checks for scientific/astronomy code while keeping
+# bug detection, syntax errors, and important warnings active.
+disable=
+    raw-checker-failed,
+    bad-inline-option,
+    locally-disabled,
+    file-ignored,
+    suppressed-message,
+    useless-suppression,
+    deprecated-pragma,
+    use-symbolic-message-instead,
+    line-too-long,
+    too-many-lines,
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    too-many-instance-attributes,
+    too-few-public-methods,
+    invalid-name,
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    import-outside-toplevel,
+    trailing-whitespace,
+    trailing-newlines,
+    pointless-string-statement,
+    fixme
+
+[FORMAT]
+max-line-length=120
+
+[BASIC]
+# Good variable names commonly used in astronomy / mathematics
+good-names=i,j,k,x,y,z,f,v,w,c,e,h,ex,Run,_,mu,sig,FWHM,SNR,ID,N,Av,Ha,Hb,OIII,NII,SII,bkg,wv,dx,dy,ra,dec
+
+[DESIGN]
+max-args=15
+max-locals=30
+max-returns=8
+max-branches=20
+max-statements=80
+max-attributes=30

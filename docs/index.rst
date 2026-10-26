@@ -18,7 +18,7 @@ QubeSpec takes you from a raw IFS data cube to science-ready emission-line maps:
   FeII template), Halpha+[OIII] jointly, or the full optical line list - each with narrow-only,
   outflow, and single/broad-line-region (BLR) variants. You can also fit any function of your own
   via ``fitting_general``, or describe a custom set of lines declaratively with
-  ``QubeSpec.Models.Custom_model.general_model`` (see :ref:`1D fitting <Fitting>`) instead of hand-writing one.
+  ``QubeSpec.Models.general_model.general_model`` (see :ref:`1D fitting <Fitting>`) instead of hand-writing one.
 * **Fit spaxel-by-spaxel** using the same models (or your own), in parallel across CPUs, then
   post-process the results into flux/velocity/FWHM maps (see :ref:`spaxel_fitting`).
 * **Inspect the results** interactively with the ``QubeSpec.Visualizations`` viewer.
