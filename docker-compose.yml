@@ -1,0 +1,8 @@
+services:
+  qubespec:
+    build: .
+    image: qubespec
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/work

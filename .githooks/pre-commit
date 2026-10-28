@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook to run pylint on staged Python files before each commit.
+#
+set -eo pipefail
+
+# ANSI color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Determine repository root
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# Get staged Python files that were Added, Copied, or Modified
+STAGED_PY_FILES=()
+while IFS= read -r file; do
+    if [[ -n "$file" && -f "$file" ]]; then
+        STAGED_PY_FILES+=("$file")
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+
+# If no Python files are staged, allow commit
+if [ ${#STAGED_PY_FILES[@]} -eq 0 ]; then
+    exit 0
+fi
+
+echo -e "${BLUE}==> [pre-commit] Checking staged Python files with pylint...${NC}"
+
+# Find pylint executable
+PYLINT_CMD=""
+if command -v pylint >/dev/null 2>&1; then
+    PYLINT_CMD="pylint"
+elif python3 -m pylint --version >/dev/null 2>&1; then
+    PYLINT_CMD="python3 -m pylint"
+elif python -m pylint --version >/dev/null 2>&1; then
+    PYLINT_CMD="python -m pylint"
+else
+    echo -e "${RED}[pre-commit] ERROR: pylint is not installed or not in PATH.${NC}"
+    echo -e "${YELLOW}Please install pylint: pip install pylint${NC}"
+    echo -e "To bypass this check temporarily, you can run: git commit --no-verify"
+    exit 1
+fi
+
+# Locate configuration file if present
+RCFILE_ARG=()
+if [ -f "$REPO_ROOT/.pylintrc" ]; then
+    RCFILE_ARG=("--rcfile=$REPO_ROOT/.pylintrc")
+fi
+
+# Run pylint on the staged files
+set +e
+$PYLINT_CMD "${RCFILE_ARG[@]}" "${STAGED_PY_FILES[@]}"
+PYLINT_EXIT_CODE=$?
+set -e
+
+if [ $PYLINT_EXIT_CODE -ne 0 ]; then
+    echo -e "${RED}==> [pre-commit] pylint detected issues (exit code $PYLINT_EXIT_CODE). Commit aborted!${NC}"
+    echo -e "${YELLOW}Fix the errors listed above and re-stage your changes before committing.${NC}"
+    echo -e "${YELLOW}(Emergency bypass: 'git commit --no-verify')${NC}"
+    exit 1
+else
+    echo -e "${GREEN}==> [pre-commit] pylint passed! Proceeding with commit.${NC}"
+    exit 0
+fi
